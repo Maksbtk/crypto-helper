@@ -1,0 +1,275 @@
+.podeli-header {
+    position: relative;
+    display: flex;
+
+    width: 100%;
+    height: calc(100vh - var(--belleyou-header));
+
+    margin-bottom: 120px;
+
+    background-image: url(../img/podeli/bg-podeli1920.jpg);
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: cover;
+
+    color: #ffffff;
+}
+.podeli-header::before {
+    content:'';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(26, 26, 26, 0) 0%, rgba(26, 26, 26, 0.15) 100%);
+}
+.podeli-header-inner {
+    position: relative;
+    width: 550px;
+    margin: auto auto 80px;
+    text-align: center;
+}
+.podeli-header h2 {
+    margin: 0;
+    font-size: 24px;
+    line-height: 29px;
+    color: #ffffff;
+}
+.podeli-header h3 {
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 400;
+    color: #ffffff;
+}
+.podeli-header .button {
+    width: 280px;
+    margin: 20px auto 0;
+}
+
+.podeli-content {
+    width: 1165px;
+    margin: 0 auto 120px;
+}
+.podeli-content h1 {
+    margin: 0 auto 20px;
+    text-align: center;
+    max-width: 490px;
+}
+.podeli-intro {
+    text-align: center;
+    max-width: 735px;
+    margin: 0 auto 40px;
+}
+.podeli-howitworks-box {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+
+    margin-bottom: 40px;
+}
+.podeli-howitworks-step {
+    width: 284px;
+    height: 457px;
+    padding: 20px;
+
+    background-color: rgba(31, 32, 32, 0.08);
+    background-repeat: no-repeat;
+    background-position: bottom center;
+    background-size: contain;
+}
+.podeli-howitworks-step:first-child {
+    background-image: url(../img/podeli/podeli-step1.png);
+}
+.podeli-howitworks-step:nth-child(2) {
+    background-image: url(../img/podeli/podeli-step2.png);
+}
+.podeli-howitworks-step:nth-child(3) {
+    background-image: url(../img/podeli/podeli-step3.png);
+}
+.podeli-howitworks-step:nth-child(4) {
+    background-image: url(../img/podeli/podeli-step4.png);
+}
+.podeli-howitworks-step__name {
+    margin:0 0 10px;
+    font-size: 18px;
+    line-height: 23px;    
+}
+.podeli-content .button-go-shopping {
+    width: 280px;
+    margin: 40px auto 120px;
+}
+.podeli-content h2 {
+    margin: 0 0 40px;
+    text-align: center;
+    font-size: 18px;
+    line-height: 23px;
+}
+.section__podeli-usability {
+    margin-bottom: 80px;
+}
+.podeli-usability-box {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+.podeli-usability-step {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    width: 320px;
+    padding-top: 58px;
+    margin-bottom: 40px;
+
+    background-repeat: no-repeat;
+    background-position: top center;
+
+    text-align: center;
+}
+.podeli-usability-step:first-child {
+    background-image: url(../img/podeli/podeli-us-step1.svg);
+}
+.podeli-usability-step:nth-child(2) {
+    background-image: url(../img/podeli/podeli-us-step2.svg);
+}
+.podeli-usability-step:nth-child(3) {
+    background-image: url(../img/podeli/podeli-us-step3.svg);
+}
+.podeli-usability-step:nth-child(4) {
+    background-image: url(../img/podeli/podeli-us-step4.svg);
+}
+.podeli-usability-step:nth-child(5) {
+    background-image: url(../img/podeli/podeli-us-step5.svg);
+}
+.podeli-usability-step:nth-child(6) {
+    background-image: url(../img/podeli/podeli-us-step6.svg);
+}
+.podeli-usability-step h3 {
+    margin: 0;
+    font-size: 14px;
+    line-height: 18px;
+    color: var(--font-color-blue);
+}
+
+.podeli-qa-box {
+    border-top: 1px solid var(--bg-color-main);
+}
+.podeli-qa-step {    
+    border-bottom: 1px solid var(--bg-color-main);
+}
+.podeli-qa-question {
+    position: relative;
+    margin: 0;   
+    padding: 20px 20px 20px 0; 
+
+    font-family: var(--font-family-header);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+    cursor: pointer;
+}
+.podeli-qa-question::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 20px;
+  width: 16px;
+  height: 16px;
+  background-image: url(../img/icn-arrow-down.svg);
+  background-size: 100%;
+  transition: transform 0.4s;
+}
+._opened::after {
+    transform: rotate(180deg);
+}
+.podeli-qa-answer {
+    display: none;
+    margin: 0 0 20px;
+}
+
+@media only screen and (max-width: 1439px) {
+    .podeli-header {
+        margin-bottom: 80px;
+    } 
+    .podeli-header-inner {
+        margin-bottom: 60px;
+    }
+    .podeli-content {
+        width: 984px;
+    }
+    .podeli-howitworks-step {
+        width: 238px;
+        height: 426px;
+    }
+    .podeli-content .button-go-shopping {
+        margin-bottom: 80px;
+    }
+    .section__podeli-usability {
+        margin-bottom: 40px;
+    }
+}
+@media only screen and (max-width: 1023px) {
+    .podeli-header {
+        /*height: calc(100vh - var(--belleyou-header-mobile_no-notif));*/
+        height: 150vw;
+        margin-top:-20px;   
+
+        margin-bottom: 60px;     
+    }
+    .podeli-header-inner {
+    
+    }
+	.podeli-content {
+        width: 100%;        
+        max-width: 500px;
+        margin: 0 auto 80px;
+        padding: 0 15px;
+    }
+    .podeli-content h1 {
+        text-align: left;
+    }
+    .podeli-intro {
+        text-align: left;
+    }    
+    .podeli-howitworks-box {
+        flex-direction: column;        
+        margin-bottom: 20px;
+        align-items: center;
+    }
+    .podeli-howitworks-step {
+        width: 100%;
+        max-width:384px;
+        height: 550px;
+        margin-bottom: 20px;
+    }
+    .podeli-content .button-go-shopping {
+        margin-top: 20px;
+    }
+    .podeli-content h2 {
+        text-align: left;
+    }
+    .podeli-usability-step {
+        width: 100%;
+        padding-top: 0;
+        padding-left: 58px;
+        background-position: top left;
+        min-height: 48px;
+        text-align: left;        
+    }
+    .podeli-content .button-go-shopping {
+        margin-bottom: 60px;
+    }
+    .section__podeli-usability {
+        margin-bottom: 20px;
+    }
+}
+
+@media only screen and (max-width: 500px) {
+    .podeli-header {
+        background-image: url(../img/podeli/bg-podeli414.jpg);
+    }
+}
+
+
+

@@ -1,0 +1,139 @@
+.page-catalog-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding: 0 40px 20px;
+}
+
+@media only screen and (max-width: 1439px) {
+    .page-catalog-header {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+@media only screen and (max-width: 1023px) {
+    .page-catalog-header {
+        padding: 0 15px;
+    }
+}
+.page-catalog-title {
+    margin: 0;
+    font-size: 18px;
+    line-height: 23px;
+}
+.page-catalog-title + .page-catalog-search-text {
+    margin-top: 10px;
+    margin-bottom: 0;
+}
+@media only screen and (max-width: 1023px) {
+    .page-catalog-search-text {
+        margin-bottom: 30px;
+    }
+}
+
+.page-catalog-search-text {
+    flex-shrink: 0;
+    flex-grow: 1;
+    width: 100%;
+    margin: 0 0 40px;
+    font-size: 14px;
+    line-height: 18px;
+    opacity: 0.9;
+}
+
+.page-catalog-navigation {
+    margin-bottom: 70px;
+}
+
+.proudct-banner-link {
+    font-weight: 500;
+    font-family: var(--font-family-header);
+    font-size: 14px;
+    line-height: 18px;
+    letter-spacing: 0.02em;
+}
+
+.page-catalog-navigation {
+    margin: 0 auto 80px;
+    width: 300px;
+}
+.catalog-show-more {
+    margin-bottom: 40px;
+}
+.button-show-more {
+    width: 100%;
+}
+
+.catalog-pagination {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+}
+.catalog-pagination-list {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+
+    margin: 0;
+    padding: 0;
+}
+.catalog-pagination-item a,
+.catalog-pagination-item span {
+    position: relative;
+    display: block;
+    width: 24px;
+    height: 24px;
+    margin: 0 5px;
+    border-bottom: 3px solid transparent;
+
+    text-decoration: none;
+    text-align: center;
+    font-family: var(--font-family-header);
+    font-size: 14px;
+    line-height: 18px;
+    letter-spacing: 0.02em;
+    color: var(--font-color);
+    opacity: 0.25;
+}
+.catalog-pagination-item._current a {
+    font-weight: 500;
+    opacity: 1;
+}
+.catalog-pagination-item._current a::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    left: 0;
+    bottom: -3px;
+    height: 3px;
+    border-radius: 3px;
+    background-color: var(--bg-color-main__extra);
+}
+
+.catalog-pagination__button {
+    display: block;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: transparent;
+    border: none;
+
+    opacity: 1;
+    cursor: pointer;
+}
+.catalog-pagination__button.button-prev {
+    background-image: url(../../../../../belleyou/img/icn-arrow-left.svg);
+}
+
+.catalog-pagination__button.button-next {
+    background-image: url(../../../../../belleyou/img/icn-arrow-right_thick.svg);
+}
+.catalog-pagination__button.button-disabled {
+    opacity: 0.25;
+    cursor: default;
+}

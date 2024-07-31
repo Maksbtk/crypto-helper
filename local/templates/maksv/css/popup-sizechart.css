@@ -1,0 +1,202 @@
+.in-popup-sizechart {
+	padding-top: 260px;
+	background-position: center top;
+	background-repeat: no-repeat;
+	background-size: contain;
+}
+
+.in-popup-sizechart .h3 {
+	margin: 0 0 20px;
+	font-size: 14px;
+	line-height: 18px;
+}
+.sizechart-table-wrapper {
+	width: 100%;
+	overflow-x: auto;
+	/*scrollbar-width: none;*/
+	padding-bottom: 20px; /* для горизонтального скролл-бара */
+}
+
+/* кастомный скролл */
+.sizechart-table-wrapper {
+	--sb-track-color: var(--bg-color-main);
+	--sb-thumb-color: var(--bg-color-main__extra);
+	--sb-size: 3px;
+
+	scrollbar-width: var(--sb-size);
+
+	scrollbar-color: var(--sb-thumb-color)
+	var(--sb-track-color);
+}
+
+.sizechart-table-wrapper::-webkit-scrollbar {
+	width: var(--sb-size);
+	height: var(--sb-size)
+}
+
+.sizechart-table-wrapper::-webkit-scrollbar-track {
+
+	background: var(--sb-track-color);
+	border-radius: var(--sb-size);
+}
+
+.sizechart-table-wrapper::-webkit-scrollbar-thumb {
+	width: var(--sb-size);
+	background: var(--sb-thumb-color);
+	border-radius: var(--sb-size);
+}
+
+.table-sizes {
+	position: relative;
+
+	border-collapse: collapse;
+	border-spacing: 0;
+	border: 1px solid var(--bg-color-main);
+
+	font-family: var(--font-family-header);
+	font-size: 12px;
+	line-height: 15.5px;
+	letter-spacing: 0.02em;
+}
+
+.table-sizes th {
+	background-color: var(--bg-color-main);
+	border-bottom: 1px solid #ffffff;
+	text-align: left;
+	font-weight: 500;
+}
+.table-sizes td{
+	border: 1px solid var(--bg-color-main);
+	text-align: center;
+}
+.table-sizes th,
+.table-sizes td{
+	width: 100px;
+	height: 46px;
+	vertical-align: middle;
+	padding: 10px;
+}
+.table-sizes tr:last-child th {
+	border-bottom-color: var(--bg-color-main);
+}
+
+.in-popup-sizechart.clothes {
+	background-image: url(../img/popup-sizechart/size-1.jpg);
+}
+.in-popup-sizechart.socks {
+	background-image: url(../img/popup-sizechart/size-2.jpg);
+}
+.in-popup-sizechart.body {
+	background-image: url(../img/popup-sizechart/size-3.jpg);
+}
+.in-popup-sizechart.invisible {
+	background-image: url(../img/popup-sizechart/size-4.jpg);
+}
+
+.table-sizes-clothes {
+	width: 1010px;
+}
+.table-sizes-clothes tr:first-child,
+.table-sizes-clothes tr:nth-child(2) {
+	font-weight: 500;
+}
+.table-sizes-socks,
+.table-sizes-pants {
+	width: 100%;
+	margin-bottom: 20px;
+}
+.table-sizes-socks tr:first-child,
+.table-sizes-socks tr:nth-child(2) {
+	font-weight: 500;
+}
+.table-sizes-pants tr:first-child {
+	font-weight: 500;
+}
+.table-sizes-body {
+	width: 100%;
+}
+.table-sizes-body tr:first-child,
+.table-sizes-body tr:nth-child(2) {
+	font-weight: 500;
+}
+.table-sizes-invisible {
+	width: 100%;
+}
+.table-sizes-invisible tr:first-child,
+.table-sizes-invisible tr:nth-child(2) {
+	font-weight: 500;
+}
+
+.table-sizes-clothes-short {
+	width: 100%;
+}
+
+
+.table-sizes tbody th {
+	position: -webkit-sticky; /* for Safari */
+	position: sticky;
+	left: 0;
+	top: 0;
+}
+.table-sizes tbody th:after {
+	content: '';
+	display: block;
+	position: absolute;
+	bottom: 0;
+	width: 100%;
+	left: 0;
+	height: 1px;
+	background-color: #fff;
+	border: none;
+}
+.table-sizes tbody tr:last-child th:after {
+	display: none;
+}
+
+.table-sizes-clothes-man {
+	width: 580px;
+}
+.table-sizes-clothes-man tbody th {
+	width: 120px;
+}
+.table-sizes-pants-man {
+	width: 1010px;
+}
+.table-sizes-pants-man tbody th {
+	width: 120px;
+}
+
+.in-popup-sizechart.clothes-man {
+	background-image: url(../img/popup-sizechart/size-6.jpg);
+}
+.in-popup-sizechart.pants-man {
+	background-image: url(../img/popup-sizechart/size-7.jpg);
+}
+.in-popup-sizechart.socks-man {
+	background-image: url(../img/popup-sizechart/size-5.jpg);
+	background-size: contain;
+}
+.in-popup-sizechart.pregnant {
+	background-image: url(../img/popup-sizechart/size-8.jpg);
+	background-size: contain;
+}
+
+
+@media only screen and (max-width: 1023px) {
+	.in-popup-sizechart {
+		padding-top: 220px;
+		background-size: auto 200px;
+	}
+	.in-popup-sizechart.clothes {
+		background-image: url(../img/popup-sizechart/size-1-mobile.jpg);
+	}
+	.in-popup-sizechart.socks {
+		background-image: url(../img/popup-sizechart/size-2-mobile.jpg);
+	}
+	.in-popup-sizechart.body {
+		background-image: url(../img/popup-sizechart/size-3-mobile.jpg);
+	}
+	.in-popup-sizechart.invisible {
+		background-image: url(../img/popup-sizechart/size-4-mobile.jpg);
+	}
+}

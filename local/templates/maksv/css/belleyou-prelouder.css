@@ -1,0 +1,22 @@
+.preloader-body {
+    display: block;
+
+    position: fixed;
+    top: 0;left: 0;
+    right: 0;bottom: 0;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+
+    z-index: 110000000;
+}
+
+.preloader-inner {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+}
+.spinner {
+    margin: auto;
+    width: 48px;
+    height: 48px;
+}

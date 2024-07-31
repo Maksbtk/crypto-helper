@@ -1,0 +1,174 @@
+.delivery-intro {
+	margin-bottom: 40px;
+}
+.delivery-intro h4 {
+	margin: 0 0 10px;
+}
+.delivery-intro p {
+	margin: 0 0 15px;
+}
+.delivery-choose-place {
+	margin-bottom: 40px;
+}
+.delivery-place-title {
+	margin: 0 0 10px;
+}
+.button-delivery-place {
+	display: block;
+	min-width: 343px;
+	padding: 15px 45px 15px 15px;
+	background-color: transparent;
+	border: 1px solid var(--bg-color-main);
+	border-radius: 4px;	
+	background-image: url(../img/icn-arrow-right.svg);
+	background-repeat: no-repeat;
+	background-position: 96% center;
+	background-size: 16px;
+
+	cursor: pointer;
+	text-align: left;
+}
+
+.label-delivery-place {
+	position: relative;
+	display: block;
+	width: 100%;
+	padding: 15px 45px 15px 15px;
+	background-color: transparent;
+	border: 1px solid var(--bg-color-main);
+	border-radius: 4px;	
+	margin-bottom: 15px;
+	
+	cursor: pointer;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+}
+.input-delivery-place {
+	background-color: transparent;
+	border: none;
+	padding: 0;
+	border: none;
+}
+.clear-input-delivery-place {
+	position: absolute;
+	right: 15px;
+	top: 14px;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	margin: 0;
+
+	border: none;
+	background-color: transparent;
+	background-image: url(../img/icn-close.svg);
+	background-size: 100%;
+	background-repeat: no-repeat;
+
+	text-indent: -9999px;	
+}
+.delivery-places-list {
+	margin: 0;
+	padding: 0;
+}
+.delivery-place {
+	padding: 7.5px 0;
+	font-size: 16px;
+	line-height: 21px;
+	cursor: pointer;
+}
+
+.delivery-options {
+	margin-bottom: 40px;
+}
+.delivery-service {
+	padding-bottom: 20px;
+	margin-bottom: 40px;
+	border-bottom: 1px solid var(--bg-color-main);	
+}
+.delivery-service-name {
+	display: block;
+	margin-bottom: 20px;
+	width: 200px;
+	height: 42px;
+
+	background-position: 0 0;
+	background-repeat: no-repeat;	
+}
+.delivery-service-name__dpd {
+	background-image: url(../img/delivery/icn-delivery-dpd.svg);
+}
+.delivery-service-name__boxberry {
+	background-image: url(../img/delivery/icn-delivery-boxberry.svg);
+}
+.delivery-service-name__sdek {
+	background-image: url(../img/delivery/icn-delivery-sdek.svg);
+}
+.delivery-service-name__post {
+	background-image: url(../img/delivery/icn-delivery-post.svg);
+}
+.delivery-service-name__5post {
+	background-image: url(../img/delivery/icn-delivery-5post.svg);
+}
+.delivery-service-name__kce {
+	background-image: url(../img/delivery/icn-delivery-kce.svg);
+}
+
+.delivery-types {
+	display: flex;
+	flex-wrap: wrap;
+
+	margin: 0;
+	padding: 0;	
+}
+.delivery-type {
+	width: 50%;
+	margin-bottom: 20px;
+}
+.delivery-type-express {
+	margin-right: 50%;
+}
+
+.delivery-type-name {
+	margin: 0 0 5px;
+	text-transform: uppercase;
+	padding-left: 23px;
+
+	background-repeat: no-repeat;
+	background-position: 0 0;
+}
+.delivery-type-name__express {
+	background-image: url(../img/icn-rocket.svg);	
+}
+.delivery-type-name__point {
+	background-image: url(../img/icn-parcel.svg);	
+}
+.delivery-type-name__courier {
+	background-image: url(../img/icn-truck.svg);	
+}
+.delivery-type-line {
+	margin: 0 0 5px 20px;
+	display: list-item;
+	list-style-type: disc;
+	list-style-position: outside;
+	opacity: 0.9;
+}
+.delivery-outro {
+	margin-bottom: 40px;
+}
+
+@media only screen and (max-width: 1439px) {
+	
+}
+@media only screen and (max-width: 1023px) {
+	.delivery-type-express {
+		margin-right: 0;
+	}
+	.delivery-type {
+		width: 100%;
+	}
+	.button-delivery-place {
+		width: 100%;
+		max-width: 400px;
+	}
+}

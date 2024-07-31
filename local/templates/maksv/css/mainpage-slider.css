@@ -1,0 +1,286 @@
+.mainpage-slider {
+    position: relative;
+
+    width: 100%;        /* размеры слайдера задаются тут */
+    height: 100vh;      /* во всех внутренних блоках самого слайдера размеры относительно этого родителя */
+    min-height: 930px;
+    margin-bottom: 120px;
+
+    overflow: hidden; /* чтобы при загрузке страницы не было видно другие слайды */
+}
+
+.home-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.home-slider .slick-list,
+.home-slider .slick-track {
+    height: 100%;
+}
+.home-slider.slick-initialized .slick-slide {
+    display: flex;
+}
+
+.home-slider-slide {
+    position: relative;
+
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    /*padding-bottom: 100px;*/
+    min-height: unset;
+
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+.home-slider-slide::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    background: linear-gradient(180deg, rgba(26, 26, 26, 0) 0%, rgba(26, 26, 26, 0.15) 100%);
+    z-index: 0;
+}
+
+.home-slider-content {
+    position: relative;
+
+    margin: auto auto 126px;
+    text-align: center;
+    color: #fff;
+    font-family: var(--font-family-header);
+
+    z-index: 1;
+}
+
+.home-slider-title {
+    margin: 0 0 5px;
+
+    font-size: 32px;
+    line-height: 35px;
+    letter-spacing: 0.02em;
+    color:  #ffffff;
+}
+.home-slider-date {
+    margin: 0 0 5px;
+
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 18px;
+    letter-spacing: 0.02em;
+}
+.home-slider-subtitle {
+    margin: 0 0 20px;
+    font-size: 16px;
+    line-height: 21px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+.home-slider-restrict {
+    margin: 0 0 20px;
+    font-family: var(--font-family);
+
+}
+.home-slider-button {
+    display: inline-block;
+    width: 280px;
+
+    border: 1px solid #ffffff;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.6);
+    padding: 14px 15px;
+    box-sizing: border-box;
+
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 18px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+.home-slider-button:hover {
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+/* кружки слайдера */
+.home-slider .slick-dots {
+    position: absolute;
+    width: 100%;
+    bottom: 40px;
+
+    padding: 0;
+    margin: 0;
+
+    list-style: none;
+}
+.home-slider .slick-dots {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+
+    margin: 0;
+    padding: 0;
+}
+.home-slider .slick-dots li {
+    position: relative;
+
+    width: 12px;
+    height: 12px;
+    margin: 0 5px;
+    padding: 2px;
+
+    /*border: 1px solid transparent; */
+    border-radius: 12px;
+
+    cursor: pointer;
+}
+.home-slider .slick-dots li button {
+    display: none;
+}
+.home-slider .slick-dots li::after {
+    content: '';
+    display: block;
+
+    width: 6px;
+    height: 6px;
+
+    border-radius: 6px;
+    background-color: #ffffff;
+    border: none;
+    opacity: 0.6;
+
+    font-size: 0;
+    line-height: 0;
+}
+.home-slider .slick-dots li:hover::after {
+    opacity: 1;
+}
+.home-slider .slick-dots li.slick-active {
+    border-color: #ffffff;
+}
+.home-slider .slick-dots li.slick-active::after{
+    opacity: 1;
+}
+
+.home-slider .slick-dots .slick-active .loader {
+    display: block;
+}
+
+/* анимация кружка слайдера */
+.loader {
+    display: none;
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    width: 14px;
+    height: 14px;
+}
+.progress {
+    stroke: #ffffff;
+    stroke-width:3px;
+
+    stroke-dasharray: 100;
+    stroke-dashoffset:0;
+    animation: fake-load 3s;
+
+    transform-origin: center;
+    transform: rotate(-90deg);
+}
+
+@keyframes fake-load {
+
+    from {
+        stroke-dashoffset:100;
+        stroke-width:3px;
+    }
+    to   {
+        stroke-dashoffset:0;
+        stroke-width:3px;
+    }
+}
+
+
+/* стрелки слайдера */
+.home-slider .slick-arrow {
+    position: absolute;
+    top: 0;
+    width: 54px;
+    height: 100%;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 24px;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-indent: -9999px;
+
+    z-index: 1;
+}
+.home-slider .slick-prev {
+    left: 0;
+    background-image: url(../img/icn-arrow-left_white.svg);
+    background-position: 30px center;
+}
+.home-slider .slick-next {
+    right: 0;
+    background-image: url(../img/icn-arrow-right_white.svg);
+    background-position: 0 center;
+}
+
+@media only screen and (max-width: 1919px) {
+    .mainpage-slider {
+        min-height: 720px;
+    }
+    .home-slider-content {
+        margin-bottom: 86px;
+    }
+    .home-slider .slick-dots {
+        bottom: 20px;
+    }
+}
+
+@media only screen and (max-width: 1439px) {
+    .mainpage-slider {
+        min-height: 600px;
+        margin-bottom: 80px;
+    }
+    .home-slider-content {
+        margin-bottom: 66px;
+    }
+    .home-slider .slick-dots {
+        bottom: 17px;
+    }
+    .home-slider-title {
+        font-size: 24px;
+        line-height: 28px;
+    }
+    .home-slider-subtitle {
+        font-size: 14px;
+        line-height: 18px;
+    }
+}
+
+@media only screen and (max-width: 1023px) {
+    .mainpage-slider {
+        height: 150vw; /* чтобы соблюдалась пропорция 2 к 3 */
+        min-height: 450px;
+
+        margin-bottom: 40px;
+    }
+
+    .home-slider-content {
+        padding: 0 15px;
+    }
+
+    .home-slider .slick-arrow {
+        display: none !important;
+    }
+}

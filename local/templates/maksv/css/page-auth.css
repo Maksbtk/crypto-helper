@@ -1,0 +1,19 @@
+.page-auth-container {
+	width: 540px;
+	margin: 0 auto 120px;
+}
+.page-auth-container .authbox {
+	width: 380px;
+}
+
+@media only screen and (max-width: 1023px) {
+	.page-auth-container {
+		width: 100%;
+		padding: 0 15px;
+		margin: 20px 0 80px;
+	}
+	.page-auth-container .authbox {
+		width: 100%;
+	}
+}
+

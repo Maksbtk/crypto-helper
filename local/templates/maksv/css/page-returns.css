@@ -1,0 +1,112 @@
+.page-returns-intro p{
+	margin: 0 0 20px;
+}
+
+.returns-section {
+	border-top: 1px solid var(--bg-color-main);
+	border-bottom: 1px solid var(--bg-color-main);
+}
+.returns-section:last-child {
+	margin-bottom: 40px;
+	border-top: none;
+}
+
+.returns-title {
+	position: relative;
+	padding: 20px 25px 20px 0;
+	margin: 0;	
+
+	cursor: pointer;
+}
+.returns-title::after {
+	content:'';
+	position: absolute;
+	right: 0;
+	top: 20px;
+	width: 16px;
+	height: 16px;
+
+	background-image: url(../img/icn-arrow-down.svg);
+	background-size: 100%;
+
+	transition: transform 0.4s;
+}
+
+._opened::after {
+	transform: rotate(180deg);
+}
+
+.returns-body {
+	display: none;
+}
+
+.returns-body h3 {
+	margin: 40px 0 20px;
+}
+.returns-body ul {
+	list-style: disc;
+	padding-left: 20px;
+}
+.returns-body ul li {
+	padding: 3px 0;
+}
+.returns-body a {
+	cursor: pointer;
+}
+.returns-body ul.list-number {
+	list-style: number;
+}
+
+.dropdown-loyalty .dropdown-option{
+	position: relative;
+
+	background-image: url(../img/icn-loyalty-status.svg);
+	background-repeat: no-repeat;
+	background-position: 97% center;
+	background-size: 24px;
+}
+.dropdown-loyalty .dropdown-option::before,
+.dropdown-loyalty .dropdown-option::after {
+	display: none;
+
+	content: '';
+	position: absolute;
+	right: 41px;
+	top: 50%;
+	margin-top: -12px;
+	margin-left: 3px;
+	width: 24px;
+	height: 24px;
+	background-image: url(../img/icn-loyalty-status.svg);
+	background-repeat: no-repeat;	
+}
+.dropdown-loyalty .dropdown-option::after {
+	right: 71px;
+}
+.dropdown-loyalty .dropdown-option[data-label="0"] {
+	background: none;
+}
+.dropdown-loyalty .dropdown-option[data-label="2"]:before {
+	display: block;
+}
+.dropdown-loyalty .dropdown-option[data-label="3"]:before,
+.dropdown-loyalty .dropdown-option[data-label="3"]:after {
+	display: block;
+}
+
+.returns-order-form .form-row {
+	margin-bottom: 10px;
+}
+.returns-order-form .button {
+	margin-top: 20px;
+}
+
+@media only screen and (max-width: 1439px) {
+	
+}
+@media only screen and (max-width: 1023px) {
+	.returns-section {
+		margin: 0 -15px;
+		padding: 0 15px;
+	}	
+}

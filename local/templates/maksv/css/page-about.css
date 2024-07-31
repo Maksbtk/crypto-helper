@@ -1,0 +1,76 @@
+.page-about-container {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+
+	margin-bottom: 120px;
+}
+
+.page-about-img {
+	order: 1;
+	flex-shrink: 0;
+	margin-left: 40px;
+}
+.page-about-text {
+	max-width: 761px;
+}
+.page-about-desctext {
+	margin-bottom: 40px;
+}
+.page-about-desctext p {
+	margin: 0 0 10px;
+}
+.page-about-legal-text ul{
+	padding-left: 20px;
+	margin: 0 0 20px;
+}
+.page-about-legal-text ul li{
+	padding-bottom: 3px;
+	list-style: disc;
+}
+
+@media only screen and (max-width: 1600px) {
+	.page-about-img img{
+		width: 695px;
+	}
+	.page-about-text {
+		max-width: 665px;
+	}
+}
+
+@media only screen and (max-width: 1439px) {
+	.page-about-img{
+		width: 50%;
+		margin-left: 20px;
+	}
+	.page-about-img img {
+		width: 100%;
+	}
+	.page-about-text {
+		width: 50%;
+		max-width: 50%;
+		flex-shrink: 0;
+	}
+}
+@media only screen and (max-width: 1023px) {
+	.page-about-container {
+		flex-direction: column;
+	}	
+	.page-about-header {
+		margin-bottom: 20px;
+	}
+	.page-about-img {
+		order: unset;
+		width: 100%;
+		margin-bottom: 10px;
+		margin-left: 0;
+	}
+	.page-about-img img {
+		max-width: 487px;
+	}
+	.page-about-text {
+		width: 100%;
+		max-width: 100%;
+		padding-right: 0;
+	}
+}

@@ -1,0 +1,82 @@
+body:not(.mainpage) .belleyou-content-main {
+    padding-top: var(--belleyou-header); /* на всех страницах кроме главной отступ для контента */
+}
+
+body.disable-scroll {
+    overflow: hidden; /* запрет прокрутки для всей страницы, например, когда открыт каталог */
+}
+
+.belleyou-content-layout {
+    padding: 0 40px;
+    min-height: 500px;
+}
+
+.belleyou-content__header {
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+.belleyou-content__header > h1 {
+    margin: 0;
+}
+
+.page-content-text {
+    margin-bottom: 120px;
+}
+
+.belleyou-breadcrumbs + .belleyou-content-layout {
+    margin-top: -20px;
+}
+
+.main-title {
+    text-align: center;
+    margin: 0;
+    /*
+    background-color: #F0F0F0;
+    */
+    font-size: 24px;
+    line-height: 28px;
+    color: #dddddd;
+    padding-bottom: 60px;
+}
+
+@media only screen and (max-width: 1439px) {
+    .belleyou-content-layout {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
+@media only screen and (max-width: 1023px) {
+    body:not(.mainpage) .belleyou-content-main {
+        padding-top: calc(var(--belleyou-header-mobile_no-notif) + 20px);
+    }
+
+    body:not(.mainpage) .belleyou-header-notification {
+        display: none;
+    }
+
+    .belleyou-content__header {
+        margin-top: 0;
+    }
+
+    .belleyou-breadcrumbs + .belleyou-content-layout {
+        margin-top: 0;
+    }
+
+    .belleyou-content-layout {
+        padding-left: 15px;
+        padding-right: 15px;
+
+        min-height: 100px;
+    }
+
+    .page-content-text {
+        margin-bottom: 80px;
+    }
+
+    .main-title {
+        font-size: 18px;
+        line-height: 24px;
+    }
+
+}

@@ -1,0 +1,117 @@
+.page-userguide-wrapper {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	position: relative;
+	margin-bottom: 80px;
+}
+
+.page-userguide-sidebar {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 350px;
+	padding: 0 40px 40px 0;
+	margin-right: 40px;
+}
+
+.page-userguide-archive {
+	position: sticky;
+	top: 100px;
+
+	margin: 0;
+	padding: 0;
+}
+.userguide-links {
+	margin: 0;
+	padding: 0;
+}
+.userguide-item {
+	font-family: var(--font-family-header);
+	text-transform: uppercase;
+	padding-bottom: 10px;
+}
+.userguide-item.current {
+	font-weight: 500;
+}
+.userguide-item a {
+	text-decoration: none;
+}
+
+.page-userguide-section {
+	width: 695px;
+	margin: 0 auto;
+	padding-top: 40px;
+}
+@media only screen and (max-width: 1700px) {
+
+	.page-userguide-wrapper {
+		justify-content: start;
+	}
+	.page-userguide-sidebar {
+		position: static;
+		width: 375px;
+	}
+	.page-userguide-section {
+		width: auto;
+		max-width: 655px;
+		margin: unset;
+	}
+}
+@media only screen and (max-width: 1439px) {
+	.page-userguide-sidebar {
+		width: 305px;
+	}
+}
+@media only screen and (max-width: 1023px) {
+	.page-userguide-wrapper {
+		flex-direction: column;
+		margin-bottom: 40px;
+	}
+	.page-userguide-sidebar {
+		width: 100%;
+		padding: 0;
+	}
+
+	.userguide-nav {
+		overflow-x: auto;
+		overflow-y: hidden;
+		scrollbar-width: none;
+		padding: 0 15px;
+		margin: 0 -15px;
+		border-bottom: 1px solid var(--bg-color-main);
+	}
+	.userguide-links {
+		display: flex;
+		flex-direction: row;
+		justify-content: start;
+		margin-bottom: 0;
+	}
+	.userguide-item {
+		padding-right: 20px;
+		flex-shrink: 0;
+		padding-bottom: 0;
+	}
+	.userguide-item a {
+		display: block;
+		padding-bottom: 11px;
+	}
+	.userguide-item.current a {
+		position: relative;
+	}
+	.userguide-item.current a::after {
+		content: '';
+		position: absolute;
+		width: 100%;
+		left: 0;
+		height: 3px;
+		bottom: 0;
+		background-color: var(--bg-color-main__extra);
+		border-radius: 2px;
+	}
+
+	.page-userguide-section .payment-text ul {
+		padding-left: 15px;
+	}
+}

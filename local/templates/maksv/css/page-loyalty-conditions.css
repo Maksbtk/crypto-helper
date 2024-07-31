@@ -1,0 +1,65 @@
+.page-loyalty-conditions {
+	margin-bottom: 80px;
+}
+.page-loyalty-conditions h2 {
+	font-size: 16px;
+	line-height: 150%;
+}
+.page-loyalty-conditions h3 {
+	margin: 25px 0;
+	font-size: 15px;
+	line-height: 150%;
+}
+.page-loyalty-conditions ul li {
+	list-style: disc;
+}
+
+.loyalty-conditions-table-wrapper {
+	width: 100%;
+	overflow-x: auto;		
+}
+
+
+.loyalty-conditions-table {
+	width: 100%;	
+	border-collapse: collapse;
+
+	margin: 40px 0;
+}
+.loyalty-conditions-table td,
+.loyalty-conditions-table th{
+	border: 1px solid #000;
+	padding: 15px;
+}
+.loyalty-conditions-table th {
+	font-weight: 700;
+}
+.page-loyalty-conditions .huge-text {
+	font-size: 20px;
+	line-height: 150%;
+	font-weight: 700;
+	text-align: center;
+}
+
+@media only screen and (max-width: 1023px) {
+	.page-about-container {
+		flex-direction: column;
+	}	
+	.page-about-header {
+		margin-bottom: 20px;
+	}
+	.page-about-img {
+		order: unset;
+		width: 100%;
+		margin-bottom: 10px;
+		margin-left: 0;
+	}
+	.page-about-img img {
+		max-width: 487px;
+	}
+	.page-about-text {
+		width: 100%;
+		max-width: 100%;
+		padding-right: 0;
+	}
+}

@@ -1,0 +1,241 @@
+.page-feedback-wrapper {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	position: relative;
+	margin-bottom: 120px;
+	margin-top: 40px;
+}
+
+.page-feedback-sidebar {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 313px;
+	margin-right: 40px;
+}
+.page-feedback-sidebar .belleyou-content__header {
+	margin-top: 0;
+	margin-bottom: 20px;
+}
+
+.page-feedback-section {
+	width: 695px;
+	margin: 0 auto;
+}
+
+.feedback-total-box {
+	position: sticky;
+	top: 100px;
+	
+	margin: 0;
+	padding: 0;
+}
+.feedback-total-box h4 {
+	margin: 0 0 10px;
+}
+.feedback-total-box p {
+	margin: 0 0 10px;
+}
+p.feedback-total {
+	margin-top: 20px;
+	font-family: var(--font-family-header);
+	font-weight: 500;
+	font-size: 24px;
+	line-height: 29px;
+	letter-spacing: 0.02em;
+	color: var(--bg-color-main__extra);
+}
+
+.review-item {
+	position: relative;
+
+	border: 1px solid var(--bg-color-main);
+	border-radius: 4px;
+	padding: 15px;
+	margin-bottom: 20px;
+}
+.review-user-name {
+	margin: 0 0 10px;
+
+	font-size: 14px;
+	line-height: 18px;
+	text-transform: uppercase;
+}
+.review-date {
+	position: absolute;
+	right: 15px;
+	top: 15px;
+	opacity: 0.5;
+}
+.review-user-rating {
+	margin: 0 0 20px;
+	color: var(--font-color-blue);
+}
+.review-text p {
+	margin: 20px 0;
+}
+.review-answer-link {
+	position: relative;
+	display: block;
+	padding-right: 23px;
+	width: max-content;
+
+    cursor: pointer;
+    text-decoration: none;
+}
+.review-answer-link::after {
+	content: '';
+	position: absolute;
+	right: 0;
+	top: -1px;
+
+	width: 18px;
+	height: 18px;
+	background-image: url(../img/icn-arrow-down.svg);
+    background-position: right center;
+    background-repeat: no-repeat;
+
+    transition: transform 0.3s ease;
+}
+.review-answer {
+	display: none;
+
+	background-color: var(--bg-color-main);
+	border-radius: 4px;
+	padding: 15px;
+}
+.review-answer p{
+	margin: 0;
+}
+
+._answer-opened::after{
+	transform: rotate(-180deg);
+}
+._answer-opened + .review-answer{
+	display: block;
+}
+
+.page-feedback-wrapper .button {
+	width: 300px;
+	margin-top: 20px;
+}
+
+
+/* форма ОСТАВИТЬ ОТЗЫВ (в попапе) */
+
+.review-form {
+
+}
+.scores-list {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	gap:10px;
+
+	padding: 0;
+	margin: 0 0 10px;
+}
+.score-item {
+	position: relative;
+	flex-grow: 1;
+
+	width: 25%;
+	padding: 14px;
+	border: 1px solid var(--bg-color-main);
+	border-radius: 4px;
+
+	text-align: center;
+	font-family: var(--font-family-header);
+	font-weight: 500;
+	font-size: 10px;
+	line-height: 13px;
+	letter-spacing: 0.02em;
+	cursor: pointer;
+}
+.score-item:hover {
+	border-color: var(--bg-color-main__extra);
+}
+.score-item._selected {
+	background-color: var(--bg-color-main);
+}
+
+.review-form-subtitle {
+	margin: 0 0 10px;
+}
+.review-form .form-fieldset {
+	margin-bottom: 20px;
+}
+.review-form .form-input {
+	margin-bottom: 10px;
+}
+.review-form .form-fieldset-footer {
+	margin-top: 40px;
+}
+
+.fieldset-review-text {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+}
+.fieldset-review-text .form-textarea {
+	width: 100%;
+	height: 120px;
+	flex-shrink: 0;
+}
+.review-text-counter {
+	font-size: 12px;
+	line-height: 15px;
+	opacity: 0.5;
+}
+p.review-user-agreement {
+	text-align: center;
+	margin-top: 10px;
+	font-size: 12px;
+}
+
+
+@media only screen and (max-width: 1439px) {
+
+	.page-feedback-wrapper {
+		justify-content: start;
+	}
+	.page-feedback-sidebar {
+		position: static;
+		width: 330px;
+	}
+	.page-feedback-section {
+		margin: unset;		
+		width: 622px;
+	}
+}
+@media only screen and (max-width: 1200px) {
+	.page-feedback-wrapper {
+		justify-content: space-between;
+	}
+}
+@media only screen and (max-width: 1023px) {
+	.page-feedback-wrapper {
+		flex-direction: column;
+		margin-bottom: 80px;
+		margin-top: 0;
+	}
+	.page-feedback-sidebar {
+		width: 100%;
+		padding: 0;
+		margin-bottom: 40px;
+	}
+	.feedback-total-box {
+		position: static;
+	}
+	.page-feedback-section {
+		width: 100%;
+		max-width: 760px;
+	}	
+	.page-feedback-wrapper .button {
+		width: 100%;
+		max-width: 400px;
+	}
+
+}

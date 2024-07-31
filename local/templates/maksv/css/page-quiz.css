@@ -1,0 +1,248 @@
+.page-quiz-img {
+	width: 100%;
+	margin-bottom: 40px;
+}
+.page-quiz-content {
+	width: 695px;
+	margin: 0 auto 65px;
+}
+.page-quiz-content h1 {
+	margin: 0 0 10px;
+}
+.survey__intro {
+	margin-bottom: 40px;
+}
+.survey__intro p {
+	margin: 0;
+}
+
+.survey-form__item {
+	margin-bottom: 40px;
+}
+
+.survey-form__question {
+	margin: 0 0 20px;
+
+	font-family: var(--font-family-header);
+	text-transform: uppercase;
+	font-weight: 500;
+}
+
+.select-container {
+	width: 342px;
+	margin-bottom: 20px;
+}
+
+.custom-select {
+	-webkit-appearance: none;
+	-moz-appearance: none;	
+
+	width: 100%;
+	padding: 15px;
+
+	border: 1px solid var(--bg-color-main);
+	border-radius: 4px;
+
+	background-color: #ffffff;
+	background-image: url(../img/icn-arrow-down.svg);
+	background-repeat: no-repeat;
+	background-position: 96% 12px;
+	background-size: 20px;
+}
+
+.city_list{
+	margin: 0 0 10px;
+
+	font-family: var(--font-family-header);
+	font-weight: 500;
+	letter-spacing: 0.01em;
+}
+
+.recommendation-rating {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.recommendation-rating__list {
+	width: 420px;
+	flex-shrink: 0;
+	flex-grow: 0;
+
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;	
+}
+
+.rating-radio .label-radio {
+	display: block;
+	width: 24px;
+	padding-left: 0;
+	padding-top: 34px;
+}
+.input-radio:checked + label::after {
+	top: 4px;
+	margin-top: 0;
+}
+
+.rating-point-wrap {
+	display: flex;
+	flex-direction: column;
+}
+
+.rating-point-wrap label:first-child {
+	display: block;
+	border: 1px solid var(--bg-color-main__extra);
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+
+	margin-bottom: 10px;
+}
+
+.rating-point-wrap input {	
+	width: 22px;
+	height: 22px;
+	border: 4px solid white;
+	border-radius: 50%;
+}
+.rating-point-wrap input:checked {
+	background-color: var(--bg-color-main__extra);
+}
+
+.recommendation-rating__list {
+	text-align: center;
+	font-family: var(--font-family-header);
+	font-weight: 500;
+}
+
+.survey-form__answer .form-input,
+.survey-form__answer .form-textarea {
+	font-size: 16px;
+}
+
+.survey-contact-row {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+}
+.survey-contact-row .form-input {
+	width: 342px;
+}
+.survey-form__submit-box {
+	width: 342px;
+}
+.survey-form__submit-button {
+	width: 100%;
+}
+.survey-form__agreement {
+	font-size: 12px;
+	line-height: 130%;
+}
+
+.survey-form__answer .form-row-checkbox {
+	margin-top: 20px;
+}
+.checkbox-point-wrap {
+	position: relative;
+
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+.checkbox-point-wrap input{
+	width: 22px;
+	height: 22px;
+	border: 1px solid var(--bg-color-main);
+	border-radius: 2px;
+	margin-right: 10px;
+}
+.checkbox-point-wrap input:checked{
+	background-color: var(--bg-color-main);
+}
+.checkbox-point-wrap input:checked + label::before {
+	content:'';
+	position: absolute;
+	left: 1px;
+	top: 1px;
+	width: 20px;
+	height: 20px;
+
+	background-image: url(../img/icn-check.svg);
+  	background-repeat: no-repeat;
+  	background-position: center;
+  	background-size: 12px;
+}
+
+
+/* попап */
+
+.popup-survey-sent .popup-header{
+	margin: -40px -40px 40px;
+	height: 220px;
+
+	background-image: url(../img/survey-thanks.jpg);
+	background-repeat: no-repeat;
+	background-position: top center;
+	background-size: cover;
+}
+.popup-survey-sent .button-close-popup {
+	top: 20px;
+	right: 20px;
+}
+.popup-survey-sent h1 {
+	margin: 0 0 10px;
+	text-align: center;
+}
+.popup-survey-sent p {
+	margin: 0 0 25px;
+	text-align: center;
+}
+.popup-survey-sent .button {
+	width: 311px;
+	margin: 0 auto;
+}
+
+@media only screen and (max-width: 760px) {
+	.page-quiz-container {
+		margin-top: -20px;
+	}	
+	.page-quiz-content {
+		width: 100%;
+		max-width: 500px;
+		padding: 0 15px;
+	}
+	.select-container {
+		width: 100%;
+	}
+	.recommendation-rating__list {
+		width: 100%;
+		margin-bottom: 10px;
+
+		order: -1;
+	}
+	.survey-contact-row {
+		flex-direction: column;
+	}
+	.survey-contact-row .form-input {
+		width: 100%;
+		margin-bottom: 10px;
+	}
+	.survey-form__submit-box {
+		width: 100%;
+	}
+	.survey-form__agreement {
+		text-align: center;
+	}
+
+	.popup-survey-sent .popup-header{
+		height: 215px;
+		margin: -20px -15px 20px;
+	}
+	.popup-survey-sent .button {
+		width: 100%;
+	}
+
+}

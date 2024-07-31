@@ -1,0 +1,161 @@
+.page-shops-layout {
+    display: flex;
+    min-height: 500px;
+}
+
+.shops-list-bar {
+    width: 687px;
+    padding: 40px;
+}
+
+.shops-map-bar {
+    position: relative;
+}
+.sticky-map {
+    position: sticky;
+    top: var(--belleyou-header-no-notif);
+}
+
+.page-shops-title {
+    margin: 0 0 20px;
+}
+
+.shops-navigation {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+
+    margin-bottom: 40px;
+}
+.shops-menu-mobile {
+    display: none;
+    padding-top: 12px;
+}
+.shops-menu-mobile-item {
+    width: 24px;
+    height: 24px;
+    margin-left: 20px;
+
+    opacity: 0.5;
+    cursor: pointer;
+}
+.shops-menu-mobile-item.active {
+    opacity: 1;
+}
+
+.dropdown-shops-city {
+    width: 100%;
+}
+.shops-list {
+    margin: 0;
+    padding: 0;
+}
+.shop-item {
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--bg-color-main);
+}
+.shop-link {
+    display: block;
+
+    background-image: url(../img/icn-arrow-right.svg);
+    background-repeat: no-repeat;
+    background-position: top right;
+    background-size: 16px;
+
+    text-decoration: none;
+}
+.shop-name {
+    margin: 0 0 10px;
+    font-size: 14px;
+    line-height: 18px;
+    letter-spacing: 0.01em;
+    text-transform: none;
+}
+.shop-phone {
+    margin: 0 0 10px;
+    text-decoration: underline;
+}
+.shop-address {
+    margin-bottom: 10px;
+    opacity: 0.7;
+}
+.shop-address p {
+    margin: 0 0 5px;
+}
+.shop-open-hours {
+    opacity: 0.7;
+}
+.shop-open-hours p {
+    margin: 0 0 5px;
+}
+
+.shop-open {
+    display: none;
+}
+.shop-open .shop-name {
+    font-size: 18px;
+    line-height: 23px;
+    text-transform: uppercase;
+}
+.link-back-to-shopslist {
+    display: block;
+    margin-bottom: 20px;
+    padding-left: 25px;
+
+    background-image: url(../img/icn-arrow-left.svg);
+    background-repeat: no-repeat;
+    background-position: left center;
+}
+
+@media only screen and (max-width: 1439px) {
+    .shops-list-bar {
+        padding: 0 20px;
+    }
+}
+@media only screen and (max-width: 1023px) {
+    .page-shops-layout {
+        min-height: unset;
+        flex-direction: column;
+    }
+    .shops-list-bar {
+        padding: 0 15px;
+        width: 100%;
+    }
+
+    .shops-content {
+        display: none;
+    }
+    .shops-list {
+        display: block;
+    }
+
+    .shop-open {
+        margin-bottom: 60px;
+    }
+}
+
+.sticky-map {
+    height: 100%;
+    max-height: 725px;
+    width: 1000px;
+}
+@media only screen and (max-width: 1023px) {
+    .shops-map-bar{
+        width:100%;
+        overflow: hidden;
+    }
+    .sticky-map {
+        height: 500px;
+        width: 100%;
+    }
+
+    .shops-menu-mobile {
+        display: flex;
+    }
+}
+.bx-yandex-view-layout, .bx-yandex-view-map {
+    height: 100%;
+}
+
+

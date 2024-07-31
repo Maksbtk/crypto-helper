@@ -1,0 +1,190 @@
+.authbox {
+	width: 460px;
+	margin: 0 auto;
+
+	text-align: center;
+}
+.authbox-title {
+	margin: 0 auto 40px;
+	font-size: 18px;
+	line-height: 23px;
+}
+
+.authbox .form-input {
+	text-align: center;
+}
+.auth-email-link {
+	display: block;
+	width: max-content;
+	margin: 40px auto;
+			
+	cursor: pointer;
+}
+.authbox-go-register {
+	border-top: 1px solid var(--bg-color-main);
+	padding-top: 40px;
+	text-align: center;
+}
+.authbox-go-register p {
+	margin: 0 0 20px;
+}
+.button-go-register {
+	width: 100%;
+}
+.auth-phone-input-code-text {
+	margin-bottom: 20px;
+}
+.auth-phone-input-code-text p {
+	margin: 0;
+}
+.auth-phone-resend-code-link {
+	display: block;
+	width: max-content;
+	margin: 40px auto;
+			
+	cursor: pointer;
+}
+.auth-email-forgetpass-link {
+	display: block;
+	width: max-content;
+	margin: 20px auto;
+			
+	cursor: pointer;
+}
+.auth-forgetpass-text {
+	margin: 0 0 40px;
+}
+.auth-success-text {
+	margin: 0 0 40px;	
+}
+
+.authbox .message {
+	text-align: center;
+	margin: 5px 0 10px;
+	font-size: 12px;
+	line-height: 15px;	
+}
+.error-message {
+	display: none;
+	color: #E53737;
+}
+._error .form-input {
+	border-color: #E53737 !important; 
+}
+._error .error-message {
+	display: block;
+}
+.success-message {
+	display: none;
+	color: #669F48;
+}
+._success .form-input {
+	border-color: #77B656 !important; 
+}
+._success .success-message {
+	display: block;
+}
+
+.authbox-register {
+	text-align: left;
+}
+.authbox-register .form-input {
+	text-align: left;
+}
+.authbox-register .message {
+	text-align: left;
+}
+.authbox-register .registration-agreements {
+	padding: 20px 0;
+}
+
+.registration-agreements .label-checkbox{
+	font-size: 12px;
+	line-height: 15px;
+}
+
+.form-row-phone {
+	display: flex;	
+	position: relative;
+}
+
+.dropdown-phone-code .dropdown-select {
+	width: max-content;
+	margin-right: 10px;
+}
+.dropdown-phone-code .dropdown-select::after {	
+	width: 16px;
+	height: 16px;
+	top: 16px;
+	right: 10px;
+}
+.dropdown-select .flag {
+	display: inline-block;
+	width: 24px;
+	height: 18px;
+	background-position: 0 0;
+	background-repeat: no-repeat;
+	vertical-align: middle;
+	margin-right: 5px;
+}
+.flag[data-flag="1"] {
+	background-image: url(../img/flag/1.svg);
+}
+.flag[data-flag="2"] {
+	background-image: url(../img/flag/2.svg);
+}
+.flag[data-flag="3"] {
+	background-image: url(../img/flag/3.svg);
+}
+.flag[data-flag="4"] {
+	background-image: url(../img/flag/4.svg);
+}
+.dropdown-select span {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.authbox .form-row-phone .form-input {
+	text-align: left;
+}
+
+.authbox-changepass .form-row {
+	margin-bottom: 40px;
+}
+.authbox-changepass .form-input {
+	text-align: left;
+}
+.authbox-changepass .message {
+	text-align: left;
+	font-size: 14px;
+	line-height: 18px;
+	opacity: 0.75;
+}
+.authbox-changepass .form-row:nth-child(2) {
+	margin-bottom: 10px;
+}
+
+.authbox-password-recovery {
+	width: 380px;
+}
+
+@media only screen and (max-width: 1023px) {
+	.authbox {
+		width: 100%;
+		max-width: 420px;
+	}
+	.authbox-changepass {
+		text-align: left;
+	}
+	.popup-vertical .authbox-title {
+		padding-right: 40px;
+		text-align: left;
+	}
+
+}
+@media only screen and (max-width: 413px) {
+	.popup-vertical .authbox-title {
+		font-size: 16px;
+		line-height: 19px;
+	}
+}

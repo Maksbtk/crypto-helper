@@ -1,0 +1,80 @@
+.mainpage-section-shops {
+	padding: 80px 0 120px;
+	background-color: #F0F0F0;
+}
+.mainpage-section-shops .h2{
+	margin: 0 0 20px;
+	font-size: 24px;
+	line-height: 28px;
+	letter-spacing: 0.02em;
+	text-align: center;
+}
+.section-shops__find-shop-link {
+	display: block;
+	margin: 0 auto 40px;
+	width: max-content;
+
+	font-family: var(--font-family-header);
+	letter-spacing: 0.01em;
+	text-align: center;
+	font-weight: 500;
+}
+.our-shops-list {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+	padding-bottom: 20px; /* для горизонтального скролл-бара */
+
+	margin: 0;
+	padding: 0;
+}
+.our-shops-list .shop-frame {
+	margin: 0 20px;
+}
+.our-shops-list .shop-frame img{
+	width: 100%;
+}
+
+.our-shops-slider .slick-track {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+.our-shops-slider .slick-slide {
+	float: none;
+
+}
+
+@media only screen and (max-width: 1479px) {
+	.mainpage-section-shops {
+		padding: 40px 0 80px
+	}
+}
+
+@media only screen and (max-width: 1023px) {
+	.mainpage-section-shops {
+		padding: 40px 0 80px;
+		margin-bottom: 0;
+	}
+	.our-shops-list {
+		/*height: 320px;*/
+	}
+	.our-shops-list .shop-frame{
+		margin: 0 5px;
+	}
+	.our-shops-list .shop-frame:nth-child(even) {
+		width: 300px;
+	}
+	.our-shops-list .shop-frame:nth-child(odd){
+		width: 240px;
+	}
+	.mainpage-section-shops .h2{
+		font-size: 18px;
+		line-height: 23px;
+	}
+}

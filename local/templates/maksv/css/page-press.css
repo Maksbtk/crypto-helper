@@ -1,0 +1,155 @@
+.page-press-wrapper {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	position: relative;
+	margin-bottom: 120px;
+	margin-top: 40px;
+}
+
+
+.page-press-sidebar {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 200px;
+	padding: 0 40px 40px 0;
+}
+
+.page-press-sidebar .belleyou-content__header {
+	margin-top: 0;
+}
+
+.page-press-section {
+	width: 695px;
+	margin: 0 auto;
+}
+.press-list {
+	padding: 0;
+	margin: 0 0 40px;
+}
+.press-item {
+	padding: 20px 0;
+	border-bottom: 1px solid var(--bg-color-main);
+}
+.press-item-link {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;	
+	align-items: center;
+
+	text-decoration: none;
+}
+.press-item img {
+	width: 156px;
+}
+.press-item-body {
+	width: 322px;
+}
+.page-press-section .button-secondary {
+	width: 300px;
+	margin: 40px 0 0;
+}
+.press-item h3 {
+	margin: 0 0 5px;
+}
+.press-item-date {
+	font-size: 12px;
+	line-height: 15px;
+
+	opacity: 0.9;
+}
+.page-press-archive {
+	position: sticky;
+	top: 100px;
+	
+	margin: 0;
+	padding: 0;
+}
+.page-press-archive-item {
+	font-family: var(--font-family-header);
+	padding-bottom: 10px;
+}
+.page-press-archive-item.current {
+	font-weight: 500;
+}
+.page-press-archive-item a {
+	text-decoration: none;
+}
+.press-item-pseudolink {
+	text-decoration: underline;
+
+}
+
+@media only screen and (max-width: 1439px) {
+	.page-press-sidebar {
+		position: static;
+		width: 25%;
+		padding-right: 0;
+	}
+	.page-press-section {
+		width: 75%;
+	}
+}
+@media only screen and (max-width: 1023px) {
+	.page-press-wrapper {
+		flex-direction: column;
+		margin-top: 0;
+	}
+	.page-press-sidebar {
+		padding-bottom: 20px;
+	}
+	.page-press-sidebar,
+	.page-press-section {
+		width: 100%;
+	}	
+	.page-press-archive {
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+
+		margin: 0 -15px;
+		padding-right: 0;
+		border-bottom: 1px solid var(--bg-color-main);
+	}
+	.page-press-archive-item {
+		position: relative;
+		margin: 0 10px;
+	}
+	.page-press-archive-item.current::after {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		height: 3px;
+		width: 100%;
+		border-radius: 2px;
+		background-color: var(--bg-color-main__extra);
+	}
+	.press-list {
+		margin-top: 0;
+	}
+}
+
+@media only screen and (max-width: 759px) {	
+	.press-item-link {
+		flex-direction: column;
+		align-items: start;
+	}
+	.press-item-body {
+		width: 100%;
+	}
+	.press-item-pseudolink {
+		display: none;
+	}
+	.press-item img {
+		margin-bottom: 20px;
+	}
+
+}
+
+
+
+
+

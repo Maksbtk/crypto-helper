@@ -1,0 +1,121 @@
+.mainpage-promotion-banner {
+	padding: 0 40px;
+	margin-bottom: 120px;
+}
+
+.mainpage-promotion-banner-inner {
+	position: relative;
+	padding-bottom: 48%;
+	overflow: hidden; /* если картинка не попадает в пропорции, чтобы не вылезала за карточку, а обрезалась */
+}
+.mainpage-promotion-banner-inner:after {
+	content: "";
+	position: absolute;
+	width: 100%;
+	left: 0;
+	top: 0;
+	height: 100%;
+	background: linear-gradient(180deg, rgba(26, 26, 26, 0) 0%, rgba(26, 26, 26, 0.15) 100%);
+
+	z-index: 2;
+}
+.mainpage-promotion-banner-img {
+	position: absolute;
+	width: 100%;
+	top: 0;
+	left: 0;
+
+	z-index: 1;
+}
+.mainpage-promotion-banner-content {
+	position: absolute;
+	bottom: 120px;
+	width: 100%;
+	left: 0;
+
+	text-align: center;
+	z-index: 3;
+}
+.mainpage-promotion-banner-name {
+	margin-top: 0;
+	margin-bottom: 5px;
+
+	font-size: 32px;
+	line-height: 35px;
+	letter-spacing: 0.02em;
+	color: #ffffff;
+}
+.mainpage-promotion-banner-desc {
+	margin: 0 0 20px;
+	font-family: var(--font-family-header);
+	font-size: 16px;
+	line-height: 21px;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: #ffffff;	
+}
+.mainpage-promotion-banner-button {
+	display: block;
+	margin: 0 auto;
+	padding: 15px;
+	width: 280px;
+	border: 1px solid #ffffff;
+	border-radius: 4px;
+	background-color: rgba(255, 255, 255, 0.6);
+
+	font-family: var(--font-family-header);
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 18px;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	text-decoration: none;
+	text-align: center;
+	color: var(--font-color);
+	cursor: pointer;
+}
+
+@media only screen and (max-width: 1919px) {
+	.mainpage-promotion-banner-content {
+		bottom: 80px;
+	}
+}
+
+@media only screen and (max-width: 1439px) {
+	.mainpage-promotion-banner {
+		padding: 0 20px;
+		margin-bottom: 80px;
+	}
+    .mainpage-promotion-banner-content {
+    	bottom: 60px;
+    }
+    .collection__product-banner {	
+		margin: 0 20px 40px;
+	}
+    .mainpage-promotion-banner-name {
+    	font-size: 24px;
+    	line-height: 29px;
+    }
+    .mainpage-promotion-banner-desc {
+    	font-size: 14px;
+    	line-height: 18px;
+    }
+}
+
+@media only screen and (max-width: 1023px) {	
+	.mainpage-promotion-banner {
+		padding: 0 15px;
+		margin-bottom: 60px;
+	}	
+	.collection__product-banner {
+		margin-right: 15px;
+		margin-left: 15px;
+	}	
+}
+
+@media only screen and (max-width: 760px) {
+
+	.mainpage-promotion-banner-inner {
+	  padding-bottom: 150%;
+	}
+}

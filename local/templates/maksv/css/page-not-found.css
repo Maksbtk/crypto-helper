@@ -1,0 +1,22 @@
+.belleyou-not-found-inner {
+	width: 320px;
+	margin: 215px auto;
+	text-align: center;
+}
+.belleyou-not-found-inner h1 {
+	font-size: 60px;
+	line-height: 110%;
+	margin: 0 0 10px;
+}
+.belleyou-not-found-inner p {
+	margin: 0 0 40px;
+}
+.belleyou-not-found-inner .button {
+	width: 100%;
+}
+
+@media only screen and (max-width: 1023px) {
+	.belleyou-not-found-inner {
+		margin: 200px auto;
+	}
+}
