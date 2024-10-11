@@ -4,6 +4,7 @@ robots.txt
 /ya-market
 
 .access.php
+/local/php_interface/include/maksv/classes/Keys.php
 
 # bitrix
 /devlogs

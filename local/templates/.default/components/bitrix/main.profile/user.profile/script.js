@@ -56,6 +56,10 @@ $(function() {
     //приравниваем email к логину перед сохранением данных
     $('body').on('submit', '#userPersonalDataForm', function (e) {
         $('input[name="LOGIN"]').val($('input[name="EMAIL"]').val());
+        
+      /*  let shift = 3;
+        $('input[name="UF_BYBIT_API_KEY"]').val(window.encryptMessage($('input[name="UF_BYBIT_API_KEY"]').val(), shift));
+        $('input[name="UF_BYBIT_SECRET_KEY"]').val(window.encryptMessage($('input[name="UF_BYBIT_SECRET_KEY"]').val(), shift));*/
     })
 
     //

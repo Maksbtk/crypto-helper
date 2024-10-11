@@ -4,8 +4,8 @@ use Bitrix\Main\Page\Asset;
 define('NEED_AUTH', true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
-$APPLICATION->SetPageProperty("title", "ЛК CH");
-$APPLICATION->SetTitle("Личные данные - Интернет-магазин belle you");
+$APPLICATION->SetPageProperty("title", "Личный кабинет CH ");
+$APPLICATION->SetTitle("Личный кабинет CH ");
 
 //стили форм авторизации
 Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/forms-auth.css");

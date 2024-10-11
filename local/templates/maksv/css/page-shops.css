@@ -13,7 +13,7 @@
 }
 .sticky-map {
     position: sticky;
-    top: var(--belleyou-header-no-notif);
+    top: var(--maksv-header-no-notif);
 }
 
 .page-shops-title {

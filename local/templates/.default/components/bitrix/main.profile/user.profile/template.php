@@ -52,6 +52,7 @@ Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/jquery.maskedinput.js");
                     <div class="form-row">
                         <a href="#" class="change-password-link" data-popup="popup-auth_changepass">Изменить пароль</a>
                     </div>
+
                 </fieldset>
 
                 <fieldset class="form-fieldset fieldset-user-name">
@@ -67,6 +68,28 @@ Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/jquery.maskedinput.js");
                     <div class="form-row">
                         <input id="fakeBirthday" class="form-input" type="date" placeholder="Дата рождения" value="<?=strtolower(FormatDate(/*"d.m.Y"*/"Y-m-d", MakeTimeStamp($arResult["arUser"]["PERSONAL_BIRTHDAY"]))) ?>" placeholder="дд.мм.гггг">
                         <input style="display: none;" type="text" name="PERSONAL_BIRTHDAY" placeholder="Дата рождения" value="<?=strtolower(FormatDate("d.m.Y", MakeTimeStamp($arResult["arUser"]["PERSONAL_BIRTHDAY"]))) ?>">
+                    </div>
+                </fieldset>
+
+                <div class="h3">Ключи для биржи bybit</div>
+                <fieldset class="form-fieldset fieldset-user-name">
+                    <?$shift = 3;?>
+                    <div class="form-row form-input-password-wrapper">
+                       <?/* <input class="form-input" type="password" name="UF_BYBIT_API_KEY" placeholder="Апи ключ" value="<?=decryptMessage($arResult['arUser']['UF_BYBIT_API_KEY'], $shift)?>">*/?>
+                        <input class="form-input" type="password" name="UF_BYBIT_API_KEY" placeholder="Апи ключ" value="<?=($arResult['arUser']['UF_BYBIT_API_KEY'])?>">
+                        <a class="password-control">
+                            <svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path stroke="#1F2020" stroke-linecap="round" stroke-linejoin="round" d="M3.333 3.333l13.334 13.334M13.75 13.963C12.623 14.57 11.349 15 10 15c-4.603 0-8.333-5-8.333-5s1.74-2.332 4.31-3.811m10.273 6.006C17.546 11.055 18.333 10 18.333 10S14.603 5 10 5c-.281 0-.56.019-.834.054M11.103 11.25A1.667 1.667 0 0 1 8.8 8.843"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16"><path stroke="#1F2020" stroke-linecap="round" stroke-linejoin="round" d="M8 12c3.682 0 6.667-4 6.667-4S11.682 4 8 4 1.333 8 1.333 8 4.318 12 8 12z"/><path stroke="#1F2020" stroke-linecap="round" stroke-linejoin="round" d="M8 9.333a1.333 1.333 0 1 0 0-2.666 1.333 1.333 0 0 0 0 2.666z"/></svg>
+                        </a>
+                    </div>
+
+                    <div class=" form-row form-input-password-wrapper">
+                       <?/* <input class="form-input" type="password" name="UF_BYBIT_SECRET_KEY" placeholder="Секретный ключ" value="<?=decryptMessage($arResult['arUser']['UF_BYBIT_SECRET_KEY'], $shift)?>">*/?>
+                        <input class="form-input" type="password" name="UF_BYBIT_SECRET_KEY" placeholder="Секретный ключ" value="<?=($arResult['arUser']['UF_BYBIT_SECRET_KEY'])?>">
+                        <a class="password-control">
+                            <svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path stroke="#1F2020" stroke-linecap="round" stroke-linejoin="round" d="M3.333 3.333l13.334 13.334M13.75 13.963C12.623 14.57 11.349 15 10 15c-4.603 0-8.333-5-8.333-5s1.74-2.332 4.31-3.811m10.273 6.006C17.546 11.055 18.333 10 18.333 10S14.603 5 10 5c-.281 0-.56.019-.834.054M11.103 11.25A1.667 1.667 0 0 1 8.8 8.843"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16"><path stroke="#1F2020" stroke-linecap="round" stroke-linejoin="round" d="M8 12c3.682 0 6.667-4 6.667-4S11.682 4 8 4 1.333 8 1.333 8 4.318 12 8 12z"/><path stroke="#1F2020" stroke-linecap="round" stroke-linejoin="round" d="M8 9.333a1.333 1.333 0 1 0 0-2.666 1.333 1.333 0 0 0 0 2.666z"/></svg>
+                        </a>
                     </div>
                 </fieldset>
 
@@ -91,7 +114,7 @@ Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/jquery.maskedinput.js");
 
                 </fieldset>
                 -->
-                
+                <p>Все ключи хранятся в зашифрованном виде</p>
                 <div class="form-row">
                     <button class="button form-button white-color-font" data-popup="popup-save-changes">Сохранить</button>
                     <input style="display: none;" id="save-form-inp" type="submit" value="Сохранить" />

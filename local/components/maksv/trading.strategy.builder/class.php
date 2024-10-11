@@ -44,7 +44,7 @@ class StrategyBuilderComponent extends CBitrixComponent implements Controllerabl
             $arParams["PROFIT_FILTER"] = true;
         else
             $arParams["PROFIT_FILTER"] = false;
-
+        
         return $arParams;
     }
 
@@ -52,29 +52,30 @@ class StrategyBuilderComponent extends CBitrixComponent implements Controllerabl
     public function updatebybitDataAction()
     {
         $res['success'] = false;
-
-        $symbolsAr = explode(',', $_REQUEST['symbols']);
+        $err = '';
+        $symbol = $_REQUEST['symbols'];
 
         $bybitApiOb = new \Maksv\Bybit();
         $bybitApiOb->openConnection();
-        $prices = [];
-        foreach ($symbolsAr as $key => $symbol) {
-            $price_data = $bybitApiOb->getSpotPrice($symbol);
-            $prices[$symbol] = floatval($price_data['result']['price']);
-           /* $prices[] = [
-                'symbol' => $symbol,
-                'price' => floatval($price_data['result']['price'])
-            ];*/
+
+        foreach ($this->arParams["OI_TIMEFRAMES"] as $timeframe) {
+            $openInterest = 0;
+            //$openInterestResp = $bybitApiOb->openInterest($symbolName, 'linear', $timeFrame, '2');
+            $openInterestResp = $bybitApiOb->openInterest($symbol, 'linear', $timeframe, '2');
+            if ($openInterestResp['result']['list'] && is_array($openInterestResp['result']['list']) && count($openInterestResp['result']['list']) >= 2) {
+                $lastInterest = $openInterestResp['result']['list'][0]['openInterest'];
+                $prevInterest = $openInterestResp['result']['list'][1]['openInterest'];
+                $openInterest = round(($lastInterest / ($prevInterest / 100)) - 100, 2);
+            } else {
+                $err
+            }
         }
-        $bybitApiOb->closeConnection();
 
-        $res['strategies'] = \Maksv\StrategyBuilder::findArbitrageOpportunities($prices, false) ?? [];
-        $res['timeMark'] = date("d.m.y H:i:s");
 
-        if ($res['strategies'])
+        if ($openInterest)
             $res['success'] = true;
         else
-            $res['message'] = 'По последней проверке не нашлось профитных стратегий, попробуйте позже';
+            $res['message'] = 'Контракт не найден!';
 
         return $res;
     }
@@ -95,7 +96,7 @@ class StrategyBuilderComponent extends CBitrixComponent implements Controllerabl
             $deph = $binanceOb->getDepth($symbol);
             if ($deph && $deph['bids'] && $deph['asks'])
             {
-                
+
                 $prices[$symbol] = [
                     'buyPrice' => floatval($deph['bids'][0][0]),
                     'sellPrice' => floatval($deph['asks'][0][0])

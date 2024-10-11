@@ -10,7 +10,8 @@ global $USER;
                 <form data-action="/ajax/setAvatar.php" id="update-user-info" enctype="multipart/form-data">
                     <input type="hidden" name="user-id" value="<?=$arParams['USER_ID']?>">
                     <input type="hidden" id="delete-user-photo" name="delete-photo" value="n">
-                    <div class="profile-user-picture <?if(!$arParams['USER_AVATAR']):?>_empty<?endif;?>">
+
+                    <div <?if (!$USER->IsAuthorized()):?>style="display: none;"<?endif;?> class="profile-user-picture <?if(!$arParams['USER_AVATAR']):?>_empty<?endif;?>">
                         <?if(!$arParams['USER_AVATAR']){?>
 
                             <div style="cursor: pointer;" class="upload-userpic-button"></div>
@@ -53,7 +54,7 @@ global $USER;
                     <?endforeach?>
                 </ul>
                 <?endif?>
-                <a href="/?logout=yes&<?=bitrix_sessid_get()?>" class="profile-nav-logout-link">Выйти</a>
+                <a <?if (!$USER->IsAuthorized()):?>style="display: none;"<?endif;?> href="/?logout=yes&<?=bitrix_sessid_get()?>" class="profile-nav-logout-link">Выйти</a>
             </nav>
         </div>
     </aside>

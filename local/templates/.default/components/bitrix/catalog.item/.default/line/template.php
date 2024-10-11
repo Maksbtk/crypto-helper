@@ -55,45 +55,7 @@ $userIsAuth = $USER->IsAuthorized();
 
 #$detailPageUrlWithOfferId = $item['DETAIL_PAGE_URL'].'?pid='.$item['OFFERS'][$pk]['ID'];
 
-###SALE DATA
-$show_sale = false;
-$show_presale = false;
-if(Settings::SALE == 1){
-    if(Settings::CLOSED_SALE == 1){
-        if($USER->isAuthorized()){
-            $show_sale = true;
-        }                  
-    }elseif(Settings::PRESALE == 1){
-        if($USER->isAuthorized()){
-            $show_presale = true;
-        }else{
-            $show_sale = true;    
-        }  
-    }
-    else{
-        $show_sale = true;
-    }                 
-}
 
-if($show_sale){
-    $kbSaleProdArray = Settings::SALE_PRODUCT_ARRAY;
-}elseif($show_presale){
-    $kbSaleProdArray = Settings::PRESALE_PRODUCT_ARRAY;    
-}
-
-if (($show_sale || $show_presale) && $kbSaleProdArray) {
-    $ids15 = ($kbSaleProdArray['15']) ? $kbSaleProdArray['15'] : [];
-    $ids20 = ($kbSaleProdArray['20']) ? $kbSaleProdArray['20'] : [];
-    $ids25 = ($kbSaleProdArray['25']) ? $kbSaleProdArray['25'] : [];
-    $ids30 = ($kbSaleProdArray['30']) ? $kbSaleProdArray['30'] : [];
-    $ids35 = ($kbSaleProdArray['35']) ? $kbSaleProdArray['35'] : [];
-    $ids40 = ($kbSaleProdArray['40']) ? $kbSaleProdArray['40'] : [];
-    $ids45 = ($kbSaleProdArray['45']) ? $kbSaleProdArray['45'] : [];
-    $ids50 = ($kbSaleProdArray['50']) ? $kbSaleProdArray['50'] : [];
-    $ids55 = ($kbSaleProdArray['55']) ? $kbSaleProdArray['55'] : [];
-    $ids60 = ($kbSaleProdArray['60']) ? $kbSaleProdArray['60'] : [];
-}
-##
 ?>
 
 <div class="product-media-wrapper">
@@ -118,20 +80,10 @@ if (($show_sale || $show_presale) && $kbSaleProdArray) {
     >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16"><path stroke="#A0BCD2" stroke-linecap="round" stroke-linejoin="round" d="M15.023.53c-2.047-.23-4.25.912-5.024 2.618C9.225 1.442 7 .301 4.976.53 2.28.823.553 3.57 1.099 6.22c.744 3.604 4.801 5.214 8.9 9.281 4.081-4.067 8.156-5.683 8.9-9.282.547-2.65-1.182-5.395-3.876-5.689z"/></svg>
     </a>
-    <div class="product-labels">
-        <?if($show_sale || $show_presale){?>
-            <?if (in_array($item['ID'],$ids15)) {?><span class="product-label">-15%</span><?}?>
-            <?if (in_array($item['ID'],$ids20)) {?><span class="product-label">-20%</span><?}?>
-            <?if (in_array($item['ID'],$ids25)) {?><span class="product-label">-25%</span><?}?>
-            <?if (in_array($item['ID'],$ids30)) {?><span class="product-label">-30%</span><?}?>
-            <?if (in_array($item['ID'],$ids35)) {?><span class="product-label">-35%</span><?}?>
-            <?if (in_array($item['ID'],$ids40)) {?><span class="product-label">-40%</span><?}?>
-            <?if (in_array($item['ID'],$ids45)) {?><span class="product-label">-45%</span><?}?>
-            <?if (in_array($item['ID'],$ids50)) {?><span class="product-label">-50%</span><?}?>
-            <?if (in_array($item['ID'],$ids55)) {?><span class="product-label">-55%</span><?}?>
-            <?if (in_array($item['ID'],$ids60)) {?><span class="product-label">-60%</span><?}?>
-        <?}?>
-    </div>
+   <?/* <div class="product-labels">
+        <span class="product-label">-15%</span>
+
+    </div>*/?>
 </div>
                       
 <div class="product-info-wrapper">
@@ -152,46 +104,11 @@ if (($show_sale || $show_presale) && $kbSaleProdArray) {
     }
     
     $minPrice[] = $item['MIN_PRICE']['VALUE'];?>
-    
-    <?if(in_array($item['ID'],$ids15) || in_array($item['ID'],$ids20)|| in_array($item['ID'],$ids25) || in_array($item['ID'],$ids30) || in_array($item['ID'],$ids35) || in_array($item['ID'],$ids40) || in_array($item['ID'],$ids45) || in_array($item['ID'],$ids50) || in_array($item['ID'],$ids55) || in_array($item['ID'],$ids60)){?>
-        <?if (in_array($item['ID'],$ids15)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*15));}?>
-        <?if (in_array($item['ID'],$ids20)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*20));}?>
-        <?if (in_array($item['ID'],$ids25)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*25));}?>
-        <?if (in_array($item['ID'],$ids30)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*30));}?>
-        <?if (in_array($item['ID'],$ids35)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*35));}?>
-        <?if (in_array($item['ID'],$ids40)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*40));}?>
-        <?if (in_array($item['ID'],$ids45)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*45));}?>
-        <?if (in_array($item['ID'],$ids50)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*50));}?>
-        <?if (in_array($item['ID'],$ids55)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*55));}?>
-        <?if (in_array($item['ID'],$ids60)) {$sale_price = floor($item['MIN_PRICE']['VALUE'] - (($item['MIN_PRICE']['VALUE']/100)*60));}?>
-    
-        <div class="product-pricebox">
-            <span class="proudct-old-price"><?=$pricePrint?></span>
-            <span class="proudct-current-price"><?= number_format($sale_price, 0, ' ', ' ') ?> ₽</span>            
-        </div>              
-    <?}else{?>
-        <div class="product-pricebox">
-            <span class="proudct-current-price"><?=$pricePrint?></span>            
-        </div>
-    <?}?>        
 
-    <!-- Цвета -->
-    <?if(!in_array(intval($item['ID']),\Belleyou\ColorAssistant::SERT_PROD_IDS)): //если не сертификаты?>
-        <div class="product-colors-sheme">
-            <ul class="product-colors-list">
-                <?$colorCnt = 1;
-                foreach($colors as $colorCode => $color){
-                    if($colorCnt == 4){break;}?>
-                    <li class="product-color product-color__with-border">
-                        <a href="<?=$color['DETAIL_PAGE_URL']?>" target="_blank" style="background: url('/upload/colors/<?=$color['COLOR_CODE']?>.jpg') no-repeat;" title="<?=$color['NAME']?>"></a>
-                    </li>
-                    <?$colorCnt++;
-                }?>
-            </ul>
-            <?if(count($colors) > 3){
-                $totalColorCnt = count($colors)-3;?>
-                <span class="product-more-colors-label">+<?=num_word($totalColorCnt, array('цвет', 'цвета', 'цветов'))?></span>
-            <?}?>
-        </div>
-    <?endif;?>
+    <div class="product-pricebox">
+        <span class="proudct-current-price"><?=$pricePrint?></span>
+        <!--            <span class="proudct-current-price"><?/*= number_format($sale_price, 0, ' ', ' ') */?> ₽</span>
+-->
+    </div>
+    
 </div>

@@ -63,19 +63,6 @@ if ($request->isAjaxRequest() && ($request->get('action') === 'showMore' || $req
 }
 ?>
 
-<?//проверяем находится ли элемент в избранном у пользователя
-if($USER->IsAuthorized()):?>
-
-    <? $ufFavorites = getUfFavorites() ?? [];
-    foreach($ufFavorites as $k => $favoriteItem):?>
-        <script>
-            if($('a.js-check-wishlist-button[data-id="<?=$favoriteItem?>"]'))
-                $('a.js-check-wishlist-button[data-id="<?=$favoriteItem?>"]').addClass('_added');
-        </script>
-    <?endforeach;?>
-
-<?endif;?>
-
 <?if(!$this->__template)  $this->InitComponentTemplate();
 $this->__template->SetViewTarget('section_title');
     echo $arResult['IPROPERTY_VALUES']['SECTION_PAGE_TITLE'] ? $arResult['IPROPERTY_VALUES']['SECTION_PAGE_TITLE'] : $arResult['NAME'];

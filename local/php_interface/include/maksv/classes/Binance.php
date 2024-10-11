@@ -15,10 +15,14 @@ class Binance
 
     public function __construct(){
 
-        $this->api_key='tWHcK2aAS7FoDYwGMdVR1Cy1wmlp9cpRdo5YFNSNH1NSxp7Q6l8c1ltWnfPPLMTf'; # Input your API Key
-        $this->secret_key='l5VZGyIs4wyz18KtwLJ5p6pvNeo0vkNl8yW1Effzk8JWAK7mNKGI5MLtc3lWsb61'; # Input your Secret Key
+       /* $this->api_key = 'tWHcK2aAS7FoDYwGMdVR1Cy1wmlp9cpRdo5YFNSNH1NSxp7Q6l8c1ltWnfPPLMTf1'; # Input your API Key
+        $this->secret_key = 'l5VZGyIs4wyz18KtwLJ5p6pvNeo0vkNl8yW1Effzk8JWAK7mNKGI5MLtc3lWsb611'; # Input your Secret Key*/
+
+        $this->api_key = \Maksv\Keys::BINANCE_API_KEY;
+        $this->secret_key = \Maksv\Keys::BINANCE_SECRET_KEY;
+
         //$this->url="https://data-api.binance.vision";
-        $this->url="https://api3.binance.com";
+        $this->url = "https://api3.binance.com";
         $this->client = new \Binance\Spot(['key' => $this->curl, 'secret' => $this->secret_key]);
     }
 
@@ -42,6 +46,14 @@ class Binance
         );
     }
 
-
-
+    public function tradesHistory($symbol, $limit = 10)
+    {
+        return $this->client->tradesHistory(
+            $symbol,
+            [
+                'limit' => $limit,
+            ]
+        );
+    }
+    
 }

@@ -1,7 +1,7 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();?>
         </main>
 
-        <footer class="belleyou-footer white-color-font">
+        <footer class="maksv-footer white-color-font">
             <div class="footer-userbox">
                 <?$APPLICATION->IncludeComponent(
                     "bitrix:menu",
@@ -94,11 +94,12 @@
             );*/
             ?>
             <div class="footer-brandbox__inner">
-                <div class="footer-brandbox__slogan">crypto Helper</div>
+                <div class="footer-brandbox__slogan">Crypto Helper</div>
 
                 <div class="footer-brandbox__contacts">
-                    <a href="tel:+79502675091" class="footer-contacts__phone white-color-font">+79502675091</a>
-                    <p class="footer-contacts__text">CH | Василий Максимов</p>
+                    <?/*<a href="tel:+79502675091" class="footer-contacts__phone white-color-font">+79502675091</a>*/?>
+                    <a href="/about/" class="footer-contacts__phone white-color-font">Crypto Helper</a>
+                    <p class="footer-contacts__text"><a class="white-color-font" href="/oferta/">ИП Максимов Василий Андреевич</a></p>
                 </div>
 
 
@@ -119,7 +120,7 @@
             }        
         </style>
         <?// попап ведущий на авторизацию ?>
-        <div class="popup popup-vertical popup-auth popup-go-to-auth" style="display: none;">
+        <?/*<div class="popup popup-vertical popup-auth popup-go-to-auth" style="display: none;">
             <div class="popup__backdrop" data-close-popup></div>
             <div class="popup-body">
                 <button class="button-close-popup" data-close-popup></button>
@@ -135,7 +136,7 @@
 
                 </div>
             </div>
-        </div>
+        </div>*/?>
 
         <?//прелоудер?>
         <div class="preloader-body">

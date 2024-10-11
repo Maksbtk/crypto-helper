@@ -214,7 +214,7 @@
 }
 
 ._with-header {
-	top: var(--belleyou-header-no-notif);
+	top: var(--maksv-header-no-notif);
 	z-index: 1;
 }
 
@@ -285,7 +285,7 @@
 		padding: 15px;
 	}
 	._with-header {
-		top: var(--belleyou-header-mobile_no-notif);
+		top: var(--maksv-header-mobile_no-notif);
 	}
 	.products-list__full {
 		margin-left: -12.5px;

@@ -393,6 +393,79 @@
 	background-color: rgba(255,255,255,0.5);
 }
 
+.profile-pagination {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	margin-top: 40px;
+}
+.profile-pagination-list {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+
+	margin: 0;
+	padding: 0;
+}
+.profile-pagination-item a,
+.profile-pagination-item span {
+	position: relative;
+	display: block;
+	width: 24px;
+	height: 24px;
+	margin: 0 5px;
+	border-bottom: 3px solid transparent;
+
+	text-decoration: none;
+	text-align: center;
+	font-family: var(--font-family-header);
+	font-size: 14px;
+	line-height: 18px;
+	letter-spacing: 0.02em;
+	color: var(--font-color);
+	opacity: 0.25;
+}
+.profile-pagination-item._current a {
+	font-weight: 500;
+	opacity: 1;
+}
+.profile-pagination-item._current a::after {
+	content: '';
+	position: absolute;
+	width: 100%;
+	left: 0;
+	bottom: -3px;
+	height: 3px;
+	border-radius: 3px;
+	background-color: var(--bg-color-main__extra);
+}
+
+.profile-pagination-button {
+	display: block;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+
+	background-repeat: no-repeat;
+	background-position: center;
+	background-color: transparent;
+	border: none;
+
+	opacity: 1;
+	cursor: pointer;
+}
+.profile-pagination-button.button-prev {
+	background-image: url(../img/icn-arrow-left.svg);
+}
+
+.profile-pagination-button.button-next {
+	background-image: url(../img/icn-arrow-right_thick.svg);
+}
+.profile-pagination-button.button-disabled {
+	opacity: 0.25;
+	cursor: default;
+}
+
 /*--------------- раздел СЕРТИФИКАТЫ */
 
 .profile-section-certificates {

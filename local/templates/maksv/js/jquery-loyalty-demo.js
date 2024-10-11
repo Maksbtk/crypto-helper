@@ -1,3 +1,4 @@
+/*
 $(function(){
 
   if ( $(window).width() < 1024 ) {
@@ -27,4 +28,4 @@ $(function(){
       $('.statuses-slider').slick('unslick');
     }
   });
-});
+});*/

@@ -7,7 +7,7 @@ body {
 	font-family: var(--font-family);
 	font-size: 14px;
 	line-height: 18px;
-	color: var(--font-color);
+	color: var(--font-color-black);
 }
 
 * {
@@ -19,7 +19,7 @@ ol, ul {
 }
 
 a {
-	color: var(--font-color);
+	color: var(--font-color-black);
 	text-decoration: underline;
 }
 
@@ -447,31 +447,34 @@ h4 {
 /* переменные, которые могут меняться в шаблоне */
 
 :root {
-	--belleyou-header: 92px; /* высота шапки с нотифом */
+	--maksv-header: 92px; /* высота шапки с нотифом */
 }
 :root {
-	--belleyou-header-no-notif: 60px; /* высота шапки без нотифа */
+	--maksv-header-no-notif: 60px; /* высота шапки без нотифа */
 }
 :root {
-	--belleyou-header-mobile: 86px; /* высота шапки с нотифом МОБИЛЬНАЯ */
+	--maksv-header-mobile: 86px; /* высота шапки с нотифом МОБИЛЬНАЯ */
 }
 :root {
-	--belleyou-header-mobile_no-notif: 50px; /* высота шапки без нотифа МОБИЛЬНАЯ */
+	--maksv-header-mobile_no-notif: 50px; /* высота шапки без нотифа МОБИЛЬНАЯ */
 }
 :root {
-	--belleyou-sidebar-width: 440px; /* ширина меню каталога */
+	--maksv-sidebar-width: 440px; /* ширина меню каталога */
 }
 :root {
-	--belleyou-sidebar-width-small: 385px; /* ширина меню каталога */
+	--maksv-sidebar-width-small: 385px; /* ширина меню каталога */
 }
 :root {
-	--belleyou-popup-width: 540px; /* ширина попапа */
+	--maksv-popup-width: 540px; /* ширина попапа */
 }
 
 
 :root {
-	--font-color: #1F2020;
-	/*--font-color: #fff;*/
+	/*--font-color: #1F2020;*/
+	--font-color: #fff;
+}
+:root {
+	--font-color-black: #1F2020;
 }
 :root {
 	--font-color-secondary: #6B3D2E;
@@ -480,10 +483,10 @@ h4 {
 	--font-color-blue: #7EA3C1;
 }
 :root {
-	--font-family-header: "TT BelleYou Next", "Verdana", sans-serif;
+	--font-family-header: "TT maksv Next", "Verdana", sans-serif;
 }
 :root {
-	--font-family: "TT BelleYou", "Arial", sans-serif;
+	--font-family: "TT maksv", "Arial", sans-serif;
 }
 :root {
 	/*--bg-color-main: #D3E0EA;*/
