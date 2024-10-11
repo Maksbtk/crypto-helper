@@ -8,11 +8,25 @@ $aMenuLinks = Array(
 		"" 
 	),
 	Array(
-		"Таблица bybit",
-		"/user/bybit/",
+		"Сигналы bybit",
+		"/user/bybitSignals/",
 		Array(), 
 		Array(), 
 		"" 
+	),
+	Array(
+		"Купить подписку",
+		"/user/subscriptions/",
+		Array(),
+		Array(),
+		""
+	),
+ /*   Array(
+		"Таблица bybit",
+		"/user/bybit/",
+		Array(),
+		Array(),
+		""
 	),
     Array(
         "Таблица binance",
@@ -20,6 +34,6 @@ $aMenuLinks = Array(
         Array(),
         Array(),
         ""
-    ),
+    ),*/
 );
 ?>

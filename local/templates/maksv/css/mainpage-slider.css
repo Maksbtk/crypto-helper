@@ -62,6 +62,7 @@
 }
 
 .home-slider-title {
+    -webkit-text-stroke: 1px #16253e;
     margin: 0 0 5px;
 
     font-size: 32px;
@@ -83,6 +84,7 @@
     line-height: 21px;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+    -webkit-text-stroke: 1px #16253e;
 }
 .home-slider-restrict {
     margin: 0 0 20px;
@@ -259,12 +261,14 @@
         bottom: 17px;
     }
     .home-slider-title {
+        -webkit-text-stroke: 1px #16253e;
         font-size: 24px;
         line-height: 28px;
     }
     .home-slider-subtitle {
         font-size: 14px;
         line-height: 18px;
+        -webkit-text-stroke: 1px #16253e;
     }
 }
 

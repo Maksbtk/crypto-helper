@@ -1,0 +1,213 @@
+@media only screen and (max-width: 1023px) {	
+	body.pwa-mode:not(.mainpage) .maksv-content-main {
+		padding-top: 20px;
+	}
+
+	.pwa-mode .maksv-header-notification {
+		background-color: rgba(31, 32, 32, 0.3);
+		border-bottom-color: transparent;
+
+		padding-top: 10px;
+
+		font-size: 12px;
+		line-height: 15.5px;		
+	}
+	.pwa-mode .maksv-header-notification a{
+		color: #ffffff;
+	}
+
+	.pwa-mode .maksv-header-menu {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		width: 100%;
+		height: 82px; /* потом перенести высоту тапбара в дефолты */
+
+		align-items: flex-start;
+
+		padding: 10px 0 0;
+		background-color: #fff;
+		border-top: 1px solid var(--bg-color-main);
+	}
+
+	.pwa-mode .header-service-menu {
+		width: 20%;
+	}
+	.pwa-mode .maksv-header__logo {
+		position: static;
+		width: 20%;
+		height: unset;
+		margin: 0;
+
+		order: -1;
+
+		text-align: center;
+		text-decoration: none;
+	}
+	.pwa-mode .maksv-header__user-menu {
+		width: 60%;
+		justify-content: space-between;
+	}
+
+	.pwa-mode .user-menu__item {
+		width: 33.33%;
+		margin: 0;
+		text-align: center;
+	}
+	.pwa-mode .user-menu__item--profile {
+		order: unset;
+		margin: 0;
+	}
+	.pwa-mode .user-menu__item--cart {
+		order: -1;
+	}
+	.pwa-mode .user-menu__link {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+
+		width: 100%;
+		height: unset;
+
+		text-align: center;
+		text-decoration: none;
+	}
+	.pwa-mode .user-menu__link svg {
+		width: 25px;
+		margin-bottom: 5px;
+	}
+
+	.pwa-mode .icn-catalog-mobile svg path, 
+	.pwa-mode .user-menu__link svg path {
+		stroke: var(--font-color);
+	}
+
+	.pwa-mode .maksv-header-menu .icn-catalog-mobile + span {
+		display: inline-block;
+	}
+	.pwa-mode .maksv-header-menu .screen-reader-text {
+		position: static;
+		width: unset;	
+
+		font-size: 10px;
+		line-height: 10px;	
+	}
+
+	.pwa-mode .maksv-header__logo::before {
+		content: '';
+		display: block;
+		width: 25px;
+		height: 25px;
+		background-image: url(../img/logo-short.svg);
+		background-size: 25px;
+		background-repeat: no-repeat;
+		background-position: center;
+
+		margin: 0 auto;
+	}
+	.pwa-mode .maksv-header__logo svg {
+		display: none;
+	}
+
+	.pwa-mode .header-service-menu__item {
+		width: 100%;
+
+		text-align: center;
+		text-transform: none;
+		font-family: var(--font-family);
+		font-size: 10px;
+		line-height: 10px;
+	}
+	.pwa-mode .icn-catalog-mobile {
+		margin: 0 auto 5px;
+		width: 25px;
+		height: 25px;
+	}
+	.user-menu__item-counter {
+		right: unset;
+		left: 50%;
+		top: -5px;
+	}
+
+	.pwa-mode .icn-catalog-mobile,
+	.pwa-mode .maksv-header__logo::before,
+	.pwa-mode .user-menu__link svg,
+	.pwa-mode .maksv-header-menu .screen-reader-text,
+	.pwa-mode .maksv-header-menu .icn-catalog-mobile + span {
+		opacity: 0.5;
+	}
+	
+	.pwa-mode .pwa-item-active .icn-catalog-mobile,
+	.pwa-mode .pwa-item-active.maksv-header__logo::before,
+	.pwa-mode .pwa-item-active .user-menu__link svg,
+	.pwa-mode .maksv-header-menu .pwa-item-active .screen-reader-text,
+	.pwa-mode .maksv-header-menu .pwa-item-active .icn-catalog-mobile + span {
+		opacity: 1;
+	}
+
+	/* высота Каталога с учётом тап-бара */
+	.maksv-sidebar__backdrop,
+	.maksv-sidebar-menu {
+		height: calc(100vh - 82px); 
+	}
+
+	/* кнопка Каталог */
+	#catalogCloseButton::before {
+		content: '';
+		display: block;
+		width: 25px;
+		height: 25px;
+		background-image: url(../img/icn-catalog.svg);
+		background-size: 25px;
+		background-repeat: no-repeat;
+		background-position: center;
+
+		margin: 0 auto 5px;
+	}
+	#catalogCloseButton .icn-catalog-close{
+		display: none;
+	}
+	#catalogCloseButton span {
+		display: none;
+	}
+	#catalogCloseButton::after {
+		content: 'Каталог';
+		display: inline-block;
+	}
+
+	.maksv-header-menu.pwa-catalog-opened a {
+		opacity: 0.5;
+	}
+	.maksv-header-menu.pwa-catalog-opened .header-service-menu__item-catalog a{
+		opacity: 1;
+	}
+
+	/* страница товара  */
+	.pwa-mode .product-add-to-basket-box {
+		bottom: 82px;
+		box-shadow: 0px 0px 16px 0px rgba(31, 32, 32, 0.1);
+	}
+
+	/* попап удалить профиль */
+	.delete-profile-title {
+		margin: 0 0 25px;
+
+		font-size: 18px;
+		line-height: 24px;
+	}
+	.delete-profile-text {
+		margin: 0 0 40px;
+	}
+	.delete-profile-text p{
+		margin: 0 0 10px;
+	}
+	.delete-prfile-buttons {
+		margin-bottom: 0;
+	}
+	.delete-prfile-buttons .button{
+		margin-bottom: 10px;
+	}
+	.delete-prfile-buttons .button:last-child{
+		margin-bottom: 0;
+	}
+}

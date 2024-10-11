@@ -12,8 +12,8 @@ if(empty($arResult))
 	return "";   
     
 $strReturn = '';
-$strReturn .= '<div class="belleyou-breadcrumbs" itemscope itemtype="http://schema.org/BreadcrumbList">';
-$strReturn .= '<ul class="belleyou-breadcrumbs__list">';
+$strReturn .= '<div class="maksv-breadcrumbs" itemscope itemtype="http://schema.org/BreadcrumbList">';
+$strReturn .= '<ul class="maksv-breadcrumbs__list">';
 
 $itemSize = count($arResult);
 for($index = 0; $index < $itemSize; $index++)
@@ -23,7 +23,7 @@ for($index = 0; $index < $itemSize; $index++)
 	if($arResult[$index]["LINK"] <> "" && $index != $itemSize-1)
 	{
 		$strReturn .= '
-			<li class="belleyou-breadcrumb__item" id="bx_breadcrumb_'.$index.'" itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+			<li class="maksv-breadcrumb__item" id="bx_breadcrumb_'.$index.'" itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
 				<a href="'.$arResult[$index]["LINK"].'" title="'.$title.'" itemprop="item">
 					<span itemprop="name">'.$title.'</span>
 				</a>
@@ -33,7 +33,7 @@ for($index = 0; $index < $itemSize; $index++)
 	else
 	{
 		$strReturn .= '
-			<li class="belleyou-breadcrumb__item">
+			<li class="maksv-breadcrumb__item">
 				<span>'.$title.'</span>
 			</li>';
 	}

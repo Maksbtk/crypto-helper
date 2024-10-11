@@ -3,7 +3,7 @@
     display: flex;
 
     width: 100%;
-    height: calc(100vh - var(--belleyou-header));
+    height: calc(100vh - var(--maksv-header));
 
     margin-bottom: 120px;
 
@@ -211,7 +211,7 @@
 }
 @media only screen and (max-width: 1023px) {
     .podeli-header {
-        /*height: calc(100vh - var(--belleyou-header-mobile_no-notif));*/
+        /*height: calc(100vh - var(--maksv-header-mobile_no-notif));*/
         height: 150vw;
         margin-top:-20px;   
 
