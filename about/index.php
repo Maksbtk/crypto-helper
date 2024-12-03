@@ -27,10 +27,10 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-aboutCH.css");
                     </p>
                 </div>
                 <div class="howitworks__item">
-                    <h3 class="howitworks__step">Купите подписку<br>
+                    <h3 class="howitworks__step">Купите<br>
                         подписку</h3>
                     <p class="howitworks__details">
-                       можно выбрать любой срок
+                        <a href="/info/">или получи тестовый доступ</a>
                     </p>
                 </div>
                 <div class="howitworks__item">
@@ -40,7 +40,9 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-aboutCH.css");
                         для торговли на бирже
                     </p>
                 </div>
+
             </div>
+
         </div>
         <div class="page-loyalty-section page-loyalty-statuses">
             <h2 class="page-loyalty-subtitle">Варианты подписок</h2>
@@ -64,7 +66,7 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-aboutCH.css");
                     </div>
                     <h4>Сигналы bybit</h4>
                     <div class="status__money">
-                        на 3 месяца
+                        на 60 дней
                     </div>
                 </div>
                 <div class="status status-3 slide">
@@ -73,24 +75,27 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-aboutCH.css");
                     </div>
                     <h4>Сигналы bybit</h4>
                     <div class="status__money">
-                        на половину года
+                        на 90 дней
                     </div>
                 </div>
                 <!--a class="prev" onclick="minusSlide()">❮</a>
                <a class="next" onclick="plusSlide()">❯</a-->
             </div>
-            <?if($_SESSION["UF_PL_MEMBER"] !== "Y"){?> <a href="/user/subscriptions/" class="button button">Купить подписку</a>
-            <?}?>
+
+            <a href="/user/subscriptions/" class="button button">Купить подписку</a>
+
         </div>
         <div class="page-loyalty-section page-loyalty-additional">
             <h2 class="page-loyalty-subtitle">Дополнительная информация</h2>
             <div class="additionals-list">
                 <ul>
-                    <li>Сигналы формируются с помощью технического анализа в автоматическом режиме</li>
+                    <li>Сигналы формируются с помощью технического анализа в автоматическом режиме каждые 30 минут</li>
                     <li>Сигналы приходят стабильно на протяжении всего дня</li>
                     <li>Количество сигналов не ограничено, все зависит от волатильности рынка</li>
+                    <li>Более подробно о способе формирования можно узнать <a href="/info/" target="_blank">тут</a></li>
                 </ul>
                 <ul>
+                    <li>Есть возможность  <a href="/info/">получить тестовый доступ</a></li>
                     <li>Помимо сигналов доступен инструмент для технического анализа любого деривативного контракта</li>
                     <li>В таблице есть возможность узнать различные параметры технического анализа для разных таймфреймов</li>
                 </ul>

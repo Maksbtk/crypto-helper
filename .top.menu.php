@@ -18,19 +18,33 @@ $aMenuLinks = Array(
 		"Купить подписку", 
 		"/user/subscriptions/", 
 		Array(), 
-		Array("marked"=>"y", "offset"=>"y"), 
+		Array("marked"=>"y"), 
 		"" 
 	),
 	Array(
-		"Контакты", 
-		"/contacts/", 
+		"Тестовый доступ", 
+		"/info/", 
 		Array(), 
-		Array(), 
+		Array("offset"=>"y"), 
 		"" 
 	),
 	Array(
 		"Описание продукта", 
 		"/about/", 
+		Array(), 
+		Array(), 
+		"" 
+	),
+	Array(
+		"Дополнительная информация", 
+		"/info/", 
+		Array(), 
+		Array(), 
+		"" 
+	),
+	Array(
+		"Контакты", 
+		"/contacts/", 
 		Array(), 
 		Array(), 
 		"" 

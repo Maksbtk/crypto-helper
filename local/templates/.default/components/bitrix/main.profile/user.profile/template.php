@@ -11,12 +11,23 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 
 Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/jquery.maskedinput.js");
 ?>
-     
+
+
     <section class="profile-section profile-section-user-data">
 
+        <? if ($arResult['ACTIVE_SUBSCRIPTIONS'] && is_array($arResult['ACTIVE_SUBSCRIPTIONS'])):?>
+            <div class="active-subscribes">
+                <?foreach ($arResult['ACTIVE_SUBSCRIPTIONS'] as $subscription):?>
+                    <div>Активирована подписка "<?=$subscription['NAME']?>"
+                        <?if ($subscription['DATE_ACTIVE_FROM'] || $subscription['DATE_ACTIVE_TO']):?> /
+                            <?if ($subscription['DATE_ACTIVE_FROM']):?> с <?=$subscription['DATE_ACTIVE_FROM']?><?endif;?>
+                            <?if ($subscription['DATE_ACTIVE_TO']):?> до <?=$subscription['DATE_ACTIVE_TO']?><?endif;?><?endif;?>
+                    </div>
+                <?endforeach;?>
+            </div>
+        <?endif;?>
+
         <form id="userPersonalDataForm" action="<?=$arResult["FORM_TARGET"]?>" name="form1" method="post" class="form form-user-profile">
-
-
         <?=$arResult["BX_SESSION_CHECK"]?>
                 <input type="hidden" name="lang" value="<?=LANG?>" />
                 <input type="hidden" name="ID" value="<?=$arResult["ID"]?>" />
@@ -200,3 +211,9 @@ Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/jquery.maskedinput.js");
         </div>
     </div>
 
+<script>
+    var profileComp = {
+        arResult: <?=CUtil::PhpToJSObject($arResult, false, false, true)?>,
+    }
+    console.log('profileComp',profileComp);
+</script>

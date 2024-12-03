@@ -74,7 +74,7 @@ class MainFeedback extends CBitrixComponent implements Controllerable
                         "EMAIL_SEND" => $_REQUEST['EMAIL_SEND'],
                         "EMAIL_TO" => $_REQUEST['EMAIL_TO'],
                         "ACTIVE" => 'Y',
-                        "IBLOCK_ID" => 17, // 17 - id инфоблока "Контакты - Форма обратной связи"
+                        "IBLOCK_ID" => 5, // 5 - id инфоблока "Контакты - Форма обратной связи"
                         "SUBJECT" => $_REQUEST['SUBJECT'],
                         "NAME" => $_REQUEST['NAME'],
                         "NUMBER" => $_REQUEST['NUMBER'],
@@ -195,8 +195,9 @@ class MainFeedback extends CBitrixComponent implements Controllerable
 
     protected function sendEmail($arFields)
     {
-        $arFields['DEFAULT_EMAIL_FROM'] = 'noreply@belleyou.ru';
-        $arFields['SITE_NAME'] = 'belleyou';
+        //$arFields['DEFAULT_EMAIL_FROM'] = 'ch@infocrypto-helper.ru';
+        $arFields['DEFAULT_EMAIL_FROM'] = 'support@infocrypto-helper.ru';
+        $arFields['SITE_NAME'] = 'Crypto Helper';
         $resSendEmail = Event::send(array(
             "EVENT_NAME" => $arFields['EVENT_NAME'],
             "LID" => "s1",

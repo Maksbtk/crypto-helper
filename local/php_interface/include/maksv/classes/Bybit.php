@@ -191,6 +191,7 @@ class Bybit
             '1h' => '60',
             '4h' => '240',
             '1d' => 'D',
+            '1w' => 'W',
         ];
 
         $endpoint="/v5/market/kline";

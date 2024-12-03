@@ -17,6 +17,8 @@ $(function() {
     var upperLevelsTable = $('.js-symbol_levels-tbody .js-upperlvls');
     var lowerLevelsTable = $('.js-symbol_levels-tbody .js-lowerlvls');
 
+    $('html, body').animate({ scrollTop: $('.page-startegy_table').offset().top + 150 }, 1000);
+
     $(document).on("click",".js-go_up-page",function() {
         //console.log($(this))
         $('html, body').animate({ scrollTop: oiTableexternalLoader.offset().top - 150 }, 1000);
@@ -65,6 +67,7 @@ $(function() {
             timeout: 30000,
         }).then(function(response) {
 
+            console.log('findLevelsRes', response.data.identifyZonesResDev)
             console.log('updateOITableResp', response)
 
             if (response.data.success == true) {
@@ -75,10 +78,12 @@ $(function() {
 
                 $('.js-open_interests_table .js_contract_name').text(response.data.symbol);
 
-                var OI = response.data.OI;
+                /*var OI = response.data.OI;
                 var crossMA = response.data.crossMA;
                 var sarData = response.data.sarData;
+                var supertrendData = response.data.supertrendData;
                 var priceChange = response.data.priceChange;
+                var timestapOI = response.data.timestapOI;
                 oiTableTbodyEl.append(
                     '<tr>\n' +
                     '                            <td>Price / OI</td>\n' +
@@ -103,17 +108,69 @@ $(function() {
                     '                            <td>'+sarData.h1.trend+'<br>'+sarData.h1.sar_value.toFixed(5)+'</td>\n' +
                     '                            <td>'+sarData.h4.trend+'<br>'+sarData.h4.sar_value.toFixed(5)+'</td>\n' +
                     '                            <td>'+sarData.d1.trend+'<br>'+sarData.d1.sar_value.toFixed(5)+'</td>\n' +
+                    '                        </tr>' +
+                    '<tr>\n' +
+                    '                            <td>SUPER<br>TREND</td>\n' +
+                    '                            <td>'+supertrendData.m15.trend+'<br>'+supertrendData.m15.value.toFixed(5)+'</td>\n' +
+                    '                            <td>'+supertrendData.m30.trend+'<br>'+supertrendData.m30.value.toFixed(5)+'</td>\n' +
+                    '                            <td>'+supertrendData.h1.trend+'<br>'+supertrendData.h1.value.toFixed(5)+'</td>\n' +
+                    '                            <td>'+supertrendData.h4.trend+'<br>'+supertrendData.h4.value.toFixed(5)+'</td>\n' +
+                    '                            <td>'+supertrendData.d1.trend+'<br>'+supertrendData.d1.value.toFixed(5)+'</td>\n' +
+                    '                        </tr>' +
+                    '<tr>\n' +
+                    '                            <td>timestap</td>\n' +
+                    '                            <td>'+timestapOI.m15+'</td>\n' +
+                    '                            <td>'+timestapOI.m30+'</td>\n' +
+                    '                            <td>'+timestapOI.h1+'</td>\n' +
+                    '                            <td>'+timestapOI.h4+'</td>\n' +
+                    '                            <td>'+timestapOI.d1+'</td>\n' +
                     '                        </tr>'
+                );*/
+
+                var OI = response.data.OI;
+                var crossMA = response.data.crossMA;
+                var sarData = response.data.sarData;
+                var supertrendData = response.data.supertrendData;
+                var priceChange = response.data.priceChange;
+                var timestapOI = response.data.timestapOI;
+
+                var intervals = ["m15", "m30", "h1", "h4", "d1"];
+
+                // Функция для безопасного получения значения или "-"
+                function formatValue(value, fixed = 6) {
+                    return value !== undefined && value !== null ? (typeof value === 'number' ? value.toFixed(fixed) : value) : "-";
+                }
+
+                oiTableTbodyEl.append(
+                    '<tr><td>Price / OI</td>' +
+                    intervals.map(interval => '<td>' + formatValue(priceChange[interval], 2) + ' / ' + formatValue(OI[interval], 2) + '</td>').join('') +
+                    '</tr>' +
+
+                    '<tr><td>MA x EMA</td>' +
+                    intervals.map(interval => '<td>' + formatValue(crossMA[interval]) + '</td>').join('') +
+                    '</tr>' +
+
+                    '<tr><td>SAR</td>' +
+                    intervals.map(interval => '<td>' + formatValue(sarData[interval]?.trend) + '<br>' + formatValue(sarData[interval]?.sar_value) + '</td>').join('') +
+                    '</tr>' +
+
+                    '<tr><td>SUPER<br>TREND</td>' +
+                    intervals.map(interval => '<td>' + formatValue(supertrendData[interval]?.trend) + '<br>' + formatValue(supertrendData[interval]?.value) + '</td>').join('') +
+                    '</tr>' +
+
+                    '<tr><td>timestap</td>' +
+                    intervals.map(interval => '<td>' + formatValue(timestapOI[interval]) + '</td>').join('') +
+                    '</tr>'
                 );
 
                 var levels = response.data.levels;
 
                 $.each(levels.lower, function(index, element) {
-                    lowerLevelsTable.append('<td class="red-bg">' + element.price + '<br>' + element.volume + '</td>');
+                    lowerLevelsTable.append('<td class="red-bg">' + element.price + '<br>' + element.volume + '<br>' + element.percent_from_last_close + '%' + '</td>');
                 });
 
                 $.each(levels.upper, function(index, element) {
-                    upperLevelsTable.append('<td class="green-bg">' + element.price + '<br>' + element.volume + '</td>');
+                    upperLevelsTable.append('<td class="green-bg">' + element.price + '<br>' + element.volume + '<br>' + element.percent_from_last_close + '%' + '</td>');
                 });
 
                 lvlsBlock.fadeIn();

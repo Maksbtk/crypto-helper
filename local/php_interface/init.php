@@ -10,6 +10,8 @@ use Bitrix\Sale\Payment;
 use Bitrix\Sale;
 use \Bitrix\Main\Context;
 
+if ($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/wsrubi.smtp/classes/general/wsrubismtp.php")
+    include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/wsrubi.smtp/classes/general/wsrubismtp.php");
 
 \CModule::IncludeModule('highloadblock');
 \CModule::IncludeModule('iblock');

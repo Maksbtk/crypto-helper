@@ -13,7 +13,7 @@ CModule::IncludeModule("iblock");
 
 echo("start");
 
-$difPeriod = '-3 weeks';
+$difPeriod = '-2 weeks';
 
 $startDate = (new DateTime($difPeriod))->format('d.m.Y');
 $endDate = date('Y-m-d');

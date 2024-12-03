@@ -3,6 +3,8 @@ use Bitrix\Main\Page\Asset;
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("title", "Инструмент для торговли на бирже - Crypto helper");
 $APPLICATION->SetTitle("Инструмент для торговли на бирже - Crypto helper");
+
+Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", true);
 ?>
 
 <?php
@@ -103,99 +105,134 @@ $bybitApiOb->closeConnection();*/
 
 
 ?>
-<?php /*
+
     <link rel="stylesheet" href="/local/templates/maksv/css/mainpage-product-banners.css">
     <section class="mainpage-product-banners">
         <ul class="product-banners-list">
             <li class="product-banner-item">
                 <div class="product-banner-item__inner">
-                    <img class="product-banner-img" src="https://backend-web.storage.yandexcloud.net/resize_cache/119561/4a1300e106d1fbf13a15a8002bfe6337/iblock/c76/c761efd441f4c01ccadf8d179ca21cc2/a94763b5cb84b1ba78ed1fbe103adbd3.jpg" alt="Трусы">
+                    <img class="product-banner-img" src="/local/templates/maksv/demo-pics/ban1.jpg?v=5" alt="CH">
                     <div class="product-banner-content">
-                        <div class="h2 product-banner-name">Трусы</div>
-                        <a href="/catalog/nizhnee_bele/trusy/" class="product-banner-link">Выбрать</a>
+                        <div class="h2 product-banner-name">Тестовый доступ</div>
+                        <a href="/info/" class="product-banner-link">Узнать</a>
                     </div>
                 </div>
             </li>
             <li class="product-banner-item">
                 <div class="product-banner-item__inner">
-                    <img class="product-banner-img" src="https://backend-web.storage.yandexcloud.net/resize_cache/119830/4a1300e106d1fbf13a15a8002bfe6337/iblock/e4f/e4f8b2da18bf75a7d2747d9300bd93d9/5c26412fff787b25ed407728502e6fb0.jpg" alt="Одежда">
+                    <img class="product-banner-img" src="/local/templates/maksv/demo-pics/ban2.jpg?v=5" alt="CH">
                     <div class="product-banner-content">
-                        <div class="h2 product-banner-name">Одежда</div>
-                        <a href="/catalog/odezhda/" class="product-banner-link">Выбрать</a>
+                        <div class="h2 product-banner-name">Подписки</div>
+                        <a href="/user/subscriptions/" class="product-banner-link">Купить</a>
                     </div>
                 </div>
             </li>
             <li class="product-banner-item">
                 <div class="product-banner-item__inner">
-                    <img class="product-banner-img" src="https://backend-web.storage.yandexcloud.net/resize_cache/119560/4a1300e106d1fbf13a15a8002bfe6337/iblock/c59/c598fc9ed4f31d5f5fc866cdf2475ff3/2b9a2f2fa0c2a451907740b1a199efd8.jpg" alt="Топы и бюстгальтеры">
+                    <img class="product-banner-img" src="/local/templates/maksv/demo-pics/ban3.jpg?v=5" alt="CH">
                     <div class="product-banner-content">
-                        <div class="h2 product-banner-name">Топы и бюстгальтеры</div>
-                        <a href="/catalog/nizhnee_bele/topy/" class="product-banner-link">Выбрать</a>
+                        <div class="h2 product-banner-name">Сигналы</div>
+                        <a href="/user/bybitSignals/" class="product-banner-link">Перейти</a>
                     </div>
                 </div>
             </li>
         </ul>
-    </section>*/?>
+    </section>
 
-    <section style="margin: 0px 30px">
+    <section style="margin: 0px 15px;display: flex;flex-direction: column;justify-content: center;align-items: center;">
+
+
+
         <div class="h1">Bybit BTCUSDT, ETHUSDT</div>
         <br>
-
-        <?$symbol = 'BTCUSDT';?>
-        <div class="h2"><?=$symbol?></div>
-        <?
-        $marketCode = 'bybit';
-        $timeFrame = '1h';
-        $actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$timeFrame.'/marketVolumes.json'), true))['RESPONSE_EXCHENGE'] ?? [];
-        $opportunitiesRes = \Maksv\StrategyBuilder::findPumpOrDumpOpportunities($actualSymbolsAr, $timeFrame, 'bybit');
-        ?>
-        <div class="h3"><?=$timeFrame?> <?=\Maksv\DataOperation::actualDateFormatted($opportunitiesRes['headCoin'][$symbol]['snapTimeMark'])?></div>
-        <div>trend - <?=$opportunitiesRes['headCoin'][$symbol]['lastSAR']['trend']?><?if ($opportunitiesRes['headCoin'][$symbol]['lastSAR']['is_reversal']):?>, reversal<?endif;?> . <?=$opportunitiesRes['headCoin'][$symbol]['crossMA']?>. P <?=$opportunitiesRes['headCoin'][$symbol]['lastPriceChange']?>%. OI <?=$opportunitiesRes['headCoin'][$symbol]['lastOpenInterest']?>%</div>
-        <br>
-        <?
-        $timeFrame = '4h';
-        $actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$timeFrame.'/marketVolumes.json'), true))['RESPONSE_EXCHENGE'] ?? [];
-        $opportunitiesRes = \Maksv\StrategyBuilder::findPumpOrDumpOpportunities($actualSymbolsAr, $timeFrame, 'bybit');
-        ?>
-        <div class="h3"><?=$timeFrame?> <?=\Maksv\DataOperation::actualDateFormatted($opportunitiesRes['headCoin'][$symbol]['snapTimeMark'])?></div>
-        <div>trend - <?=$opportunitiesRes['headCoin'][$symbol]['lastSAR']['trend']?><?if ($opportunitiesRes['headCoin'][$symbol]['lastSAR']['is_reversal']):?>, reversal<?endif;?> . <?=$opportunitiesRes['headCoin'][$symbol]['crossMA']?>. P <?=$opportunitiesRes['headCoin'][$symbol]['lastPriceChange']?>%. OI <?=$opportunitiesRes['headCoin'][$symbol]['lastOpenInterest']?>%</div>
-        <br>
-        <?
-        $timeFrame = '1d';
-        $actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$timeFrame.'/marketVolumes.json'), true))['RESPONSE_EXCHENGE'] ?? [];
-        $opportunitiesRes = \Maksv\StrategyBuilder::findPumpOrDumpOpportunities($actualSymbolsAr, $timeFrame, 'bybit');
-        ?>
-        <div class="h3"><?=$timeFrame?> <?=\Maksv\DataOperation::actualDateFormatted($opportunitiesRes['headCoin'][$symbol]['snapTimeMark'])?></div>
-        <div>trend - <?=$opportunitiesRes['headCoin'][$symbol]['lastSAR']['trend']?><?if ($opportunitiesRes['headCoin'][$symbol]['lastSAR']['is_reversal']):?>, reversal<?endif;?> . <?=$opportunitiesRes['headCoin'][$symbol]['crossMA']?>. P <?=$opportunitiesRes['headCoin'][$symbol]['lastPriceChange']?>%. OI <?=$opportunitiesRes['headCoin'][$symbol]['lastOpenInterest']?>%</div>
-        <br>
-        <?$symbol = 'ETHUSDT';?>
-        <div class="h2"><?=$symbol?></div>
-        <?
-        $marketCode = 'bybit';
-        $timeFrame = '1h';
-        $actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$timeFrame.'/marketVolumes.json'), true))['RESPONSE_EXCHENGE'] ?? [];
-        $opportunitiesRes = \Maksv\StrategyBuilder::findPumpOrDumpOpportunities($actualSymbolsAr, $timeFrame, 'bybit');
-        ?>
-        <div class="h3"><?=$timeFrame?> <?=\Maksv\DataOperation::actualDateFormatted($opportunitiesRes['headCoin'][$symbol]['snapTimeMark'])?></div>
-        <div>trend - <?=$opportunitiesRes['headCoin'][$symbol]['lastSAR']['trend']?><?if ($opportunitiesRes['headCoin'][$symbol]['lastSAR']['is_reversal']):?>, reversal<?endif;?> . <?=$opportunitiesRes['headCoin'][$symbol]['crossMA']?>. P <?=$opportunitiesRes['headCoin'][$symbol]['lastPriceChange']?>%. OI <?=$opportunitiesRes['headCoin'][$symbol]['lastOpenInterest']?>%</div>
-        <br>
-        <?
-        $timeFrame = '4h';
-        $actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$timeFrame.'/marketVolumes.json'), true))['RESPONSE_EXCHENGE'] ?? [];
-        $opportunitiesRes = \Maksv\StrategyBuilder::findPumpOrDumpOpportunities($actualSymbolsAr, $timeFrame, 'bybit');
-        ?>
-        <div class="h3"><?=$timeFrame?> <?=\Maksv\DataOperation::actualDateFormatted($opportunitiesRes['headCoin'][$symbol]['snapTimeMark'])?></div>
-        <div>trend - <?=$opportunitiesRes['headCoin'][$symbol]['lastSAR']['trend']?><?if ($opportunitiesRes['headCoin'][$symbol]['lastSAR']['is_reversal']):?>, reversal<?endif;?> . <?=$opportunitiesRes['headCoin'][$symbol]['crossMA']?>. P <?=$opportunitiesRes['headCoin'][$symbol]['lastPriceChange']?>%. OI <?=$opportunitiesRes['headCoin'][$symbol]['lastOpenInterest']?>%</div>
-        <br>
-        <?
-        $timeFrame = '1d';
-        $actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$timeFrame.'/marketVolumes.json'), true))['RESPONSE_EXCHENGE'] ?? [];
-        $opportunitiesRes = \Maksv\StrategyBuilder::findPumpOrDumpOpportunities($actualSymbolsAr, $timeFrame, 'bybit');
-        ?>
-        <div class="h3"><?=$timeFrame?> <?=\Maksv\DataOperation::actualDateFormatted($opportunitiesRes['headCoin'][$symbol]['snapTimeMark'])?></div>
-        <div>trend - <?=$opportunitiesRes['headCoin'][$symbol]['lastSAR']['trend']?><?if ($opportunitiesRes['headCoin'][$symbol]['lastSAR']['is_reversal']):?>, reversal<?endif;?> . <?=$opportunitiesRes['headCoin'][$symbol]['crossMA']?>. P <?=$opportunitiesRes['headCoin'][$symbol]['lastPriceChange']?>%. OI <?=$opportunitiesRes['headCoin'][$symbol]['lastOpenInterest']?>%</div>
-        <br>
+        <?$marketCode = 'bybit';?>
+        <?$headCoinMap = ['BTCUSDT', 'ETHUSDT'];?>
+        <?foreach ($headCoinMap as $coin):?>
+            <div class="mobile-table">
+                <table class="iksweb js-open_interests_table">
+                    <thead>
+                        <tr>
+                            <th><?=$coin?></th>
+                            <?$tfMap = ['30m', '1h', '4h', '1d'];?>
+                            <? foreach ($tfMap as $tf):?>
+                                <th><?=$tf?></th>
+                            <?endforeach;?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                            <tr>
+                                <td>Price / OI</td>
+                                <?foreach ($tfMap as $tf):?>
+                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
+                                    <td><?=$actualSymbolsAr[$coin]['lastPriceChange']?> / <?=$actualSymbolsAr[$coin]['lastOpenInterest']?></td>
+                                <?endforeach;?>
+                            </tr>
+                            <tr>
+                                <td>Supertrand</td>
+                                <?foreach ($tfMap as $tf):?>
+                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
+                                    <td>
+                                        <?=$actualSymbolsAr[$coin]['lastSupertrend']['trend']?>
+                                        <?if ($actualSymbolsAr[$coin]['lastSupertrend']['is_reversal']):?>
+                                            <br>reversal
+                                        <?endif;?>
+                                    </td>
+                                <?endforeach;?>
+                            </tr>
+                            <tr>
+                                <td>SAR</td>
+                                <?foreach ($tfMap as $tf):?>
+                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
+                                    <td>
+                                        <?=$actualSymbolsAr[$coin]['lastSAR']['trend']?>
+                                        <?if ($actualSymbolsAr[$coin]['lastSAR']['is_reversal']):?>
+                                            <br>reversal
+                                        <?endif;?>
+                                    </td>
+                                <?endforeach;?>
+                            </tr>
+                    </tbody>
+                </table>
+            </div>
+            <br>
+        <?endforeach;?>
     </section>
+    <br><br>
     <h1 class="main-title">Инструмент для торговли на бирже - Crypto helper</h1>
 
+
+
+<?php
+/*try {
+    $bybitApiOb = new \Maksv\Bybit();
+    $bybitApiOb->openConnection();
+    $kline = $bybitApiOb->klineV5("linear", 'STORJUSDT', '1w' , 2);
+    if ($kline['result'] && $kline['result']['list']) {
+        $klineList = array_reverse($kline['result']['list']);
+
+        $prevKline = $klineList[array_key_last($klineList) - 1] ?? false; //(смотрим на предыдущую свечу так как последняя - это еще не закрытая)
+        if ($prevKline) {
+            $priceChange = round(($prevKline[4] / ($prevKline[1] / 100)) - 100, 2);
+            $lastClosePrice = $prevKline[4];
+        }
+
+        //MA x EMA
+        foreach ($klineList as $klineItem)
+            $klineHistory['klineСlosePriceList'][] = $klineItem[4];
+
+        $crossMA = \Maksv\StrategyBuilder::checkMACross($klineHistory['klineСlosePriceList']) ?? false;
+        echo '<pre>'; var_dump($crossMA); echo '</pre>';
+
+    }
+
+    $bybitApiOb->closeConnection();
+} catch (Exception $e) {
+    echo '<pre>'; var_dump($e->getMessage()); echo '</pre>';
+
+}*/
+
+
+
+
+?>
 <?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>

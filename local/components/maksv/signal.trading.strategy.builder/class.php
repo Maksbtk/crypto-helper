@@ -74,6 +74,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 '1d' => 'd1',
             ];
 
+            $lastClosePrice = 0;
             foreach ($this->arParams["OI_TIMEFRAMES"] as $timeframe) {
 
                 $openInterest = 0;
@@ -83,27 +84,41 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                     $prevInterest = $openInterestResp['result']['list'][1]['openInterest'];
                     $openInterest = round(($lastInterest / ($prevInterest / 100)) - 100, 2);
 
+                    $res['timestapOI'][$timeframeKeyMap[$timeframe]] = date("d.m H:i", $openInterestResp['result']['list'][1]['timestamp'] / 1000) . ' - ' . date("d.m H:i", $openInterestResp['result']['list'][0]['timestamp'] / 1000);
+                    //$res['OIList'][$timeframeKeyMap[$timeframe]] = $openInterestResp['result']['list'];
                     $res['OI'][$timeframeKeyMap[$timeframe]] = $openInterest;
                 } else {
                     $err = 'Не удалось получить OI для ' . $symbol;
+                    break;
                 }
 
-                $kline = $bybitApiOb->klineV5("linear", $symbol, $timeframe, 28);
+                $countCandles = 100;
+                if ($timeframe == '1h')
+                    $countCandles = 200;
+
+                $kline = $bybitApiOb->klineV5("linear", $symbol, $timeframe, $countCandles);
                 $crossMA = $sarData = false;
+                $priceChange = 0;
                 if ($kline['result'] && $kline['result']['list']) {
                     $klineList = array_reverse($kline['result']['list']);
                     foreach ($klineList as $klineItem)
                         $klineHistory['klineСlosePriceList'][] = $klineItem[4];
 
                     $prevKline = $klineList[array_key_last($klineList) - 1] ?? false; //(смотрим на предыдущую свечу так как последняя - это еще не закрытая)
-                    if ($prevKline)
+                    if ($prevKline) {
                         $priceChange = round(($prevKline[4] / ($prevKline[1] / 100)) - 100, 2);
-
+                        if ($timeframe == '15m') {
+                            $lastClosePrice = $prevKline[4];
+                        }
+                    }
                     $res['priceChange'][$timeframeKeyMap[$timeframe]] = $priceChange;
+                    //$res['klineListDev'][$timeframeKeyMap[$timeframe]] = $priceChange;
 
                     //MA x EMA
-                    $crossMA = \Maksv\StrategyBuilder::checkMACross($klineHistory['klineСlosePriceList']) ?? '';
-                    $res['crossMA'][$timeframeKeyMap[$timeframe]] = $crossMA['cross'];
+                    //$crossMA = \Maksv\TechnicalAnalysis::checkMACross($klineHistory['klineСlosePriceList'], 5, 20) ?? '';
+                    $crossHistoryMA = \Maksv\TechnicalAnalysis::getMACrossHistory($klineHistory['klineСlosePriceList'], 5, 20, 11) ?? false;
+                    $res['crossHistoryMA'][$timeframeKeyMap[$timeframe]] = $crossHistoryMA[array_key_last($crossHistoryMA)];
+                    $res['crossMA'][$timeframeKeyMap[$timeframe]] = $crossHistoryMA[array_key_last($crossHistoryMA)]['cross'];
 
                     //SAR
                     $sarCandles = array_map(function ($k) {
@@ -113,29 +128,71 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                         ];
                     }, $klineList);
 
-                    $sarData = \Maksv\StrategyBuilder::calculateSARWithTrend($sarCandles);
+                    $sarData = \Maksv\TechnicalAnalysis::calculateSARWithTrend($sarCandles);
                     $lastSar = $sarData[array_key_last($sarData)];
                     if ($lastSar['is_reversal'])
                         $lastSar['trend'] .= ' reversal';
 
                     $res['sarData'][$timeframeKeyMap[$timeframe]] = $lastSar;
 
+                    // Supertrend candles
+                    $supertrendCandles = array_map(function ($k) {
+                        return [
+                            'h' => floatval($k[2]), // High price
+                            'l' => floatval($k[3]), // Low price
+                            'c' => floatval($k[4])  // Close price
+                        ];
+                    }, $klineList);
+
+                    if ($timeframe == "1h") {
+                        $candlesLvl = array_map(function ($k) {
+                            return [
+                                'o' => floatval($k[1]), // Open price
+                                'h' => floatval($k[2]), // High price
+                                'l' => floatval($k[3]), // Low price
+                                'c' => floatval($k[4]), // Close price
+                                'v' => floatval($k[5])  // Volume
+                            ];
+                        }, $klineList);
+                    }
+
+                    $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($supertrendCandles, 10, 3) ?? false; // длина 10, фактор 3
+                    $lastSupertrend = $supertrendData[array_key_last($supertrendData)];
+                    if ($lastSupertrend['is_reversal'])
+                        $lastSupertrend['trend'] .= ' reversal';
+
+                    $res['supertrendData'][$timeframeKeyMap[$timeframe]] = $lastSupertrend;
+
+                    //$stochasticOscillatorData = \Maksv\TechnicalAnalysis::calculateStochasticOscillator($supertrendCandles, 14, 3, 1);
+                    $stochasticOscillatorData = \Maksv\TechnicalAnalysis::calculateStochasticRSI($supertrendCandles, 14, 14, 3, 3);
+                    //$lastStochastic = $stochasticOscillatorData[array_key_last($stochasticOscillatorData)];
+                    $res['lastStochastic'][$timeframeKeyMap[$timeframe]] = $stochasticOscillatorData;
+
                 } else {
                     $err = 'Не удалось получить Цены для ' . $symbol;
+                    break;
                 }
             }
 
             $levels = false;
             $orderBook = $bybitApiOb->orderBookV5('linear', $symbol, 1000);
-            if ($orderBook['result'])
-                $levels = \Maksv\StrategyBuilder::findLevels($orderBook['result'], 7);
-            else {
+            if ($orderBook['result'] && $lastClosePrice) {
+                $findLevelsRes = \Maksv\TechnicalAnalysis::findLevels($orderBook['result'], 300, 0.001);
+                $identifyZonesResDev = \Maksv\TechnicalAnalysis::detectOrderBlocks($candlesLvl);
+                $res['identifyZonesResDev'] = $identifyZonesResDev;
+
+                $levels = [
+                    'lower' => array_slice($findLevelsRes['lower'], 0, 30),
+                    'upper' => array_slice($findLevelsRes['upper'], 0, 30),
+                ];
+            } else {
                 $err = 'Не удалось получить уровни ' . $symbol;
             }
 
             $res['levels'] = $levels;
         } else {
             $err = 'проблемы с bybit api';
+
         }
 
         if ($res['OI']) {

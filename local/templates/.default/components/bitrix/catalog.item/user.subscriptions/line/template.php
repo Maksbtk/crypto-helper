@@ -54,7 +54,7 @@ if (!$item['PREVIEW_PICTURE_RESIZE']['src']) {
     <div class="product-media-wrapper <?if(!$actualItem['CAN_BUY']):?>item-not-available<?endif;?>">
         <?// тут картинки?>
         <? if ($itemHasDetailUrl): ?>
-            <a class="product-link" href="<?=$item['DETAIL_PAGE_URL']?>" title="<?=$productTitle?>">
+            <a class="product-link" href="javascript:void(0)" title="<?=$productTitle?>">
         <? endif; ?>
             <div class="product-picture-wrapper">
                 <?/*<img  id="<?=$itemIds['PICT']?>" class="product-picture" src="<?=$item['PREVIEW_PICTURE']['SRC']?>" alt="<?=$productTitle?>">*/?>
@@ -72,7 +72,7 @@ if (!$item['PREVIEW_PICTURE_RESIZE']['src']) {
     </div>
     <div class="product-info-wrapper">
         <? if ($itemHasDetailUrl): ?>
-            <a class="product-link" href="<?=$item['DETAIL_PAGE_URL']?>" title="<?=$productTitle?>">
+            <a class="product-link" href="javascript:void(0)" title="<?=$productTitle?>">
         <? endif; ?>
                 <div class="h4 product-name"><?=$productTitle?></div>
         <? if ($itemHasDetailUrl): ?>
@@ -202,7 +202,7 @@ if (!$item['PREVIEW_PICTURE_RESIZE']['src']) {
                                 else
                                 {
                                     ?>
-                                    <a class="button button-add-to-cart" href="<?=$item['DETAIL_PAGE_URL']?>">
+                                    <a class="button button-add-to-cart" href="javascript:void(0)">
                                         <?=$arParams['MESS_BTN_DETAIL']?>
                                     </a>
                                     <?

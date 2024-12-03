@@ -19,9 +19,9 @@ class TelegramBot
         $this->botToken = \Maksv\Keys::TG_BOT_TOKEN;
     }
 
-   public function messageToTelegram($text = 'test', $chatName = '@cryptoHelperDev')
+   public function messageToTelegram($text = 'test', $chatName = '@cryptoHelperAlerts')
    {
-       devlogs($chatName, 'TelegramBot');
+       devlogs($chatName. ' - ' . date("d.m.y H:i:s"), 'TelegramBot');
        $chatName = TelegramBot::chatIdByName($chatName);
 
        $token = $this->botToken;
@@ -40,7 +40,7 @@ class TelegramBot
        $result = curl_exec($ch);
        curl_close($ch);
 
-       devlogs($chatName . ' - ' . date("d.m.y H:i:s"), 'TelegramBot');
+       //devlogs($chatName . ' - ' . date("d.m.y H:i:s"), 'TelegramBot');
        devlogs($result, 'TelegramBot');
 
        return  json_decode($result);
@@ -48,20 +48,26 @@ class TelegramBot
 
    protected function chatIdByName($chatName) {
        switch ($chatName) {
-           case '@cryptoHelperDev':
+           case '@cryptoHelperAlerts':
                $chatName = '-1002246605336';
                break;
-           case '@infoCryptoHelper30m':
+           /*case '@infoCryptoHelper30m':
                $chatName = '-1002194024408';
-               break;
-           case '@infoCryptoHelper1h':
+               break;*/
+           case '@infoCryptoHelperTrend':
                $chatName = '-1002245853663';
                break;
-           case '@infoCryptoHelper4h':
+           /*case '@infoCryptoHelper4h':
                $chatName = '-1002148237966';
                break;
            case '@infoCryptoHelper1d':
                $chatName = '-1002236380560';
+               break;*/
+           case '@infoCryptoHelperDev':
+               $chatName = '-1002236380560';
+               break;
+               case '@cryptoHelperMaster':
+           $chatName = '-1002460854583';
                break;
            /*default:
                $chatName = $chatName;
