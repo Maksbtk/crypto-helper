@@ -1,6 +1,11 @@
-<?php if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
+<?
+use Bitrix\Main\Page\Asset;
+
+if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 <?php
 global $USER;
+
+Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", true);
 ?>
 <div class="h2">Master сигналы</div>
 
@@ -8,7 +13,7 @@ global $USER;
 
 ?>
 <section class="page-startegy_table js_open_interests-section">
-    <? /*<<div class="h3">Анализ</div>
+    <? /*<<div class="h3">Анализ</div> //
      <div class="table-open_interests">
         div class="h2">OI</div>
         <button class="button js-update_button">Обновить</button>
@@ -123,9 +128,11 @@ global $USER;
                 <thead>
                 <tr>
                     <th>Сделка</th>
-                    <th>Торговая пара</th>
-                    <th>MA x EMA</th>
-                    <th>SAR</th>
+                    <th>Контракт</th>
+                    <th>Trend<br>approve</th>
+                    <th>MA trend</th>
+                    <?/*<th>SAR</th>*/?>
+                    <th>Super<br>Trend</th>
                     <th>P / OI</th>
                     <th>Profit levels</th>
                 </tr>
@@ -135,10 +142,23 @@ global $USER;
                     ($strtagyItem['STRATEGIES']['masterDump'] && is_array($strtagyItem['STRATEGIES']['masterDump']) && count($strtagyItem['STRATEGIES']['masterDump']) >= 1)):?>
                     <?foreach ($strtagyItem['STRATEGIES']['masterPump'] as $item):?>
                         <tr data-val="<?=$item['symbolName']?>">
-                            <td data-name="trand" class="green-bg">long<br><?if ($item['secondFilter']):?>Parent approve<?endif;?></td>
+                            <td data-name="trand" class="green-bg">
+                                long
+                            </td>
                             <td data-name="symbolName"><?=$item['symbolName']?></td>
-                            <td data-name="crossMA" <?if ($item['crossMAVal'] == 1):?>class="green-bg"<?endif;?>><?=$item['crossMA']?></td>
-                            <td data-name="SAR" <?if ($item['lastSAR']['is_reversal']):?>class="green-bg"<?endif;?>><?=$item['lastSAR']['trend']?> <?if($item['lastSAR']['is_reversal']):?>reversal<?endif;?><br><?=round($item['lastSAR']['sar_value'], 6);?></td>
+                            <?$trendApproveConditions = ($item['filter']['1h'] && $item['filter']['4h'] && $item['filter']['1d']);?>
+                            <td data-name="trendApprove" <?if ($trendApproveConditions):?>class="green-bg"<?endif;?>>
+                                <?foreach ($item['approve'] as $tf => $tfVal):?>
+                                    <?if ($tfVal['filter']):?><?=$tf?><br><?endif;?>
+                                <?endforeach;?>
+                            </td>
+                            <td data-name="crossMA" <?if ($item['crossMAVal'] == 1):?>class="green-bg"<?endif;?>>
+                                <?if($item['lastCrossMA']['isUptrend'] === true):?>up<?else:?>up<?endif;?><br>
+                                <?=$item['lastCrossMA']['sma']?>
+                                <?if ($item['crossMAVal'] != 0):?><br>MA x EMA: <?=$item['lastCrossMA']['cross'] ?? $item['crossMA']?><?endif;?>
+                            </td>
+                            <?/*<td data-name="SAR" <?if ($item['lastSAR']['is_reversal']):?>class="green-bg"<?endif;?>><?=$item['lastSAR']['trend']?> <?if($item['lastSAR']['is_reversal']):?>reversal<?endif;?><br><?=round($item['lastSAR']['sar_value'], 6);?></td>*/?>
+                            <td data-name="ST" <?if ($item['lastSupertrend']['is_reversal']):?>class="green-bg"<?endif;?>><?=$item['lastSupertrend']['trend']?> <?if($item['lastSupertrend']['is_reversal']):?>reversal<?endif;?><br><?=round($item['lastSupertrend']['value'], 6);?></td>
                             <td data-name="OI" <?if ($item['anomalyOI']):?>class="green-bg"<?endif;?>><?=$item['lastPriceChange']?> / <?=$item['lastOpenInterest'];?></td>
                             <td data-name="profitLvls">
                                 <?if ($item['levels']['upper']):?>
@@ -153,10 +173,22 @@ global $USER;
                     <?endforeach;?>
                     <?foreach ($strtagyItem['STRATEGIES']['masterDump'] as $item):?>
                         <tr data-val="<?=$item['symbolName']?>">
-                            <td data-name="trade" class="red-bg">short<br><?if ($item['secondFilter']):?>Parent approve<?endif;?></td>
+                            <td data-name="trade" class="red-bg">short
+                            </td>
                             <td data-name="symbolName"><?=$item['symbolName']?></td>
-                            <td data-name="crossMA" <?if ($item['crossMAVal'] == 2):?>class="red-bg"<?endif;?>><?=$item['crossMA']?></td>
-                            <td data-name="SAR" <?if ($item['lastSAR']['is_reversal'] == 2):?>class="red-bg"<?endif;?>><?=$item['lastSAR']['trend']?> <?if($item['lastSAR']['is_reversal']):?>reversal<?endif;?><br><?=round($item['lastSAR']['sar_value'], 6);?></td>
+                            <?$trendApproveConditions = ($item['filter']['1h'] && $item['filter']['4h'] && $item['filter']['1d']);?>
+                            <td data-name="trendApprove" <?if ($trendApproveConditions):?>class="red-bg"<?endif;?>>
+                                <?foreach ($item['approve'] as $tf => $tfVal):?>
+                                    <?if ($tfVal['filter']):?><?=$tf?><br><?endif;?>
+                                <?endforeach;?>
+                            </td>
+                            <td data-name="crossMA" <?if ($item['crossMAVal'] == 2):?>class="red-bg"<?endif;?>>
+                                <?if($item['lastCrossMA']['isUptrend'] === true):?>up<?else:?>down<?endif;?><br>
+                                <?=$item['lastCrossMA']['sma']?>
+                                <?if ($item['crossMAVal'] != 0):?><br>MA x EMA: <?=$item['lastCrossMA']['cross'] ?? $item['crossMA']?><?endif;?>
+                            </td>
+                            <?/*<td data-name="SAR" <?if ($item['lastSAR']['is_reversal'] == 2):?>class="red-bg"<?endif;?>><?=$item['lastSAR']['trend']?> <?if($item['lastSAR']['is_reversal']):?>reversal<?endif;?><br><?=round($item['lastSAR']['sar_value'], 6);?></td>*/?>
+                            <td data-name="ST" <?if ($item['lastSupertrend']['is_reversal']):?>class="red-bg"<?endif;?>><?=$item['lastSupertrend']['trend']?> <?if($item['lastSupertrend']['is_reversal']):?>reversal<?endif;?><br><?=round($item['lastSupertrend']['value'], 6);?></td>
                             <td data-name="OI" <?if ($item['anomalyOI']):?>class="red-bg"<?endif;?>><?=$item['lastPriceChange']?> / <?=$item['lastOpenInterest'];?></td>
                             <td data-name="profitLvls">
                                 <?if ($item['levels']['lower']):?>

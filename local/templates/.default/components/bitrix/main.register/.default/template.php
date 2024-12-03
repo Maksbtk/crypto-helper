@@ -126,7 +126,7 @@ $fieldsOrder = [
                         </div>
                         <div class="form-row form-row-checkbox">
                             <input class="input-checkbox check_pl" type="checkbox" name="UF_PL_MEMBER" value="1" id="loyaltyCB" checked="checked">
-                            <label class="label-checkbox" for="loyaltyCB">Соглашаюсь с условиями <a href="/for-customers/loyalty-program/"></a>программы лояльности ch</label>
+                            <label class="label-checkbox" for="loyaltyCB">Подтверждаю согласие <a href="/oferta/">с публичной офертой сайта Crypto Helper</a>. Несу полную ответственность за использование информационных продуктов, расположенных на сайте <a href="/">https://infocrypto-helper.ru/</a></label>
                         </div>
                     </div>
                     <div class="form-row">

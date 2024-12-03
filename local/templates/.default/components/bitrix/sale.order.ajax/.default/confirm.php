@@ -2,6 +2,10 @@
 
 $orderId = $_GET['ORDER_ID'];
 $order = \Bitrix\Sale\Order::load($orderId);
+
+if (!$order)
+    LocalRedirect('/cart/', false, '301 Moved permanently');
+
 /** @var Payment $payment */
 $payment = $order->getPaymentCollection()->current();
 $paymentFields = $payment->getFields();
@@ -47,11 +51,11 @@ $paymentFields = $payment->getFields();
         <div class="checkout-success-text">
             <p>Заказ №<?=$orderId?> успешно оформлен!</p>
             <p>После отправки заказа вы получите подтверждение по электронной почте информацию о подписке</p>
-            <p>Если у вас остались вопросы, свяжитесь с нами <a href="/help/">через станицу обратной связи</a></p>
+            <p>Если у вас остались вопросы, свяжитесь с нами <a href="/contacts/">через станицу обратной связи</a></p>
             <p>Спасибо, что выбрали Crypto Helper!</p>
         </div>
         <div class="checkout-success-buttons">
-            <a href="/user/" class="button">Личный кабинет</a>
+            <a href="/user/bybitSignals/" class="button">перейти к сигналам</a>
         </div>
     <?endif;?>
 </div>

@@ -48,7 +48,7 @@ $(function() {
         }
 
         grecaptcha.ready(function() {
-            grecaptcha.execute('6LfidaUpAAAAAAlS_kLGX4FVOe7S__HcEmzKLIpl', {action: 'submit'}).then(function(token) {
+            grecaptcha.execute('6Lf-TWAqAAAAACb3JQWmo8hWR8rW9P38Crrb545U', {action: 'submit'}).then(function(token) {
 
                 var formData = {
                     FORM_TYPE: inputFormType.val(),
@@ -62,7 +62,7 @@ $(function() {
                     MASSAGE: inputMessage.val(),
                 };
 
-                BX.ajax.runComponentAction('belleyou:main.feedback', 'sendAndSave', {
+                BX.ajax.runComponentAction('maksv:main.feedback', 'sendAndSave', {
                     mode: 'class',
                     data: formData,
                     timeout: 3000,

@@ -282,7 +282,7 @@ h4 {
 	top: 0;
 }
 .input-checkbox:checked + label::before {
-	background-color: var(--bg-color-main);
+	/*background-color: var(--bg-color-main);*/
 	background-image: url(../img/icn-check.svg);
 	background-repeat: no-repeat;
 	background-position: center;
@@ -490,7 +490,8 @@ h4 {
 }
 :root {
 	/*--bg-color-main: #D3E0EA;*/
-	--bg-color-main: #16253e;
+	/*--bg-color-main: #16253e;*/
+	--bg-color-main: #0e0e2a;
 }
 :root {
 	--bg-color-main-opacity30: rgba(211, 224, 234, 0.3);

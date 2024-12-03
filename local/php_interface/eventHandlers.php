@@ -158,11 +158,17 @@ class CHOrderHandlers
         #Отправка почты после успешного оформления заказа
         public static function sendSuccessMail($dates, $basketStr, $order)
         {
+            $propertyCollection = $order->getPropertyCollection();
+            $emailPropValue = $propertyCollection->getUserEmail()->toArray();
+
             $fields = [
-                'SALE_EMAIL' => 'maksvasa1998@yandex.ru',
-                'BCC' => 'maksvasa1998@yandex.ru',
+                'SALE_EMAIL' => 'support@infocrypto-helper.ru',
+                'DEFAULT_EMAIL_FROM' => 'support@infocrypto-helper.ru',
+                'ORDER_REAL_ID' => $order->getId(),
+                'ORDER_ACCOUNT_NUMBER_ENCODE' => $order->getId(),
+                //'BCC' => 'maksvasa1998@yandex.ru',
                 'ORDER_ID' => $order->getId(),
-                'EMAIL' => $order->getField('USER_EMAIL'),
+                'EMAIL' => $emailPropValue['VALUE'],
             ];
 
             if ($dates['from'] && $dates['to']) {
@@ -178,7 +184,8 @@ class CHOrderHandlers
             devlogs($fields, 'onOrderPaid');
 
             \Bitrix\Main\Mail\Event::send([  // или sendImmediate
-                "EVENT_NAME" => "SALE_ORDER_PAID",
+                "EVENT_NAME" => "SALE_ORDER_PAID_CUSTOM",
+                //"EVENT_NAME" => "SALE_ORDER_PAID",
                 "LID" => "s1",
                 "C_FIELDS" => $fields,
             ]);

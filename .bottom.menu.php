@@ -22,6 +22,13 @@ $aMenuLinks = Array(
 		"" 
 	),
 	Array(
+		"Тестовый доступ", 
+		"/info/", 
+		Array(), 
+		Array("SIDE"=>"LEFT"), 
+		"" 
+	),
+	Array(
 		"Контакты", 
 		"/contacts/", 
 		Array(), 
@@ -31,6 +38,13 @@ $aMenuLinks = Array(
 	Array(
 		"Описание продукта", 
 		"/about/", 
+		Array(), 
+		Array("SIDE"=>"RIGHT"), 
+		"" 
+	),
+	Array(
+		"Дополнительная информация", 
+		"/info/", 
 		Array(), 
 		Array("SIDE"=>"RIGHT"), 
 		"" 

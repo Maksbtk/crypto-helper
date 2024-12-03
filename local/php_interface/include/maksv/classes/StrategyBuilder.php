@@ -8,171 +8,10 @@ use Bitrix\Main\Loader,
 class StrategyBuilder
 {
     public function __construct(){}
-
-    protected static function parsePair($pair) {
-        // General case for pairs ending with common quote currencies
-        if (preg_match('/^([A-Z0-9]+)(BTC|ETH|USDT|USDC|USDE|FDUSD|TUSD|TRY|EUR)$/', $pair, $matches))
-        //if (preg_match('/^([A-Z0-9]+)(BTC|ETH|USDT|USDC|USDE)$/', $pair, $matches))
-        {
-            return [$matches[1], $matches[2]];
-        }
-        // Handle pairs with less common formats
-        elseif (preg_match('/^([A-Z0-9]+)([A-Z0-9]+)$/', $pair, $matches))
-        {
-            return [$matches[1], $matches[2]];
-        }
-        else {
-            throw new \Exception("Unknown pair format: $pair");
-        }
-    }
-
-    protected static function fiilOpportunities($pair1, $price1, $pair2, $price2, $pair3, $price3, $profit,$profitPercent)
-    {
-        $opportunities = [
-            'pair1' => $pair1,
-            'price1' => $price1,
-            'pair2' => $pair2,
-            'price2' => $price2,
-            'pair3' => $pair3,
-            'price3' => $price3,
-            'profit' => round($profit, 2),
-            'profitPercent' => round($profitPercent, 3),
-        ];
-
-        return $opportunities;
-    }
-
-    public static function findArbitrageOpportunities($prices, $useProfitFilter = true, $writeActualSymbols = false, $marketCode = '')
-    {
-        $opportunities = [];
-        $initial_amount = 100; // Начальная сумма в USDT
-
-        $actualSymbolsAr = [];
-        // Проходим по всем торговым парам
-        foreach ($prices as $pair1 => $price1) {
-
-            // Получаем базовую и котируемую монеты для пары 1
-            list($base1, $quote1) = StrategyBuilder::parsePair($pair1);
-
-            // Если котируемая монета пары 1 - USDT, начинаем анализировать арбитраж
-            //if ($quote1 === 'USDT') {
-            if (in_array($quote1, ['USDT', 'USDC', 'USDE','FDUSD','TUSD']) && !in_array($base1, ['EUR'])) {
-
-                if (is_array($price1))
-                    $price1 = $price1['sellPrice'];
-                    //$price1 = $price1['buyPrice'];
-
-                // Рассчитываем количество котируемой монеты, которую мы можем купить за начальную сумму
-                $quote1Amount = $initial_amount / $price1; //99.8
-
-                // Проходим по всем остальным торговым парам
-                foreach ($prices as $pair2 => $price2) {
-                    // Получаем базовую и котируемую монеты для пары 2
-                    list($base2, $quote2) = StrategyBuilder::parsePair($pair2);
-
-                    // Если базовая монета пары 2 совпадает с котируемой монетой первой пары, продолжаем анализ
-                    if ($quote2 === $base1) {
-
-                        if (is_array($price2))
-                            $price2 = $price2['sellPrice'];//buyPrice sellPrice
-                            //$price2 = $price2['buyPrice'];//buyPrice sellPrice
-                            //$price2 = ($price2['sellPrice'] + $price2['buyPrice']) / 2;//buyPrice sellPrice
-
-                        // Рассчитываем количество базовой монеты, которую мы можем получить за котируемую монету пары 1
-                        //$price2 =  ($price2 / 100) * 100.5;
-                        $base2Amount = $quote1Amount / $price2; // ≈0.02825
-
-                        // Проходим по всем остальным торговым парам
-                        foreach ($prices as $pair3 => $price3) {
-                            // Получаем базовую и котируемую монеты для пары 3
-                            list($base3, $quote3) = StrategyBuilder::parsePair($pair3);
-
-                            // Если котируемая монета пары 2 совпадает с базовой монетой пары 3, продолжаем анализ
-                            if ($base3 === $base2 && in_array($quote3, ['USDC', 'USDT', 'USDE','FDUSD','TUSD']) && $quote1 == $quote3) {
-
-                                if (is_array($price3))
-                                    $price3 = $price3['buyPrice'];
-                                    //$price3 = $price3['sellPrice'];
-
-                                // Рассчитываем профит
-                                $finalAmount = $base2Amount * $price3;
-                                $profit = $finalAmount - $initial_amount;
-                                $profitPercent = ($profit / $initial_amount) * 100;
-
-                                // Добавляем арбитражную возможность в результаты, если профит положительный
-                                if ($useProfitFilter && $profit >= 0.1 /*&& $profit < 10*/)
-                                {
-                                    $opportunities[] = StrategyBuilder::fiilOpportunities($pair1, $price1, $pair2, $price2, $pair3, $price3, $profit, $profitPercent);
-                                    if ($writeActualSymbols) {
-                                        $actualSymbolsAr[] = $pair1;
-                                        $actualSymbolsAr[] = $pair2;
-                                        $actualSymbolsAr[] = $pair3;
-                                    }
-                                }
-                                else if (!$useProfitFilter/* && $profit > -0.1*/)
-                                {
-                                    $opportunities[] = StrategyBuilder::fiilOpportunities($pair1, $price1, $pair2, $price2, $pair3, $price3, $profit, $profitPercent);
-                                    if ($writeActualSymbols) {
-                                        $actualSymbolsAr[] = $pair1;
-                                        $actualSymbolsAr[] = $pair2;
-                                        $actualSymbolsAr[] = $pair3;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if ($writeActualSymbols && $marketCode)
-            StrategyBuilder::putActualSymbolsToJson($actualSymbolsAr, $marketCode);
-
-        usort($opportunities, function ($a, $b) {
-              return $b['profitPercent'] <=> $a['profitPercent'];
-        });
-
-        return $opportunities;
-    }
-
-
-    protected static function putActualSymbolsToJson($actualSymbolsAr, $marketCode)
-    {
-        $timeMark = date("d.m.y H:i:s");
-        devlogs('start - ' . $timeMark, $marketCode . 'PutActualSymbolsToJson');
-
-        $actualSymbolsAr = array_unique($actualSymbolsAr);
-
-        /*$jsonDataMainExchange = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/exchangeResponse.json'),true) ?? [];
-
-        $putActualSymbolsAr = [];
-        foreach ($actualSymbolsAr as $symbol)
-        {
-            $putActualSymbolsAr[] = [
-                "name" => $symbol,
-                'scale' => $jsonDataMainExchange['RESPONSE_EXCHENGE']['symbols'][$symbol]['scale']
-            ];
-        }*/
-
-        $actualSymbolsAr = array_map(function($value) {
-            return ["name" => $value];
-        }, $actualSymbolsAr);
-
-        $data = [
-            "TIMEMARK" => $timeMark,
-            //"SYMBOLS" => $putActualSymbolsAr,
-            "SYMBOLS" => $actualSymbolsAr,
-            "EXCHANGE_CODE" => $marketCode . '_actual_symbols'
-        ];
-
-        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/actualSymbols.json', json_encode($data));
-    }
-
-
+    
     public static function findPumpOrDumpOpportunities($actualSymbolsAr = [], $timeFrame = '4h', $marketCode = 'bybit', $thresholdPercent = 10)
     {
         $err = [];
-        //$actualOpportunities= [];
         $actualOpportunities = [
             'pump' => [],
             'dump' => [],
@@ -189,30 +28,35 @@ class StrategyBuilder
         $actualOpportunities['allDump'] = $actualOpportunities['allPump'] = $actualOpportunities['pump'] = $actualOpportunities['dump'] = [];
         foreach ($actualSymbolsAr as $symbolName => $symbolVolumes)
         {
-            $anomalyThresholdOI = 10;
+            $anomalyThresholdOI = 7;
+            $trendReversalRange = 1;
             if ($timeFrame == '30m') {
-                $anomalyThresholdOI = 15;
+                $anomalyThresholdOI = 8;
+                $trendReversalRange = 5;
             } else if ($timeFrame == '1h') {
                 $anomalyThresholdOI = 15;
+                $trendReversalRange = 4;
             } else if ($timeFrame == '4h') {
                 $anomalyThresholdOI = 15;
+                $trendReversalRange = 3;
             } else if ($timeFrame == '1d') {
                 $anomalyThresholdOI = 15;
+                $trendReversalRange = 2;
             }
 
             $actualSnap = $symbolVolumes ?? false;
             if ($actualSnap) {
 
-                $buyChange = $actualSnap['tradesHistory']['buyChange'] ?? 0;
-                $sellChange = $actualSnap['tradesHistory']['sellChange'] ?? 0;
-
+                $actualCrossMA = $actualSnap['crossHistoryMA'][array_key_last($actualSnap['crossHistoryMA'])];
                 $crossMAVal = 0;
-                if ($actualSnap['crossMA']['cross'] == 'bull cross')
+                if ($actualCrossMA['is_reversal'] && $actualCrossMA['isUptrend'])
                     $crossMAVal = 1;
-                else if ($actualSnap['crossMA']['cross'] == 'bear cross')
+                else if ($actualCrossMA['is_reversal'] && !$actualCrossMA['isUptrend'])
                     $crossMAVal = 2;
 
-                $actualSAR = false;
+                $MAReversalFlag = self::checkRecentTrendReversal($actualSnap['crossHistoryMA'], $trendReversalRange) ?? false;
+
+                $actualSAR = $sarReversalFlag = false;
                 if ($actualSnap['sarData'] && is_array($actualSnap['sarData']))
                     $actualSAR = $actualSnap['sarData'][array_key_last($actualSnap['sarData'])];
 
@@ -224,94 +68,159 @@ class StrategyBuilder
                         $sarVal = 2;
                 }
 
+                $sarReversalFlag = self::checkRecentTrendReversal($actualSnap['supertrendData'], $trendReversalRange);
+
+                $actualSupertrend = $superTrandReversalFlag = false;
+                if ($actualSnap['supertrendData'] && is_array($actualSnap['supertrendData']))
+                    $actualSupertrend = $actualSnap['supertrendData'][array_key_last($actualSnap['supertrendData'])];
+
+                $supertrendVal = 0;
+                if ($actualSupertrend) {
+                    if ($actualSupertrend['is_reversal'] && $actualSupertrend['isUptrend'])
+                        $supertrendVal = 1;
+                    else if ($actualSupertrend['is_reversal'] && $actualSupertrend['isUptrend'])
+                        $supertrendVal = 2;
+                }
+
+                if (in_array($symbolName, ['BTCUSDT', 'ETHUSDT']))
+                    $trendReversalRange = 3;
+
+                $superTrandReversalFlag = self::checkRecentTrendReversal($actualSnap['supertrendData'], $trendReversalRange);
+
+                $actualStochastic = false;
+                if ($actualSnap['stochasticOscillatorData'] && is_array($actualSnap['stochasticOscillatorData']))
+                    $actualStochastic = $actualSnap['stochasticOscillatorData'][array_key_last($actualSnap['stochasticOscillatorData'])];
+
                 $opportunitieData = [
                     'symbolName' => $symbolName,
                     'lastRsi' => $actualSnap['rsi'],
                     'lastClosePrice' => $actualSnap['lastClosePrice'],
                     'lastOpenInterest' => $actualSnap['openInterest'],
                     'lastPriceChange' => $actualSnap['priceChange'],
+                    'timestapOI' => $actualSnap['timestapOI'],
                     'lastSAR' => $actualSAR,
+                    'sarReversalFlag' => $sarReversalFlag,
                     'sarVal' => $sarVal,
-                    'crossMA' => $actualSnap['crossMA']['cross'],
-                    'crossMAOb' => $actualSnap['crossMA'],
+                    'actualStochastic' => $actualStochastic,
+                    'lastSupertrend' => $actualSupertrend,
+                    'supertrendVal' => $supertrendVal,
+                    'superTrandReversalFlag' => $superTrandReversalFlag,
+                    'crossMAData' => $actualSnap['crossHistoryMA'],
+                    'lastCrossMA' => $actualCrossMA,
                     'crossMAVal' => $crossMAVal,
-                    'divergences' => $actualSnap['divergences'],
-                    //'divergencesVal' => $divergencesVal,
-                    'buyChangePercent' => round($buyChange, 2),
-                    'sellChangePercent' => round($sellChange, 2),
+                    'MAReversalFlag' => $MAReversalFlag,
                     'timeMark' => $timeMark,
                     'snapTimeMark' => $actualSnap['timeMark'],
                     'timeFrame' => $timeFrame,
                     'anomalyOI' => ($actualSnap['openInterest'] >= $anomalyThresholdOI),
                 ];
 
-                //$actualOpportunities['allCoin'][$symbolName] = $opportunitieData;
-
-                if (in_array($symbolName, ['BTCUSDT', 'ETHUSDT']))
+                if (in_array($symbolName, ['BTCUSDT', 'ETHUSDT'])) {
                     $actualOpportunities['headCoin'][$symbolName] = $opportunitieData;
+                    continue;
+                }
 
-               /* // Формируем данные для pump
-                if (
-                    (in_array($crossMAVal, [1]) || in_array($sarVal, [1]))
-                    //&& (floatval($actualSnap['priceChange']) <= $thresholdPricePercent)
-                ) {
-                    $actualOpportunities['pump'][$symbolName] = $opportunitieData;
-                }*/
-
+                //master
                 if (
                     (
-                        in_array($timeFrame, ['4h', '1d'])
-                        && (
-                            ((in_array($crossMAVal, [1]) || in_array($sarVal, [1])) && (($actualSnap['priceChange'] > 0 && $actualSnap['openInterest'] > 0) || ($actualSnap['priceChange'] < 0 && $actualSnap['openInterest'] < 0)))
-                            || ($actualSnap['priceChange'] > 0 && $actualSnap['openInterest'] >= $anomalyThresholdOI)
-                        )
-                    )
-                    || (
-                        in_array($timeFrame, ['30m', '1h'])
-                        && (($actualSnap['priceChange'] > 0 && $actualSnap['openInterest'] >= 0) || ($actualSnap['priceChange'] < 0 && $actualSnap['openInterest'] <= -0))
-                        && (in_array($crossMAVal, [1]) || (in_array($sarVal, [1]) && $actualSnap['lastClosePrice'] >= $actualSnap['crossMA']['sma']))
+                        in_array($timeFrame, ['1h', '1d', '4h', '30m'])
+                        && ($actualSnap['openInterest'] > 0)
+                        && ((
+                            $actualCrossMA['sma'] <= $actualSnap['lastClosePrice']
+                            && $actualCrossMA['sma'] > $actualCrossMA['ema']
+                            && ($actualSupertrend['isUptrend'])
+                            && !$actualCrossMA['is_reversal']
+                            ) || (
+                            $actualSupertrend['isUptrend']
+                            && $actualCrossMA['is_reversal']
+                            && $actualCrossMA['isUptrend']
+                        ))
                     )
                 ) {
                     $actualOpportunities['masterPump'][$symbolName] = $opportunitieData;
+                }
+
+                if (
+                    (
+                        in_array($timeFrame, ['1d', '4h', '1h', '30m'])
+                        && ($actualSnap['openInterest'] > 0)
+                        && (
+                            (
+                                $actualCrossMA['sma'] >= $actualSnap['lastClosePrice']
+                                && $actualCrossMA['sma'] < $actualCrossMA['ema']
+                                && !$actualSupertrend['isUptrend']
+                                && !$actualCrossMA['is_reversal']
+                            ) || (
+                                !$actualSupertrend['isUptrend']
+                                && $actualCrossMA['is_reversal']
+                                && !$actualCrossMA['isUptrend']
+                            )
+                        )
+                    )
+                ) {
+                    $actualOpportunities['masterDump'][$symbolName] = $opportunitieData;
+                }
+
+                //test
+                if (
+                    (
+                        in_array($timeFrame, ['1h', '1d', '4h', '30m'])
+                        && ($actualSnap['openInterest'] > 0)
+                        && $actualStochastic['%K'] <= 30
+                        && ((
+                                $actualCrossMA['sma'] <= $actualSnap['lastClosePrice']
+                                && $actualCrossMA['sma'] > $actualCrossMA['ema']
+                                && ($actualSupertrend['isUptrend'])
+                                && !$actualCrossMA['is_reversal']
+                            ) || (
+                                $actualSupertrend['isUptrend']
+                                && $actualCrossMA['is_reversal']
+                                && $actualCrossMA['isUptrend']
+                            ))
+                    )
+                ) {
                     $actualOpportunities['pump'][$symbolName] = $opportunitieData;
                 }
 
                 if (
-                    (in_array($crossMAVal, [1]) || in_array($sarVal, [1]))
-                    || (($actualSnap['priceChange'] > 0 && $actualSnap['openInterest'] >= 25) || $actualSnap['priceChange'] < 0 && $actualSnap['openInterest'] <= -5)
+                    (
+                        in_array($timeFrame, ['1d', '4h', '1h', '30m'])
+                        && ($actualSnap['openInterest'] > 0)
+                        && $actualStochastic['%K'] >= 70
+                        && ((
+                                $actualCrossMA['sma'] >= $actualSnap['lastClosePrice']
+                                && $actualCrossMA['sma'] < $actualCrossMA['ema']
+                                && !$actualSupertrend['isUptrend']
+                                && !$actualCrossMA['is_reversal']
+                            ) || (
+                                !$actualSupertrend['isUptrend']
+                                && $actualCrossMA['is_reversal']
+                                && !$actualCrossMA['isUptrend']
+                            ))
+                    )
+                ) {
+                    $actualOpportunities['dump'][$symbolName] = $opportunitieData;
+                }
+
+                //alerts
+                if (
+                    (
+                        in_array($timeFrame, ['30m', '1h', '4h', '1d'])
+                        && $actualStochastic['isLong']
+                        && ($actualSupertrend['isUptrend'])
+                        && $actualCrossMA['bollinger']['%B'] < 0.27
+                    )
                 ) {
                     $actualOpportunities['allPump'][$symbolName] = $opportunitieData;
                 }
 
-               /* // Формируем данные для dump
-                if (
-                    (in_array($crossMAVal, [2]) || in_array($sarVal, [2]))
-                    //&& (floatval($actualSnap['priceChange']) >= -$thresholdPricePercent)
-                ) {
-                    $actualOpportunities['dump'][$symbolName] = $opportunitieData;
-                }*/
-
                 if (
                     (
-                        in_array($timeFrame, ['4h', '1d'])
-                        && (
-                            ((in_array($crossMAVal, [2]) || in_array($sarVal, [2])) && (($actualSnap['priceChange'] < 0 && $actualSnap['openInterest'] > 0) || ($actualSnap['priceChange'] > 0 && $actualSnap['openInterest'] < 0)))
-                            || ($actualSnap['priceChange'] < 0 && $actualSnap['openInterest'] >= $anomalyThresholdOI)
-                        )
+                        in_array($timeFrame, ['30m', '1h', '4h', '1d'])
+                        && $actualStochastic['isShort']
+                        && (!$actualSupertrend['isUptrend'])
+                        && $actualCrossMA['bollinger']['%B'] > 0.73
                     )
-                    || (
-                        in_array($timeFrame, ['30m', '1h'])
-                        && (in_array($crossMAVal, [2]) || (in_array($sarVal, [2])  && $actualSnap['lastClosePrice'] <= $actualSnap['crossMA']['sma']))
-                        && (($actualSnap['priceChange'] < 0 && $actualSnap['openInterest'] >= $anomalyThresholdOI) || ($actualSnap['priceChange'] > 0 && $actualSnap['openInterest'] <= -$anomalyThresholdOI))
-                    )
-                ) {
-                    $actualOpportunities['masterDump'][$symbolName] = $opportunitieData;
-                    $actualOpportunities['dump'][$symbolName] = $opportunitieData;
-                }
-
-                if (
-                    (in_array($crossMAVal, [2]) || in_array($sarVal, [2]))
-                    || (($actualSnap['priceChange'] < 0 && $actualSnap['openInterest'] >= 25) || ($actualSnap['priceChange'] > 0 && $actualSnap['openInterest'] <= -5))
                 ) {
                     $actualOpportunities['allDump'][$symbolName] = $opportunitieData;
                 }
@@ -321,18 +230,12 @@ class StrategyBuilder
 
         // Функция для сортировки массива pump с сохранением ключей
         uasort($actualOpportunities['allPump'], function ($a, $b) {
-            if ($a['buyChangePercent'] == $b['buyChangePercent']) {
-                return $a['sellChangePercent'] <=> $b['sellChangePercent'];
-            }
-            return $b['buyChangePercent'] <=> $a['buyChangePercent'];
+            return $b['lastOpenInterest'] <=> $a['lastOpenInterest'];
         });
 
         // Функция для сортировки массива dump с сохранением ключей
         uasort($actualOpportunities['allDump'], function ($a, $b) {
-            if ($a['sellChangePercent'] == $b['sellChangePercent']) {
-                return $a['buyChangePercent'] <=> $b['buyChangePercent'];
-            }
-            return $b['sellChangePercent'] <=> $a['sellChangePercent'];
+            return $b['lastOpenInterest'] <=> $a['lastOpenInterest'];
         });
 
 
@@ -365,10 +268,17 @@ class StrategyBuilder
             return $b['sellChangePercent'] <=> $a['sellChangePercent'];
         });
 
+        uasort($actualOpportunities['masterPump'], function ($a, $b) {
+            return $b['lastOpenInterest'] <=> $a['lastOpenInterest'];
+        });
+
+        uasort($actualOpportunities['masterDump'], function ($a, $b) {
+            return $b['lastOpenInterest'] <=> $a['lastOpenInterest'];
+        });
+
      
         devlogs($timeFrame. ' count pump - ' . count($actualOpportunities['pump']), $marketCode . 'findPumpOrDumpOpportunities');
         devlogs($timeFrame. ' count dump - ' . count($actualOpportunities['dump']), $marketCode . 'findPumpOrDumpOpportunities');
-        //devlogs('count Opportunities - ' . count($actualOpportunities), $marketCode . 'findPumpOrDumpOpportunities');
 
         if (!empty($err))
             devlogs($timeFrame. ' err - ' . implode('; ', $err), $marketCode . 'findPumpOrDumpOpportunities');
@@ -376,6 +286,21 @@ class StrategyBuilder
         devlogs($timeFrame. ' end - ' . $timeMark, $marketCode . 'findPumpOrDumpOpportunities');
 
         return $actualOpportunities;
+    }
+
+    public static function checkRecentTrendReversal($trendData, $trendReversalRange = 3) {
+        // Получаем последние $trendReversalRange элементов массива
+        $recentData = array_slice($trendData, -$trendReversalRange);
+
+        // Проходим по последним данным и проверяем наличие разворота
+        foreach ($recentData as $candle) {
+            if ($candle['is_reversal'] === true) {
+                return true; // Если есть разворот, возвращаем true
+            }
+        }
+
+        // Если разворота не найдено, возвращаем false
+        return false;
     }
 
      /**
@@ -467,33 +392,108 @@ class StrategyBuilder
         return $peaks;
     }
 
-    public static function checkMACross(array $prices, int $shortPeriod = 12, int $longPeriod = 26) {
-        // Проверяем, что передано достаточно данных
-        if (count($prices) < $longPeriod) {
-            throw new \Exception("Недостаточно данных для расчета скользящих средних.");
+    public static function getMACrossHistory(array $prices, int $shortPeriod = 12, int $longPeriod = 26, int $n = 10) {
+        // Проверяем, что передано достаточно данных для расчета и для формирования истории на n свечей
+        if (count($prices) < $longPeriod + $n - 1) {
+            throw new \Exception("Недостаточно данных для расчета скользящих средних на $n свечей.");
         }
-        // Берем последние $period+1 элементов, чтобы рассчитать первые изменения
-        $prices = array_slice($prices, -($longPeriod + 1));
 
-        // Вычисляем SMA
+        $crossHistory = [];
+
+        // Проходим по последним n свечам, начиная от конца массива
+        for ($i = $n; $i > 0; $i--) {
+            // Берем подмассив, заканчивающийся на текущей свече, и передаем в checkMACross
+            $currentSlice = array_slice($prices, 0, count($prices) - $i + 1);
+
+            // Вызываем метод checkMACross и получаем результат для текущей свечи
+            $crossData = self::checkMACross($currentSlice, $shortPeriod, $longPeriod);
+
+            // Добавляем результат к истории
+            $crossHistory[] = $crossData;
+        }
+
+        return $crossHistory;
+    }
+
+    public static function checkMACross(array $prices, int $shortPeriod = 12, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
+    {
+        // Проверяем, что передано достаточно данных
+        if (count($prices) < max($longPeriod, $bollingerLength)) {
+            throw new \Exception("Недостаточно данных для расчета.");
+        }
+
+        // Берем последние элементы для расчетов
+        $prices = array_slice($prices, -max($longPeriod, $bollingerLength));
+
+        // Вычисляем SMA для длинного периода
         $sma = array_sum(array_slice($prices, -$longPeriod)) / $longPeriod;
 
-        // Вычисляем EMA
+        // Вычисляем EMA для короткого периода
         $ema = self::calculateEMA($prices, $shortPeriod);
 
         // Проверяем пересечение
         $previousSMA = array_sum(array_slice($prices, -(($longPeriod + 1)), $longPeriod)) / $longPeriod;
         $previousEMA = self::calculateEMA(array_slice($prices, 0, -1), $shortPeriod);
 
+        // Определяем текущую цену
+        $currentPrice = end($prices); // Последний элемент массива
+        $isUptrend = $currentPrice > $sma;
+
+        // Вычисляем Bollinger Bands
+        $bollingerPrices = array_slice($prices, -$bollingerLength); // Последние $bollingerLength значений
+        $bollingerSMA = array_sum($bollingerPrices) / $bollingerLength;
+
+        // Вычисляем стандартное отклонение
+        $variance = array_sum(array_map(function ($price) use ($bollingerSMA) {
+                return pow($price - $bollingerSMA, 2);
+            }, $bollingerPrices)) / $bollingerLength;
+
+        $stdDev = sqrt($variance);
+
+        // Верхняя и нижняя полосы
+        $upperBand = $bollingerSMA + ($bollingerFactor * $stdDev);
+        $lowerBand = $bollingerSMA - ($bollingerFactor * $stdDev);
+
+        // Логика пересечения SMA и EMA
         if ($previousEMA <= $previousSMA && $ema > $sma) {
-            //return 'bull cross';  // Бычье пересечение (возможный восходящий тренд)
-            return ['cross' => 'bull cross', 'sma' => $sma,  'ema' => $ema, ]; // Бычье пересечение (возможный восходящий тренд)
+            return [
+                'cross' => 'bull cross',
+                'sma' => $sma,
+                'ema' => $ema,
+                'isUptrend' => $isUptrend,
+                'is_reversal' => true,
+                'bollinger' => [
+                    'middle_band' => $bollingerSMA,
+                    'upper_band' => $upperBand,
+                    'lower_band' => $lowerBand,
+                ],
+            ];
         } elseif ($previousEMA >= $previousSMA && $ema < $sma) {
-            //return 'bear cross';  // Медвежье пересечение (возможный нисходящий тренд)
-            return ['cross' => 'bear cross', 'sma' => $sma,  'ema' => $ema, ];  // Медвежье пересечение (возможный нисходящий тренд)
+            return [
+                'cross' => 'bear cross',
+                'sma' => $sma,
+                'ema' => $ema,
+                'isUptrend' => $isUptrend,
+                'is_reversal' => true,
+                'bollinger' => [
+                    'middle_band' => $bollingerSMA,
+                    'upper_band' => $upperBand,
+                    'lower_band' => $lowerBand,
+                ],
+            ];
         } else {
-            //return 'no cross';  // Пересечения нет
-            return ['cross' => 'no cross', 'sma' => $sma,  'ema' => $ema, ];  // Пересечения нет
+            return [
+                'cross' => 'no cross',
+                'sma' => $sma,
+                'ema' => $ema,
+                'isUptrend' => $isUptrend,
+                'is_reversal' => false,
+                'bollinger' => [
+                    'middle_band' => $bollingerSMA,
+                    'upper_band' => $upperBand,
+                    'lower_band' => $lowerBand,
+                ],
+            ];
         }
     }
 
@@ -566,44 +566,178 @@ class StrategyBuilder
             ];
         }
 
+        if (!$sar) {
+            $sar[] = [
+                'sar_value' => 0,
+                'trend' => '-',
+                'isUptrend' => '-',
+                'is_reversal' => '-',
+            ];
+        }
+
         return $sar;
     }
 
-    public static function findLevels($orderBook, $topN = 3) {
-        // Создаем массивы для хранения цен и объемов для bid (покупок) и ask (продаж)
+    public static function calculateSupertrend($candles, $length = 10, $factor = 3, $useEMA = false)
+    {
+        // Проверка на пустой массив свечей
+        if (empty($candles)) {
+            return [
+                [
+                    'value' => 0,
+                    'trend' => '-',
+                    'isUptrend' => false,
+                    'is_reversal' => false,
+                ],
+            ];
+        }
+
+        $supertrend = [];
+        $tr = [];
+        $atr = [];
+        $atrMultiplier = $factor;
+
+        // Step 1: Calculate True Range (TR)
+        for ($i = 0; $i < count($candles); $i++) {
+            if ($i == 0) {
+                $tr[] = 0;
+                continue;
+            }
+
+            $highLow = $candles[$i]['h'] - $candles[$i]['l'];
+            $highClose = abs($candles[$i]['h'] - $candles[$i - 1]['c']);
+            $lowClose = abs($candles[$i]['l'] - $candles[$i - 1]['c']);
+            $tr[] = max($highLow, $highClose, $lowClose);
+        }
+
+        // Step 2: Calculate ATR (SMA or EMA)
+        if ($useEMA) {
+            // Exponential Moving Average (EMA)
+            $multiplier = 2 / ($length + 1);
+            for ($i = 0; $i < count($tr); $i++) {
+                if ($i < $length) {
+                    $atr[] = 0; // ATR undefined for first $length candles
+                } elseif ($i == $length) {
+                    // Initial EMA is SMA of first $length TR values
+                    $atr[] = array_sum(array_slice($tr, 0, $length)) / $length;
+                } else {
+                    // EMA calculation
+                    $atr[] = ($tr[$i] - $atr[$i - 1]) * $multiplier + $atr[$i - 1];
+                }
+            }
+        } else {
+            // Simple Moving Average (SMA)
+            for ($i = 0; $i < count($tr); $i++) {
+                if ($i < $length) {
+                    $atr[] = 0; // ATR undefined for first $length candles
+                } else {
+                    $atr[] = array_sum(array_slice($tr, $i - $length + 1, $length)) / $length;
+                }
+            }
+        }
+
+        // Step 3: Calculate Supertrend
+        $prevUpperBand = null;
+        $prevLowerBand = null;
+        $prevTrend = 'up';
+
+        for ($i = $length; $i < count($candles); $i++) {
+            $basicUpperBand = (($candles[$i]['h'] + $candles[$i]['l']) / 2) + ($atrMultiplier * $atr[$i]);
+            $basicLowerBand = (($candles[$i]['h'] + $candles[$i]['l']) / 2) - ($atrMultiplier * $atr[$i]);
+
+            // Adjust bands according to the trend
+            if ($prevTrend === 'up' && $basicLowerBand < $prevLowerBand) {
+                $basicLowerBand = $prevLowerBand;
+            }
+            if ($prevTrend === 'down' && $basicUpperBand > $prevUpperBand) {
+                $basicUpperBand = $prevUpperBand;
+            }
+
+            // Determine trend
+            if ($candles[$i]['c'] > $basicUpperBand) {
+                $supertrendValue = $basicLowerBand;
+                $trend = 'up';
+            } elseif ($candles[$i]['c'] < $basicLowerBand) {
+                $supertrendValue = $basicUpperBand;
+                $trend = 'down';
+            } else {
+                // Maintain previous trend
+                $supertrendValue = $prevTrend === 'up' ? $basicLowerBand : $basicUpperBand;
+                $trend = $prevTrend;
+            }
+
+            $isReversal = $prevTrend !== $trend;
+
+            // Record calculated values
+            $supertrend[] = [
+                'value' => $supertrendValue,
+                'trend' => $trend,
+                'isUptrend' => $trend === 'up',
+                'is_reversal' => $isReversal,
+            ];
+
+            // Update for next iteration
+            $prevUpperBand = $basicUpperBand;
+            $prevLowerBand = $basicLowerBand;
+            $prevTrend = $trend;
+        }
+
+        // If there are no valid values, provide default output
+        if (empty($supertrend)) {
+            $supertrend[] = [
+                'value' => 0,
+                'trend' => '-',
+                'isUptrend' => false,
+                'is_reversal' => false,
+            ];
+        }
+
+        return $supertrend;
+    }
+
+    public static function findLevels($orderBook, $topN = 3, $deviationPercent = 0.3) {
         $bids = [];
         $asks = [];
 
-        // Находим самую высокую цену покупок (максимальный bid)
-        $maxBidPrice = (float) $orderBook['b'][0][0];  // Предполагаем, что массив отсортирован по убыванию цены
-        // Находим самую низкую цену продаж (минимальный ask)
-        $minAskPrice = (float) $orderBook['a'][0][0];  // Предполагаем, что массив отсортирован по возрастанию цены
+        // Самая высокая цена покупок и самая низкая цена продаж
+        $maxBidPrice = (float) $orderBook['b'][0][0];
+        $minAskPrice = (float) $orderBook['a'][0][0];
 
-        // Рассчитываем допустимые уровни для поиска
-        $minAskPriceLimit = $minAskPrice * 1.003;  // Для тейк-профита (цена выше на 0.5%)
-        $maxBidPriceLimit = $maxBidPrice * 0.997;  // Для стоп-лосса (цена ниже на 0.5%)
+        // Рассчитываем предельные уровни
+        $minAskPriceLimit = $minAskPrice * (1 + ($deviationPercent / 100));
+        $maxBidPriceLimit = $maxBidPrice * (1 - ($deviationPercent / 100));
 
-        // Проходим по массиву bid (покупки) и добавляем данные в массив
+        // Проходим по покупкам (bids)
         foreach ($orderBook['b'] as $bid) {
-            $price = (float) $bid[0];  // Цена
-            $volume = (float) $bid[1]; // Объём
-            // Добавляем только те уровни, которые ниже максимального bid на хотя бы 0.5%
+            $price = (float) $bid[0];
+            $volume = (float) $bid[1];
             if ($price <= $maxBidPriceLimit) {
-                $bids[] = ['price' => $price, 'volume' => $volume];
+                $bids[] = [
+                    'price' => $price,
+                    'volume' => round($volume),
+                    'percent_from_last_close' => round((($maxBidPrice - $price) / $maxBidPrice) * 100, 2) // Отклонение от maxBidPrice
+                ];
             }
         }
 
-        // Проходим по массиву ask (продажи) и добавляем данные в массив
+        // Проходим по продажам (asks)
         foreach ($orderBook['a'] as $ask) {
-            $price = (float) $ask[0];  // Цена
-            $volume = (float) $ask[1]; // Объём
-            // Добавляем только те уровни, которые выше минимального ask на хотя бы 0.5%
+            $price = (float) $ask[0];
+            $volume = (float) $ask[1];
             if ($price >= $minAskPriceLimit) {
-                $asks[] = ['price' => $price, 'volume' => $volume];
+                $asks[] = [
+                    'price' => $price,
+                    'volume' => round($volume),
+                    'percent_from_last_close' => round((($price - $minAskPrice) / $minAskPrice) * 100, 2) // Отклонение от minAskPrice
+                ];
             }
         }
 
-        // Сортируем массивы bid и ask по объему в порядке убывания
+        // Объединение похожих уровней
+        $bids = self::mergeSimilarLevels($bids, 'bids');
+        $asks = self::mergeSimilarLevels($asks, 'asks');
+
+        // Сортировка по объему
         usort($bids, function($a, $b) {
             return $b['volume'] <=> $a['volume'];
         });
@@ -611,11 +745,61 @@ class StrategyBuilder
             return $b['volume'] <=> $a['volume'];
         });
 
-        // Возвращаем топ-N уровней для тейк-профита (asks) и стоп-лосса (bids)
+        // Возвращаем топ-N уровней
         return [
-            'upper' => array_slice($asks, 0, $topN), // Тейк-профит уровни (asks)
-            'lower' => array_slice($bids, 0, $topN)  // Стоп-лосс уровни (bids)
+            'upper' => array_slice($asks, 0, $topN),
+            'lower' => array_slice($bids, 0, $topN)
         ];
+    }
+
+    // Функция для объединения похожих уровней
+    public static function mergeSimilarLevels($levels, $type) {
+        $merged = [];
+
+        foreach ($levels as $level) {
+            $found = false;
+            foreach ($merged as &$mergedLevel) {
+                // Получаем динамическую точность для цены уровня
+                $precision = self::getDynamicPrecision($mergedLevel['price']);
+                if (abs($mergedLevel['price'] - $level['price']) <= $precision) {
+                    $mergedLevel['volume'] += $level['volume'];
+                    $mergedLevel['volume'] = round($mergedLevel['volume']);  // Округляем сумму объемов
+                    if ($type === 'asks') {
+                        $mergedLevel['price'] = min($mergedLevel['price'], $level['price']); // Берем минимальную цену для верхних уровней
+                    } else {
+                        $mergedLevel['price'] = max($mergedLevel['price'], $level['price']); // Берем максимальную цену для нижних уровней
+                    }
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found) {
+                $merged[] = $level;
+            }
+        }
+
+        return $merged;
+    }
+
+    // Функция для вычисления динамической точности на основе цены
+    public static function getDynamicPrecision($price) {
+        if ($price > 10000) {
+            return 0.5;  // Высокие цены (например, BTC) — точность 0.1
+        } elseif ($price > 100) {
+            return 0.1; //
+        } /*elseif ($price > 1000) {
+            return 0.35; // Средние цены — точность 0.1
+        } */elseif ($price > 1) {
+            return 0.007;
+        } elseif ($price > 0.5) {
+            return 0.008;
+        }  elseif ($price > 0.01) {
+            return 0.0002;
+        }  elseif ($price > 0.001) {
+            return 0.00002;
+        } else {
+            return 0.00001;
+        }
     }
 
 }

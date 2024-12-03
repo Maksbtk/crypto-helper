@@ -15,16 +15,17 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 /** @var CBitrixComponent $component */
 global $USER;
                                                                              
-Asset::getInstance()->addJs( "https://www.google.com/recaptcha/api.js?render=6LfidaUpAAAAAAlS_kLGX4FVOe7S__HcEmzKLIpl");
+Asset::getInstance()->addJs( "https://www.google.com/recaptcha/api.js?render=6Lf-TWAqAAAAACb3JQWmo8hWR8rW9P38Crrb545U");
 Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/jquery.maskedinput.js");
-
+//6Lf-TWAqAAAAACb3JQWmo8hWR8rW9P38Crrb545U ключ сайта
+//6Lf-TWAqAAAAAIqHXK37faQ3Yn0FSEA60sAT8LaZ секретный ключ
 ?>
 
 <div class="page-contacts-feedback">
     <h2 class="page-contacts-subtitle">Форма обратной связи</h2>
     <form class="feedback-form" id="contactsFeedbackForm">
         <p class="contacts-feedback-intro">
-            Заполните все поля и нажмите «Отправить», мы обработаем ваше обращение и свяжемся в течение 24 часов.
+            Заполните все поля и нажмите «Отправить», мы обработаем ваше обращение в ближайшее время.
         </p>
         <fieldset class="form-fieldset" >
             <input type="hidden" value="contacts-form" name="FORM_TYPE">

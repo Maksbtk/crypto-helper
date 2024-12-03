@@ -13,11 +13,11 @@ class DataOperation
     {
         $tgBot = new \Maksv\TelegramBot();
         $message = '';
-        //$message .= "ℹ info ⏰" . date('H:i', /*strtotime('+1 minute', */strtotime('-3 hour'))/*)*/ . "\n\n";
         $message .= "ℹ info " . $timeFrame . " ⏰" . DataOperation::actualDateFormatted() . "\n\n";
 
         if ($actualOpportunities['allPump']) {
             $cnt = 1;
+            $message .= "🟩\n";
             foreach (array_slice($actualOpportunities['allPump'], 0, 20) as $key => $symbol) {
                 $cross = 'no cross. ';
                 if($symbol['crossMAVal'] == 1)
@@ -25,22 +25,40 @@ class DataOperation
                 else if($symbol['crossMAVal'] == 2)
                     $cross = 'cross - ❤. ';
 
-                $sar = '. SAR - ' .$symbol['lastSAR']['trend'] . '. ';
-                if ($symbol['sarVal'] == 1)
-                    $sar = '. SAR -🟢. ';
-                else if ($symbol['sarVal'] == 2)
-                    $sar = '. SAR - 🔴. ';
+                $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
+                if ($symbol['supertrendVal'] == 1)
+                    $sTrend = ' sTrand-🟢. ';
+                else if ($symbol['supertrendVal'] == 2)
+                    $sTrend = ' sTrand-🔴. ';
 
-                $message .= $cnt . $sar . $cross .' ' . $symbol['symbolName']  . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
-                //$message .= $cnt . $cross .' ' . $symbol['symbolName'] . '. RSI '.$symbol['lastRsi'].'%' . $divergence . ' Покупки ' . $symbol['buyChangePercent'] . '%.' . ' Продажи ' . $symbol['sellChangePercent'] . '%' . ' ' . $symbol['snapshots'][0]['timeMark'] . '-' . $symbol['snapshots'][1]['timeMark'] . "\n";
+                /*$approve = '';
+                if ($symbol['filter']) {
+                    $approve = ' Approve: ';
+                    $cntApprove = 0;
+                    foreach ($symbol['filter'] as $tf => $flag) {
+                        if ($flag) {
+                            $approve .= ' ' . $tf . ',';
+                            $cntApprove++;
+                        }
+                    };
+                    if ($cntApprove == 0) {
+                        $approve = '';
+                    } else {
+                        $approve = substr($approve, 0, -1);
+                        $approve .= '.';
+                    }
+                }*/
+
+                //$message .= $cnt . '.' . $sTrend . $cross .' ' . $symbol['symbolName']  . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . $approve . "\n";
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' ' . $symbol['strategy'] . ' ' . $sTrend . $cross .' ' . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
                 $cnt++;
             }
         }
         $message .= "\n";
 
         if ($actualOpportunities['allDump']) {
-
             $cnt = 1;
+            $message .= "🟥\n";
             foreach (array_slice($actualOpportunities['allDump'], 0, 20) as $key => $symbol) {
                 $cross = 'no cross. ';
                 if($symbol['crossMAVal'] == 1)
@@ -48,13 +66,33 @@ class DataOperation
                 else if($symbol['crossMAVal'] == 2)
                     $cross = 'cross - ❤. ';
 
-                $sar = '. SAR - ' .$symbol['lastSAR']['trend'] . '. ';
-                if ($symbol['sarVal'] == 1)
-                    $sar = '. SAR -🟢. ';
-                else if ($symbol['sarVal'] == 2)
-                    $sar = '. SAR - 🔴. ';
+                $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
+                if ($symbol['supertrendVal'] == 1)
+                    $sTrend = ' sTrand-🟢. ';
+                else if ($symbol['supertrendVal'] == 2)
+                    $sTrend = ' sTrand-🔴. ';
 
-                $message .= $cnt . $sar . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+               /* $approve = '';
+                if ($symbol['filter']) {
+                    $approve = ' Approve: ';
+                    $cntApprove = 0;
+                    foreach ($symbol['filter'] as $tf => $flag) {
+                        if ($flag) {
+                            $approve .= ' ' . $tf . ',';
+                            $cntApprove++;
+                        }
+                    };
+                    if ($cntApprove == 0) {
+                        $approve = '';
+                    } else {
+                        $approve = substr($approve, 0, -1);
+                        $approve .= '.';
+                    }
+                }*/
+
+                //$message .= $cnt . '.' . $sTrend . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . $approve . "\n";
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' ' . $symbol['strategy'] . ' ' . $sTrend . $cross .' ' . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+
                 $cnt++;
             }
         }
@@ -64,42 +102,56 @@ class DataOperation
         }
 
         $message .= "\n";
-        $sendRes = $tgBot->messageToTelegram($message, '@cryptoHelperDev');
+        $sendRes = $tgBot->messageToTelegram($message, '@cryptoHelperAlerts');
 
         return $sendRes;
     }
 
-    public static function sendSignalMessage($pump = [], $dump = [], $chatName = '@cryptoHelperDev', $timeFrame = '')
+    public static function sendSignalMessage($pump = [], $dump = [], $chatName = '@cryptoHelperAlerts', $timeFrame = '')
     {
         $tgBot = new \Maksv\TelegramBot();
         $message = '';
-        //$message .= "ℹ info ⏰" . date('H:i', /*strtotime('+1 minute', */strtotime('-3 hour'))/*)*/ . "\n\n";
         $message .= "ℹ info " . $timeFrame . " ⏰" .  DataOperation::actualDateFormatted() . "\n\n";
 
         if ($pump) {
-            $message .= "⬆ long:\n";
+            $message .= "🟩⬆ long:\n";
 
             $cnt = 1;
             foreach (array_slice($pump, 0, 12) as $key => $symbol) {
-                $cross = 'no cross. ';
-                if($symbol['crossMAVal'] == 1)
-                    $cross = 'cross - 💚. ';
-                else if($symbol['crossMAVal'] == 2)
-                    $cross = 'cross - ❤. ';
 
-                $sar = '. SAR - ' .$symbol['lastSAR']['trend'] . '. ';
-                if ($symbol['sarVal'] == 1)
-                    $sar = '. SAR -🟢. ';
-                else if ($symbol['sarVal'] == 2)
-                    $sar = '. SAR - 🔴. ';
+                /* $cross = 'no cross. ';
+                 if($symbol['crossMAVal'] == 1)
+                     $cross = 'cross - 💚. ';
+                 else if($symbol['crossMAVal'] == 2)
+                     $cross = 'cross - ❤. ';
 
-                $parentApprove = '';
-                if ($symbol['secondFilter'])
-                    $parentApprove = 'Parent approve.';
+                 $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
+                 if ($symbol['supertrendVal'] == 1)
+                     $sTrend = ' sTrand-🟢. ';
+                 else if ($symbol['supertrendVal'] == 2)
+                     $sTrend = ' sTrand-🔴. ';
 
-                $message .= $cnt . $sar . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . $parentApprove . "\n";
-                //$message .= $cnt . $sar . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . ' Покупки ' . $symbol['buyChangePercent'] . '%.' . ' Продажи ' . $symbol['sellChangePercent'] . '%' . "\n\n";
-                //$message .= $cnt . $cross .' ' . $symbol['symbolName'] . '. RSI '.$symbol['lastRsi'].'%' . $divergence . ' Покупки ' . $symbol['buyChangePercent'] . '%.' . ' Продажи ' . $symbol['sellChangePercent'] . '%' . ' ' . $symbol['snapshots'][0]['timeMark'] . '-' . $symbol['snapshots'][1]['timeMark'] . "\n\n";
+                 $approve = '';
+                 if ($symbol['filter']) {
+                     $approve = ' Approve: ';
+                     $cntApprove = 0;
+                     foreach ($symbol['filter'] as $tf => $flag) {
+                         if ($flag) {
+                             $approve .= ' ' . $tf . ',';
+                             $cntApprove++;
+                         }
+                     };
+                     if ($cntApprove == 0) {
+                         $approve = '';
+                     } else {
+                         $approve = substr($approve, 0, -1);
+                         $approve .= '.';
+                     }
+                 }*/
+
+                //$message .= $cnt . $sTrend . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . $approve . "\n";
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+
                 $cnt++;
             }
         } else {
@@ -108,34 +160,68 @@ class DataOperation
         $message .= "\n";
 
         if ($dump) {
-            $message .= "⬇ short:\n";
+            $message .= "🟥⬇ short:\n";
 
             $cnt = 1;
             foreach (array_slice($dump, 0, 12) as $key => $symbol) {
-                $cross = 'no cross. ';
+
+                /*$cross = 'no cross. ';
                 if($symbol['crossMAVal'] == 1)
                     $cross = 'cross - 💚. ';
                 else if($symbol['crossMAVal'] == 2)
                     $cross = 'cross - ❤. ';
 
-                $sar = '. SAR - ' .$symbol['lastSAR']['trend'] . '. ';
-                if ($symbol['sarVal'] == 1)
-                    $sar = '. SAR -🟢. ';
-                else if ($symbol['sarVal'] == 2)
-                    $sar = '. SAR - 🔴. ';
 
-                $parentApprove = '';
-                if ($symbol['secondFilter'])
-                    $parentApprove = 'Parent approve.';
+                $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
+                if ($symbol['supertrendVal'] == 1)
+                    $sTrend = ' sTrand-🟢. ';
+                else if ($symbol['supertrendVal'] == 2)
+                    $sTrend = ' sTrand-🔴. ';
 
-                $message .= $cnt . $sar . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%. ' . $parentApprove . "\n";
-                //$message .= $cnt . $sar . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . ' Продажи ' . $symbol['sellChangePercent'] . '%.' . ' Покупки ' . $symbol['buyChangePercent'] . '%' . "\n\n";
+                $approve = '';
+                if ($symbol['filter']) {
+                    $approve = ' Approve: ';
+                    $cntApprove = 0;
+                    foreach ($symbol['filter'] as $tf => $flag) {
+                        if ($flag) {
+                            $approve .= ' ' . $tf . ',';
+                            $cntApprove++;
+                        }
+                    };
+                    if ($cntApprove == 0) {
+                        $approve = '';
+                    } else {
+                        $approve = substr($approve, 0, -1);
+                        $approve .= '.';
+                    }
+                }*/
+
+                //$message .= $cnt . $sTrend . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%. ' . $approve . "\n";
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+
                 $cnt++;
             }
         } else {
             $message .= "short список пуст\n";
         }
         $message .= "\n";
+        $sendRes = $tgBot->messageToTelegram($message, $chatName);
+
+        return $sendRes;
+    }
+
+    public static function sendTrendWarning($symbol, $indicator, $trend, $chatName = '@infoCryptoHelperTrend', $timeFrame = '')
+    {
+        $tgBot = new \Maksv\TelegramBot();
+        $message = "ℹ " . $symbol['symbolName']  . '. Смена тренда ('.$indicator.'). ' . $timeFrame . ' ⏰' .  DataOperation::actualDateFormatted() . "\n\n";
+
+        $indicatorText = '';
+        if ($trend)
+            $indicatorText = 'trend - UP🟢. ';
+        else
+            $indicatorText = 'trend - DOWN🔴. ';
+
+        $message .= $indicatorText . "\n";
         $sendRes = $tgBot->messageToTelegram($message, $chatName);
 
         return $sendRes;
