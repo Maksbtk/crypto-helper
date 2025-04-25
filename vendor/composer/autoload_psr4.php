@@ -6,22 +6,15 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'React\\Stream\\' => array($vendorDir . '/react/stream/src'),
-    'React\\Socket\\' => array($vendorDir . '/react/socket/src'),
-    'React\\Promise\\' => array($vendorDir . '/react/promise/src'),
-    'React\\EventLoop\\' => array($vendorDir . '/react/event-loop/src'),
-    'React\\Dns\\' => array($vendorDir . '/react/dns/src'),
-    'React\\Cache\\' => array($vendorDir . '/react/cache/src'),
-    'Ratchet\\RFC6455\\' => array($vendorDir . '/ratchet/rfc6455/src'),
-    'Ratchet\\Client\\' => array($vendorDir . '/ratchet/pawl/src'),
+    'Workerman\\' => array($vendorDir . '/workerman/workerman/src'),
     'Psr\\Log\\' => array($vendorDir . '/psr/log/src'),
     'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-factory/src', $vendorDir . '/psr/http-message/src'),
     'Psr\\Http\\Client\\' => array($vendorDir . '/psr/http-client/src'),
     'Psr\\Container\\' => array($vendorDir . '/psr/container/src'),
+    'Lin\\Binance\\' => array($vendorDir . '/linwj/binance/src'),
     'Http\\Promise\\' => array($vendorDir . '/php-http/promise/src'),
     'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
     'GuzzleHttp\\Promise\\' => array($vendorDir . '/guzzlehttp/promises/src'),
     'GuzzleHttp\\' => array($vendorDir . '/guzzlehttp/guzzle/src'),
-    'Evenement\\' => array($vendorDir . '/evenement/evenement/src'),
-    'Binance\\' => array($vendorDir . '/binance/binance-connector-php/src/Binance'),
+    'GlobalData\\' => array($vendorDir . '/workerman/globaldata/src'),
 );

@@ -7,24 +7,15 @@ namespace Composer\Autoload;
 class ComposerStaticInit6ff70bc3803757ca85ce2afb25e3c833
 {
     public static $files = array (
-        'ad155f8f1cf0d418fe49e248db8c661b' => __DIR__ . '/..' . '/react/promise/src/functions_include.php',
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
-        '3be16222a6efa6dd226a219eaaff823b' => __DIR__ . '/..' . '/ratchet/pawl/src/functions_include.php',
     );
 
     public static $prefixLengthsPsr4 = array (
-        'R' => 
+        'W' => 
         array (
-            'React\\Stream\\' => 13,
-            'React\\Socket\\' => 13,
-            'React\\Promise\\' => 14,
-            'React\\EventLoop\\' => 16,
-            'React\\Dns\\' => 10,
-            'React\\Cache\\' => 12,
-            'Ratchet\\RFC6455\\' => 16,
-            'Ratchet\\Client\\' => 15,
+            'Workerman\\' => 10,
         ),
         'P' => 
         array (
@@ -32,6 +23,10 @@ class ComposerStaticInit6ff70bc3803757ca85ce2afb25e3c833
             'Psr\\Http\\Message\\' => 17,
             'Psr\\Http\\Client\\' => 16,
             'Psr\\Container\\' => 14,
+        ),
+        'L' => 
+        array (
+            'Lin\\Binance\\' => 12,
         ),
         'H' => 
         array (
@@ -42,49 +37,14 @@ class ComposerStaticInit6ff70bc3803757ca85ce2afb25e3c833
             'GuzzleHttp\\Psr7\\' => 16,
             'GuzzleHttp\\Promise\\' => 19,
             'GuzzleHttp\\' => 11,
-        ),
-        'E' => 
-        array (
-            'Evenement\\' => 10,
-        ),
-        'B' => 
-        array (
-            'Binance\\' => 8,
+            'GlobalData\\' => 11,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'React\\Stream\\' => 
+        'Workerman\\' => 
         array (
-            0 => __DIR__ . '/..' . '/react/stream/src',
-        ),
-        'React\\Socket\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/react/socket/src',
-        ),
-        'React\\Promise\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/react/promise/src',
-        ),
-        'React\\EventLoop\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/react/event-loop/src',
-        ),
-        'React\\Dns\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/react/dns/src',
-        ),
-        'React\\Cache\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/react/cache/src',
-        ),
-        'Ratchet\\RFC6455\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/ratchet/rfc6455/src',
-        ),
-        'Ratchet\\Client\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/ratchet/pawl/src',
+            0 => __DIR__ . '/..' . '/workerman/workerman/src',
         ),
         'Psr\\Log\\' => 
         array (
@@ -103,6 +63,10 @@ class ComposerStaticInit6ff70bc3803757ca85ce2afb25e3c833
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
+        'Lin\\Binance\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/linwj/binance/src',
+        ),
         'Http\\Promise\\' => 
         array (
             0 => __DIR__ . '/..' . '/php-http/promise/src',
@@ -119,13 +83,9 @@ class ComposerStaticInit6ff70bc3803757ca85ce2afb25e3c833
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
         ),
-        'Evenement\\' => 
+        'GlobalData\\' => 
         array (
-            0 => __DIR__ . '/..' . '/evenement/evenement/src',
-        ),
-        'Binance\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/binance/binance-connector-php/src/Binance',
+            0 => __DIR__ . '/..' . '/workerman/globaldata/src',
         ),
     );
 

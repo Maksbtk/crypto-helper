@@ -9,48 +9,55 @@ class DataOperation
 {
     public function __construct(){}
 
-    public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m')
+    public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m', $btcInfo = [], $cntInfo = [], $isScreener = false)
     {
         $tgBot = new \Maksv\TelegramBot();
         $message = '';
+
+        if ($isScreener)
+            $message .= 'Screener | ';
+
         $message .= "ℹ info " . $timeFrame . " ⏰" . DataOperation::actualDateFormatted() . "\n\n";
+
+        if ($btcInfo['infoText']) {
+
+            $message .= 'btc info:' . "\n";
+            $message .= $btcInfo['infoText'];
+        }
+
+        if ($cntInfo['count'] || $cntInfo['analysisCount'] || $cntInfo['analysisSymbols']) {
+            $message .= 'cnt info:' . "\n";
+            $message .= 'count - ' . $cntInfo['count'] . "\n";
+            $message .= 'analysisCount - ' . $cntInfo['analysisCount'] . "\n";
+            $message .= 'analysis - ' . $cntInfo['analysisSymbols'] . "\n";
+        }
 
         if ($actualOpportunities['allPump']) {
             $cnt = 1;
             $message .= "🟩\n";
             foreach (array_slice($actualOpportunities['allPump'], 0, 20) as $key => $symbol) {
-                $cross = 'no cross. ';
+                $cross = false;
                 if($symbol['crossMAVal'] == 1)
-                    $cross = 'cross - 💚. ';
+                    $cross = '💚';
                 else if($symbol['crossMAVal'] == 2)
-                    $cross = 'cross - ❤. ';
+                    $cross = '❤';
 
-                $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
-                if ($symbol['supertrendVal'] == 1)
-                    $sTrend = ' sTrand-🟢. ';
-                else if ($symbol['supertrendVal'] == 2)
-                    $sTrend = ' sTrand-🔴. ';
-
-                /*$approve = '';
-                if ($symbol['filter']) {
-                    $approve = ' Approve: ';
-                    $cntApprove = 0;
-                    foreach ($symbol['filter'] as $tf => $flag) {
-                        if ($flag) {
-                            $approve .= ' ' . $tf . ',';
-                            $cntApprove++;
-                        }
-                    };
-                    if ($cntApprove == 0) {
-                        $approve = '';
-                    } else {
-                        $approve = substr($approve, 0, -1);
-                        $approve .= '.';
+                $macdStrategy = '.';
+                foreach ($symbol['actualMacdDivergence']['longDivergenceTypeAr'] as $name => $val) {
+                    if ($val) {
+                        $macdStrategy = $name;
                     }
-                }*/
+                }
 
-                //$message .= $cnt . '.' . $sTrend . $cross .' ' . $symbol['symbolName']  . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . $approve . "\n";
-                $message .= $cnt . '. ' . $symbol['symbolName'] . ' ' . $symbol['strategy'] . ' ' . $sTrend . $cross .' ' . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' | ' .  $symbol['strategy'] . ' | MACD ' . $macdStrategy . ' (' . $symbol['actualMacdDivergence']['longDivergenceDistance'] . ') | ' ;
+
+                if ($cross)
+                    $message .= $cross . ' | ';
+
+                $message .= ' OI '.$symbol['lastOpenInterest'] . '%. |';
+
+                $message .= ' <a href="https://infocrypto-helper.ru/user/bybitSignals/?analysis='.$symbol['symbolName'].'">🔎</a>' . "\n";
+
                 $cnt++;
             }
         }
@@ -60,38 +67,26 @@ class DataOperation
             $cnt = 1;
             $message .= "🟥\n";
             foreach (array_slice($actualOpportunities['allDump'], 0, 20) as $key => $symbol) {
-                $cross = 'no cross. ';
+                $cross = false;
                 if($symbol['crossMAVal'] == 1)
-                    $cross = 'cross - 💚. ';
+                    $cross = '💚';
                 else if($symbol['crossMAVal'] == 2)
-                    $cross = 'cross - ❤. ';
+                    $cross = '❤';
 
-                $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
-                if ($symbol['supertrendVal'] == 1)
-                    $sTrend = ' sTrand-🟢. ';
-                else if ($symbol['supertrendVal'] == 2)
-                    $sTrend = ' sTrand-🔴. ';
-
-               /* $approve = '';
-                if ($symbol['filter']) {
-                    $approve = ' Approve: ';
-                    $cntApprove = 0;
-                    foreach ($symbol['filter'] as $tf => $flag) {
-                        if ($flag) {
-                            $approve .= ' ' . $tf . ',';
-                            $cntApprove++;
-                        }
-                    };
-                    if ($cntApprove == 0) {
-                        $approve = '';
-                    } else {
-                        $approve = substr($approve, 0, -1);
-                        $approve .= '.';
+                $macdStrategy = '.';
+                foreach ($symbol['actualMacdDivergence']['shortDivergenceTypeAr'] as $name => $val) {
+                    if ($val) {
+                        $macdStrategy = $name;
                     }
-                }*/
+                }
 
-                //$message .= $cnt . '.' . $sTrend . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . $approve . "\n";
-                $message .= $cnt . '. ' . $symbol['symbolName'] . ' ' . $symbol['strategy'] . ' ' . $sTrend . $cross .' ' . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' | ' . $symbol['strategy']  . ' | MACD ' . $macdStrategy . ' (' . $symbol['actualMacdDivergence']['shortDivergenceDistance'] . ') | ' ;
+                if ($cross)
+                    $message .= $cross . ' | ';
+
+                $message .= ' OI '.$symbol['lastOpenInterest'] . '%. |';
+
+                $message .= ' <a href="https://infocrypto-helper.ru/user/bybitSignals/?analysis='.$symbol['symbolName'].'">🔎</a>' . "\n";
 
                 $cnt++;
             }
@@ -107,11 +102,11 @@ class DataOperation
         return $sendRes;
     }
 
-    public static function sendSignalMessage($pump = [], $dump = [], $chatName = '@cryptoHelperAlerts', $timeFrame = '')
+    public static function sendSignalMessage($pump = [], $dump = [], $btcInfo = false, $chatName = '@cryptoHelperAlerts', $timeFrame = '', $infoAr = [])
     {
         $tgBot = new \Maksv\TelegramBot();
         $message = '';
-        $message .= "ℹ info " . $timeFrame . " ⏰" .  DataOperation::actualDateFormatted() . "\n\n";
+        $message .= "ℹ " . $timeFrame . " ⏰" .  DataOperation::actualDateFormatted() . "\n\n";
 
         if ($pump) {
             $message .= "🟩⬆ long:\n";
@@ -119,39 +114,27 @@ class DataOperation
             $cnt = 1;
             foreach (array_slice($pump, 0, 12) as $key => $symbol) {
 
-                /* $cross = 'no cross. ';
-                 if($symbol['crossMAVal'] == 1)
-                     $cross = 'cross - 💚. ';
-                 else if($symbol['crossMAVal'] == 2)
-                     $cross = 'cross - ❤. ';
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' | ';
 
-                 $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
-                 if ($symbol['supertrendVal'] == 1)
-                     $sTrend = ' sTrand-🟢. ';
-                 else if ($symbol['supertrendVal'] == 2)
-                     $sTrend = ' sTrand-🔴. ';
+                if ($symbol['actualClosePrice'])
+                    $message .= '✅EP: ' . $symbol['actualClosePrice'] . " | ";
 
-                 $approve = '';
-                 if ($symbol['filter']) {
-                     $approve = ' Approve: ';
-                     $cntApprove = 0;
-                     foreach ($symbol['filter'] as $tf => $flag) {
-                         if ($flag) {
-                             $approve .= ' ' . $tf . ',';
-                             $cntApprove++;
-                         }
-                     };
-                     if ($cntApprove == 0) {
-                         $approve = '';
-                     } else {
-                         $approve = substr($approve, 0, -1);
-                         $approve .= '.';
-                     }
-                 }*/
+                if ($symbol['actualClosePrice'])
+                    $message .= '‼Sl: ' . $symbol['SL'] . ' | ';
 
-                //$message .= $cnt . $sTrend . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%.' . $approve . "\n";
-                $message .= $cnt . '. ' . $symbol['symbolName'] . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+                if ($symbol['TP']) {
+                    $message .= '🎯TP: ';
+                    foreach ($symbol['TP'] as $tp) {
+                        $message .= $tp . ' ';
+                    }
+                    $message .= '| ';
+                }
 
+                if ($symbol['strategy'])
+                    $message .= $symbol['strategy'] . ' | ';
+
+                $message .= ' <a href="https://infocrypto-helper.ru/user/bybitSignals/?analysis='.$symbol['symbolName'].'">🔎</a>' . "\n";
+                
                 $cnt++;
             }
         } else {
@@ -165,107 +148,207 @@ class DataOperation
             $cnt = 1;
             foreach (array_slice($dump, 0, 12) as $key => $symbol) {
 
-                /*$cross = 'no cross. ';
-                if($symbol['crossMAVal'] == 1)
-                    $cross = 'cross - 💚. ';
-                else if($symbol['crossMAVal'] == 2)
-                    $cross = 'cross - ❤. ';
+                $message .= $cnt . '. ' . $symbol['symbolName'] . ' | ';
 
+                if ($symbol['actualClosePrice'])
+                    $message .= '✅EP: ' . $symbol['actualClosePrice'] . " | ";
 
-                $sTrend = ' sTrend - ' .$symbol['lastSupertrend']['trend'] . '. ';
-                if ($symbol['supertrendVal'] == 1)
-                    $sTrend = ' sTrand-🟢. ';
-                else if ($symbol['supertrendVal'] == 2)
-                    $sTrend = ' sTrand-🔴. ';
+                if ($symbol['actualClosePrice'])
+                    $message .= '‼Sl: ' . $symbol['SL'] . ' | ';
 
-                $approve = '';
-                if ($symbol['filter']) {
-                    $approve = ' Approve: ';
-                    $cntApprove = 0;
-                    foreach ($symbol['filter'] as $tf => $flag) {
-                        if ($flag) {
-                            $approve .= ' ' . $tf . ',';
-                            $cntApprove++;
-                        }
-                    };
-                    if ($cntApprove == 0) {
-                        $approve = '';
-                    } else {
-                        $approve = substr($approve, 0, -1);
-                        $approve .= '.';
+                if ($symbol['TP']) {
+                    $message .= '🎯TP: ';
+                    foreach ($symbol['TP'] as $tp) {
+                        $message .= $tp . ' ';
                     }
-                }*/
+                    $message .= '| ';
+                }
 
-                //$message .= $cnt . $sTrend . $cross .' ' . $symbol['symbolName'] . '. P '.$symbol['lastPriceChange'].'%.' . ' OI '.$symbol['lastOpenInterest'].'%. ' . $approve . "\n";
-                $message .= $cnt . '. ' . $symbol['symbolName'] . ' OI '.$symbol['lastOpenInterest'].'%.' . "\n";
+                if ($symbol['strategy'])
+                    $message .= $symbol['strategy'] . ' | ';
+
+                $message .= ' <a href="https://infocrypto-helper.ru/user/bybitSignals/?analysis='.$symbol['symbolName'].'">🔎</a>' . "\n";
 
                 $cnt++;
             }
         } else {
             $message .= "short список пуст\n";
         }
+
+        /*if ($infoAr['REPEAT_SYMBOLS'] && is_array($infoAr['REPEAT_SYMBOLS'])) {
+            $message .= "\nWARN: ";
+
+            foreach ($infoAr['REPEAT_SYMBOLS'] as $symbol)
+                $message .= $symbol . ' ';
+        }*/
+
         $message .= "\n";
         $sendRes = $tgBot->messageToTelegram($message, $chatName);
+        return $sendRes;
+    }
+
+    public static function sendScreener($res, $chatName = '@cryptoHelperAlerts')
+    {
+        $tgBot = new \Maksv\TelegramBot();
+        $islong = '🔴';
+        if ($res['isLong']) {
+            $islong = '🟢';
+            $directionText = 'long';
+        } else {
+            $directionText = 'short';
+        }
+
+        $quote = "USDT";
+        $base = str_replace($quote, "", $res['symbolName']);
+        $symbolFormatted = "#" . $base . "/" . $quote;
+
+        $message = $islong . ' ' . $symbolFormatted . ' ' . $directionText . "\n";
+
+        /*if ($res['cnt'])
+            $message .= '‼6h cnt ' .  $res['cnt'] .  "\n";*/
+
+        $intervalsMap = [
+            '5m' => 'M5',
+            '15m' => 'M15',
+            '30m' => 'M30',
+            '1h' => 'H1',
+        ];
+
+        $message .= '⏰ Timeframe: ' . $intervalsMap[$res['interval']] . "\n";
+
+        if ($res['leverage'])
+            $message .= '💰 leverage: cross ' . $res['leverage'] . "\n\n";
+        else
+            $message .= '💰 leverage: cross 5x'. "\n\n";
+
+        $message .= '✅ Entry Target: ' . $res['actualClosePrice'] . ' (Entry as market)' . "\n\n";
+
+        if ($res['TP'] && is_array($res['TP']))  {
+            $message .= "🎯 Profit Targets:\n";
+            foreach ($res['TP'] as $key => $tpVal) {
+                $message .= $key+1 . ') ' . $tpVal . "\n";
+            }
+            $message .= "\n";
+        }
+        //$message = '🎯 Profit Targets: ' . $res['$actualClosePrice'] . "\n\n";
+
+        if ($res['SL'])
+            $message .= 'Stop Loss: ' . $res['SL'] . "\n";
+
+        $message .= '_______________________' . "\n";
+
+       /* if ($res['recommendedEntry'])
+            $message .= 'Recommended entry: ' . $res['recommendedEntry'] .  "\n";*/
+
+        if ($res['summaryOI'])
+            $message .= 'OI ' .  $res['summaryOI'] .  " | ";
+
+        if ($res['summaryOI'])
+            $message .= 'bybit ' .  $res['summaryOIBybit'] .  " | ";
+
+        if ($res['summaryOI'])
+            $message .= 'binance ' .  $res['summaryOIBinance'] .  "\n";
+
+        // Если задан путь к графику, отправляем фото с подписью,
+        // иначе отправляем обычное текстовое сообщение
+        if ($res['tempChartPath'] && is_array($res['tempChartPath'])) {
+            $sendRes = $tgBot->messageToTelegram($message, $chatName, $res['tempChartPath']);
+        } else {
+            $sendRes = $tgBot->messageToTelegram($message, $chatName);
+        }
 
         return $sendRes;
     }
 
-    public static function sendTrendWarning($symbol, $indicator, $trend, $chatName = '@infoCryptoHelperTrend', $timeFrame = '')
+    public static function sendBtcCharts($res, $chatName = '@cryptoHelperAlerts')
     {
         $tgBot = new \Maksv\TelegramBot();
-        $message = "ℹ " . $symbol['symbolName']  . '. Смена тренда ('.$indicator.'). ' . $timeFrame . ' ⏰' .  DataOperation::actualDateFormatted() . "\n\n";
 
-        $indicatorText = '';
-        if ($trend)
-            $indicatorText = 'trend - UP🟢. ';
-        else
-            $indicatorText = 'trend - DOWN🔴. ';
+        $message = "ℹ " . $res['interval'] .  "\n\n";
+        // Если задан путь к графику, отправляем фото с подписью,
+        // иначе отправляем обычное текстовое сообщение
+        if ($res['tempChartPath'] && is_array($res['tempChartPath'])) {
+            $sendRes = $tgBot->messageToTelegram($message, $chatName, $res['tempChartPath']);
+        } else {
+            $sendRes = $tgBot->messageToTelegram($message, $chatName);
+        }
+        return $sendRes;
+    }
 
-        $message .= $indicatorText . "\n";
+    public static function sendTrendWarning($cmcExchangeRes, $btcDVal = false, $btcVal = false, $chatName = '@infoCryptoHelperTrend')
+    {
+        $tgBot = new \Maksv\TelegramBot();
+        $message = "ℹ BTC.D coinmarketcap" . "\n\n";
+
+        if ($btcDVal && $btcVal)
+            $message .= 'BTC.D ' .  $btcDVal . '% | ' . 'BTC ' .  $btcVal .  "\n\n";
+
+        foreach ($cmcExchangeRes as $th => $resItem) {
+            $message .= $th . ' | ' . 'BTC.D ' .  $resItem['btcD'] . ' | ' . 'BTC ' .  $resItem['btc'] . ' | ' . 'OTHERS ' .  $resItem['others'] . "\n";
+        }
+
+        $sendRes = $tgBot->messageToTelegram($message, $chatName);
+        return $sendRes;
+    }
+
+    public static function sendFearGreedWarning($cmcExchangeRes, $chatName = '@infoCryptoHelperTrend')
+    {
+        $tgBot = new \Maksv\TelegramBot();
+        $message = "ℹ fear and greed index coinmarketcap" . "\n\n";
+
+        $message .=  '👻 ' . $cmcExchangeRes . "\n";
+
         $sendRes = $tgBot->messageToTelegram($message, $chatName);
 
         return $sendRes;
     }
 
-    public static function saveSignalToIblock($timeframe = '30m', $iblockCode = 'bybit', $isMaster = false)
+    public static function sendBtdDivergenceWarning($text, $chatName = '@infoCryptoHelperTrend')
     {
-        /*if (!$actualOpportunities)
-            $actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json'), true))['STRATEGIES'] ?? [];*/
+        $tgBot = new \Maksv\TelegramBot();
+        $message = "ℹ BTC MACD Divergence alert" . "\n\n";
 
-        $opportunitiesPath = $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'V5' . 'Exchange/'.$timeframe.'/actualMarketVolumes.json';
-        $opportunitiesFileAr = \CFile::MakeFileArray($opportunitiesPath);
+        $message .=  $text . "\n";
+
+        $sendRes = $tgBot->messageToTelegram($message, $chatName);
+
+        return $sendRes;
+    }
+
+    public static function saveSignalToIblock($timeframe = '30m', $iblockCode = 'bybit', $sectionCode = 'master')
+    {
+        $opportunitiesPathMap[$iblockCode] = [
+            'alerts' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
+            'master' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
+            'screener' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategy.json',
+            //'screener' => $_SERVER['DOCUMENT_ROOT'] . '/upload/screener/actualStrategy.json',/upload/bybitExchange/screener/15m
+        ];
+
+        $opportunitiesFileAr = \CFile::MakeFileArray($opportunitiesPathMap[$iblockCode][$sectionCode]);
         $opportunitiesFileId = \CFile::SaveFile($opportunitiesFileAr, 'opportunities');
         $res = ['status' => false];
 
         if ($opportunitiesFileId && \CModule::IncludeModule("iblock")) {
 
-            $iblockMap = [
-                'bybit' => 3
-            ];
+            $iblockMap = ['bybit' => 3];
 
-            $nameTimeFrame = $timeframe;
-            if ($isMaster)
-                $timeframe = 'master';
-
-            $iblockSectionsMap = [
-                '30m' => 2,
-                '1h' => 3,
-                '4h' => 4,
-                '1d' => 1,
-                'master' => 5
+            $iblockSectionsMap['bybit'] = [
+                'master' => 5,
+                'alerts' => 6,
+                'screener' => 7,
             ];
 
             $elementProperty = [
                 'STRATEGIES_FILE' => $opportunitiesFileId,
+                'TIMEFRAME' => $timeframe,
             ];
 
             $el = new \CIBlockElement;
             $arLoadElementArray = [
                 //"MODIFIED_BY"    => $modifiedBy,
-                "IBLOCK_SECTION_ID" => $iblockSectionsMap[$timeframe],
+                "IBLOCK_SECTION_ID" => $iblockSectionsMap[$iblockCode][$sectionCode],
                 "IBLOCK_ID" => $iblockMap[$iblockCode],
-                //"NAME" => date('H:i', /*strtotime('+1 minute', */ strtotime('-3 hour'))/*)*/,
-                "NAME" => DataOperation::actualDateFormatted() . ' / ' . $nameTimeFrame,
+                "NAME" => DataOperation::actualDateFormatted() . ' / ' . $timeframe,
                 "ACTIVE" => 'Y',
                 "PROPERTY_VALUES" => $elementProperty,
             ];
@@ -278,28 +361,6 @@ class DataOperation
         return $res;
     }
 
-    /*public static function actualDateFormatted() {
-        // Получаем текущее время
-        $date = new \DateTime();
-
-        // Вычитаем 3 часа
-        $date->modify('-3 hours');
-
-        // Округляем время до ближайших 30 минут
-        $minutes = (int)$date->format('i');
-        if ($minutes < 15) {
-            $date->setTime($date->format('H'), 0);
-        } elseif ($minutes >= 15 && $minutes < 45) {
-            $date->setTime($date->format('H'), 30);
-        } else {
-            $date->setTime($date->format('H') + 1, 0);
-        }
-
-        // Форматируем дату и время
-        $formattedTime = $date->format('H:i d.m');
-
-        return $formattedTime;
-    }*/
     public static function actualDateFormatted($inputTime = null)
     {
         // Получаем текущее время
@@ -320,14 +381,18 @@ class DataOperation
         // Вычитаем 3 часа
         $date->modify('-3 hours');
 
-        // Округляем время до ближайших 30 минут
+        // Округляем время до ближайших 0, 15, 30 или 45 минут
         $minutes = (int)$date->format('i');
-        if ($minutes < 15) {
-            $date->setTime($date->format('H'), 0);
-        } elseif ($minutes >= 15 && $minutes < 45) {
-            $date->setTime($date->format('H'), 30);
+        if ($minutes < 8) {
+            $date->setTime((int)$date->format('H'), 0);
+        } elseif ($minutes < 23) {
+            $date->setTime((int)$date->format('H'), 15);
+        } elseif ($minutes < 38) {
+            $date->setTime((int)$date->format('H'), 30);
+        } elseif ($minutes < 53) {
+            $date->setTime((int)$date->format('H'), 45);
         } else {
-            $date->setTime($date->format('H') + 1, 0);
+            $date->setTime((int)$date->format('H') + 1, 0);
         }
 
         // Форматируем дату и время
