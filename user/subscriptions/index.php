@@ -16,6 +16,8 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/products-list.css");
 Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-profile.css");
 //Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/css/jquery-dropdown.js");
 
+if (!$USER->IsAdmin())
+    LocalRedirect('/', false, '301 Moved permanently');
 ?>
     <div class="profile-wrapper">
 	 <?$APPLICATION->IncludeComponent(

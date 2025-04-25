@@ -55,6 +55,14 @@ $aMenuLinks = Array(
 		Array(), 
 		Array("SIDE"=>"RIGHT"), 
 		"" 
-	)
+	),
+    Array(
+        "Статистика",
+        "/stat/",
+        Array(),
+        Array("SIDE"=>"RIGHT"),
+        ""
+    )
+
 );
 ?>

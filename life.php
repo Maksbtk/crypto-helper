@@ -1,5 +1,5 @@
 <?php
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+/*require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 
 $CHKSTR =  "ET04IS00X1IR2T1I7B";
 $CHKSTR2 = "a1B7Ra01Ka2d4A0Bra0";
@@ -47,4 +47,4 @@ file_put_contents("./bitrix/modules/main/admin/define.php", '<?define("TEMPORARY
 echo '<br><br><br>***OptionString***<br>'.base64_encode($STRSTR2).'<br>';
 echo '<br><br><br>***TEMPORARY_CACHE***<br>'.base64_encode($STRSTR).'<br>';
 echo '<br><br><br>Контрольные строки успешно установлены';
-?>
+*/?>

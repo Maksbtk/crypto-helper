@@ -14,6 +14,20 @@ $aMenuLinks = Array(
 		Array(), 
 		"" 
 	),
+    Array(
+        "Сигналы bybit dev",
+        "/user/bybitSignalsSecond/",
+        Array(),
+        Array(),
+        ""
+    ),
+    Array(
+        "screener",
+        "/user/screener/",
+        Array(),
+        Array(),
+        ""
+    ),
 	Array(
 		"Купить подписку", 
 		"/user/subscriptions/", 

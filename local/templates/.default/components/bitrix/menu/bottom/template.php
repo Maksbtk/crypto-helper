@@ -9,6 +9,7 @@ foreach ($arResult as $menuItem)
     else if ($menuItem['PARAMS']['SIDE'] == 'RIGHT')
         $rightMenuAr[] = $menuItem;
 }
+global $USER;
 ?>
 
 <ul class="footer-navigation _short">
@@ -20,7 +21,11 @@ foreach ($arResult as $menuItem)
 <ul class="footer-navigation _short">
     <li class="footer-nav__title">Помощь</li>
     <? foreach ($rightMenuAr as $menuItem):?>
-        <li class="footer-nav__item"><a class="white-color-font" href="<?=$menuItem['LINK']?>"><?=$menuItem['TEXT']?></a></li>
+        <?if ($menuItem['LINK'] == '/stat/' && $USER->IsAdmin()):?>
+            <li class="footer-nav__item"><a class="white-color-font" href="<?=$menuItem['LINK']?>"><?=$menuItem['TEXT']?></a></li>
+        <?else:?>
+            <li class="footer-nav__item"><a class="white-color-font" href="<?=$menuItem['LINK']?>"><?=$menuItem['TEXT']?></a></li>
+        <?endif;?>
     <?endforeach;?>
 </ul>
 

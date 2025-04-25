@@ -1,0 +1,141 @@
+
+.js-oi-symbol_form .form-input {
+    padding: 8px;
+    padding-right: 25px; /* Добавляем отступ для крестика */
+    box-sizing: border-box;
+}
+
+.button-white-border {
+    border: 1px solid #304e81!important;
+}
+
+.button-small-font{
+    font-size: 8px!important;
+    line-height: 8px!important;
+}
+.js-oi-symbol_form label{
+    font-size: 8px;
+}
+
+.disabled-el {
+    pointer-events: none;
+}
+
+
+
+/*выбор таймфрейма для зон*/
+.timeframe-selector {
+    margin-bottom: 5px;
+    margin-top: 5px;
+    display: flex;
+    gap: 8px;
+}
+
+.timeframe-button {
+    font-size: 14px;
+    padding: 6px 14px;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    background-color: #f6f6f6;
+    color: #333;
+    cursor: pointer;
+    text-align: center;
+    line-height: 1.5;
+    transition: all 0.3s ease;
+}
+
+.timeframe-button.active {
+    background-color: var(--bg-color-main);
+    color: #fff;
+    border-color: var(--bg-color-main);
+}
+
+.timeframe-button:hover {
+    /*background-color: #eaeaea;*/
+}
+
+.timeframe-button:focus {
+    outline: none;
+}
+
+.table-info_block-load_zone {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+
+
+/*кнопка отчищения инпута*/
+.input-wrapper {
+    position: relative;
+    /* display: inline-block;*/
+}
+
+.clear-icon {
+    position: absolute;
+    top: 50%;
+    right: 10px; /* Позиционируем крестик справа */
+    transform: translateY(-50%);
+    font-size: 26px;
+    color: #ccc;
+    cursor: pointer;
+    display: none; /* По умолчанию скрыт */
+}
+
+.clear-icon:hover {
+    color: #999;
+}
+
+
+
+
+    /*подсказки Основные стили */
+.suggestions-box {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    max-height: 150px;
+    overflow-y: auto;
+    width: 100%;
+    display: none; /* Изначально скрыт */
+    z-index: 9999;
+}
+
+.suggestions-box .suggestion-item {
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 14px;
+    color: #333;
+}
+
+.suggestions-box .suggestion-item:hover {
+    background-color: #f2f2f2;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .form-row {
+        position: relative;
+        /*padding: 0 10px;*/
+        padding-right: 10px;
+    }
+
+    .form-input {
+        width: 100%;
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .suggestions-box {
+        width: 100%;
+        font-size: 14px;
+    }
+
+    .suggestions-box .suggestion-item {
+        padding: 10px 12px;
+    }
+}

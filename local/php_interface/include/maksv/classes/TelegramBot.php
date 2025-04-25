@@ -1,4 +1,5 @@
 <?php
+
 namespace Maksv;
 
 header('Content-Type: text/html; charset=utf-8'); // на всякий случай досообщим PHP, что все в кодировке UTF-8
@@ -19,62 +20,121 @@ class TelegramBot
         $this->botToken = \Maksv\Keys::TG_BOT_TOKEN;
     }
 
-   public function messageToTelegram($text = 'test', $chatName = '@cryptoHelperAlerts')
-   {
-       devlogs($chatName. ' - ' . date("d.m.y H:i:s"), 'TelegramBot');
-       $chatName = TelegramBot::chatIdByName($chatName);
+    public function messageToTelegram($text = 'test', $chatName = '@cryptoHelperAlerts', $photoPath = null)
+    {
+        devlogs($chatName . ' - ' . date("d.m.y H:i:s"), 'TelegramBot');
+        $chatId = TelegramBot::chatIdByName($chatName);
+        $token = $this->botToken;
 
-       $token = $this->botToken;
-       $url="https://api.telegram.org/bot".$token;
-       $params = [
-           'chat_id' => $chatName,
-           'text' => $text
-       ];
+        // Если передан массив с фото
+        if (is_array($photoPath)) {
+            $media = [];
+            $files = [];
 
-       $ch = curl_init($url . '/sendMessage');
-       curl_setopt($ch, CURLOPT_HEADER, false);
-       curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-       curl_setopt($ch, CURLOPT_POST, 1);
-       curl_setopt($ch, CURLOPT_POSTFIELDS, ($params));
-       curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-       $result = curl_exec($ch);
-       curl_close($ch);
+            foreach ($photoPath as $index => $path) {
+                if (file_exists($path)) {
+                    $fileKey = "photo" . $index; // Ключ для вложения
+                    $files[$fileKey] = new \CURLFile($path); // Сохраняем файл в массив
 
-       //devlogs($chatName . ' - ' . date("d.m.y H:i:s"), 'TelegramBot');
-       devlogs($result, 'TelegramBot');
+                    $mediaItem = [
+                        'type' => 'photo',
+                        'media' => "attach://" . $fileKey // Ссылка на загруженный файл
+                    ];
 
-       return  json_decode($result);
-   }
+                    if ($index === 0) {
+                        $mediaItem['caption'] = $text;
+                        $mediaItem['parse_mode'] = 'HTML';
+                    }
 
-   protected function chatIdByName($chatName) {
-       switch ($chatName) {
-           case '@cryptoHelperAlerts':
-               $chatName = '-1002246605336';
-               break;
-           /*case '@infoCryptoHelper30m':
-               $chatName = '-1002194024408';
-               break;*/
-           case '@infoCryptoHelperTrend':
-               $chatName = '-1002245853663';
-               break;
-           /*case '@infoCryptoHelper4h':
-               $chatName = '-1002148237966';
-               break;
-           case '@infoCryptoHelper1d':
-               $chatName = '-1002236380560';
-               break;*/
-           case '@infoCryptoHelperDev':
-               $chatName = '-1002236380560';
-               break;
-               case '@cryptoHelperMaster':
-           $chatName = '-1002460854583';
-               break;
-           /*default:
-               $chatName = $chatName;
-         */
-       }
+                    $media[] = $mediaItem;
+                }
+            }
 
-       return $chatName;
-   }
+            if (!empty($media)) {
+                $url = "https://api.telegram.org/bot" . $token . "/sendMediaGroup";
+                $params = [
+                    'chat_id' => $chatId,
+                    'media' => json_encode($media)
+                ];
+
+                $params = array_merge($params, $files); // Добавляем файлы в запрос
+            } else {
+                $url = "https://api.telegram.org/bot" . $token . "/sendMessage";
+                $params = [
+                    'chat_id' => $chatId,
+                    'text' => $text,
+                    'parse_mode' => 'HTML',
+                    'disable_web_page_preview' => true
+                ];
+            }
+        } // Если передана одна картинка
+        elseif ($photoPath && file_exists($photoPath)) {
+            $url = "https://api.telegram.org/bot" . $token . "/sendPhoto";
+            $params = [
+                'chat_id' => $chatId,
+                'caption' => $text,
+                'photo' => new \CURLFile($photoPath),
+                'parse_mode' => 'HTML'
+            ];
+        } // Обычное сообщение
+        else {
+            $url = "https://api.telegram.org/bot" . $token . "/sendMessage";
+            $params = [
+                'chat_id' => $chatId,
+                'text' => $text,
+                'parse_mode' => 'HTML',
+                'disable_web_page_preview' => true
+            ];
+        }
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $result = curl_exec($ch);
+        curl_close($ch);
+
+        devlogs($result, 'TelegramBot');
+
+        return json_decode($result, true);
+    }
+
+    protected function chatIdByName($chatName)
+    {
+        switch ($chatName) {
+            case '@cryptoHelperAlerts':
+                $chatName = '-1002246605336';
+                break;
+            case '@infoCryptoHelperScreener':
+                $chatName = '-1002194024408';
+                break;
+            case '@infoCryptoHelperTrend':
+                $chatName = '-1002245853663';
+                break;
+            /*case '@infoCryptoHelper4h':
+                $chatName = '-1002148237966';
+                break;
+            case '@infoCryptoHelper1d':
+                $chatName = '-1002236380560';
+                break;*/
+            case '@infoCryptoHelperDev':
+                $chatName = '-1002236380560';
+                break;
+            case '@cryptoHelperMaster':
+                $chatName = '-1002460854583';
+            case '@cryptoHelperCornixTreadingBot':
+                $chatName = '-1002639839004';
+                break;
+            case '@cryptoHelperProphetAi':
+                $chatName = '-1002625670113';
+                break;
+            /*default:
+                $chatName = $chatName;
+          */
+        }
+
+        return $chatName;
+    }
 
 }

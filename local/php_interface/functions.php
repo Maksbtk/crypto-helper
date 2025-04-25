@@ -11,13 +11,7 @@ use \Bitrix\Main\Context;
 \CModule::IncludeModule('highloadblock');
 \CModule::IncludeModule('iblock');
 
-
 #Логирование
-/*function devlogs($data, $type){
-    $root = Bitrix\Main\Application::getDocumentRoot();
-    file_put_contents("$root/devlogs/$type.txt", print_r($data, true)."\n", FILE_APPEND);
-}*/
-
 function devlogs($data, $type)
 {
     $root = Bitrix\Main\Application::getDocumentRoot();
@@ -30,549 +24,150 @@ function devlogs($data, $type)
 
 function agentBybitRespDev()
 {
-    \Maksv\Exchange::bybitExchange('1h', 0.3, true);
-    //agentBybitV5RespTimeFrame('1h', 0.2, true);
+    //\Maksv\Bybit\Exchange::bybitExchange('15m', 0.1, true);
+    //bybitExch15m();
+    \Maksv\Bybit\Exchange::screener('15m', 0.9, true);
+    //\Maksv\Bybit\Exchange::bybitSummaryVolumeExchange(true);
+    //\Maksv\Bybit\Exchange::bybitExchange('15m', 0.1, true);
+    //\Maksv\Bybit\Exchange::sendBtcCharts();
+
     return "agentBybitRespDev();";
 }
 
-function agentBybitResp30m()
+function bybitExch15m()
 {
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-   /* if (
-        (in_array($minute, [30, 31]))
-        //|| (!in_array($hour, [23, 3, 7, 11, 15, 19]) && in_array($minute, [0, 1]))
-        //|| (in_array($hour, [3]) && in_array($minute, [7]))
-    )
-        agentBybitV5RespTimeFrame('30m', 0.7);*/
+    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+        \Maksv\Bybit\Exchange::bybitExchange('15m', 0.89);
 
-    return "agentBybitResp30m();";
+    return "bybitExch15m();";
 }
 
-function agentBybitResp1h()
+function bybitExch5m()
 {
-    $minute = (int)date('i');
     $hour = (int)date('H');
+    $minute = (int)date('i');
 
-    if (in_array($minute, [0, 1]) || in_array($minute, [30, 31]))
-        \Maksv\Exchange::bybitExchange('1h', 0.3);
+    //if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+        //\Maksv\Bybit\Exchange::bybitExchange('5m', 1.19);
 
-    return "agentBybitResp1h();";
+    return "bybitExch5m();";
 }
 
-function agentBybitResp4h()
+function bybitExch30m()
 {
     $hour = (int)date('H');
     $minute = (int)date('i');
+
+    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+        \Maksv\Bybit\Exchange::bybitExchange('30m', 1.19);
+
+    return "bybitExch30m();";
+}
+
+function bybitExhc1d()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+
+    if (in_array($hour, [3]) && in_array($minute, [3, 4]))
+        \Maksv\Bybit\Exchange::bybitExchange('1d', 33);
+
+    return "bybitExhc1d();";
+}
+
+function bybitScreenerExch15m()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+
+    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+        \Maksv\Bybit\Exchange::screener('15m', 1.89);
+
+    return "bybitScreenerExch15m();";
+}
+
+function bybitScreenerExch5m()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+
+    //if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+      //  \Maksv\Bybit\Exchange::screener('5m', 1.89);
+
+    return "bybitScreenerExch5m();";
+}
+
+function bybitScreenerExch30m()
+{
+    $minute = (int)date('i');
+    $hour = (int)date('H');
+
+    if (in_array($minute,  [0, 1, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51]))
+        \Maksv\Bybit\Exchange::screener('30m', 1.89);
+
+    return "bybitScreenerExch30m();";
+}
+
+function bybitSummaryVolumeExchange()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+    //if (in_array($minute,  [1, 2, 6, 7, 11, 12, 16, 17, 21, 22, 26, 27, 31, 32, 36, 37, 41, 42, 46, 47, 51, 52, 56, 57]))
+    if (in_array($minute,  [2, 3, 7, 8, 12, 13, 17, 18, 22, 23, 27, 28, 32, 33, 37, 38, 42, 43, 47, 48, 52, 53, 57, 58]))
+        \Maksv\Bybit\Exchange::bybitSummaryVolumeExchange();
+
+    return "bybitSummaryVolumeExchange();";
+}
+
+function btcDOthersExchange()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+
+    if (in_array($hour, [3, 7, 11, 15, 19, 23]) && in_array($minute, [0, 1]))
+       \Maksv\Bybit\Exchange::btcDOthersExchange();
+
+    return "btcDOthersExchange();";
+}
+
+function btcDivergenceExchange()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+
+    if (in_array($minute, [0, 15, 30, 45]))
+        \Maksv\Bybit\Exchange::sendBtcCharts();
+
+    if (in_array($minute, [0, 1, 30, 31]))
+        \Maksv\Bybit\Exchange::btcDivergenceCheck('15m');
+
+    //if (in_array($minute, [0, 1]))
+       // \Maksv\Bybit\Exchange::btcDivergenceCheck('30m');
 
     if (in_array($minute, [0, 1]))
-        \Maksv\Exchange::bybitExchange('4h', 0.8);
+        \Maksv\Bybit\Exchange::btcDivergenceCheck('1h');
 
-    return "agentBybitResp4h();";
+    if (in_array($hour, [3, 7, 11, 15, 19, 23]) && in_array($minute, [0, 1]))
+        \Maksv\Bybit\Exchange::btcDivergenceCheck('4h');
+
+   /* if (in_array($hour, [10, 19]) && in_array($minute, [0, 1]))
+        \Maksv\Bybit\Exchange::btcDivergenceCheck('1d');*/
+    
+    return "btcDivergenceExchange();";
 }
 
-function agentBybitResp1d()
+function fearGreedIndex()
 {
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($minute, [31, 32]))
-        \Maksv\Exchange::bybitExchange('1d', 0.9);
+    //if (in_array($hour, [3, 7, 11, 15, 19, 23]) && in_array($minute, [1, 2]))
+        //\Maksv\Bybit\Exchange::fearGreedExchange();
 
-    return "agentBybitResp1d();";
-}
-
-// api v5
-function agentBybitV5RespTimeFrame($timeFrame = '30m',  $oiLimit = 1.7, $devMode = false)
-{
-    $timeMark = date("d.m.y H:i:s");
-    devlogs("start" . ' - ' . $timeMark, 'AgentBybitResp'.$timeFrame);
-    $res = ['symbols' => [],];
-
-    // проверяем не запускался ли только что обмен
-    if (!$devMode) {
-        $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitV5Exchange/' . $timeFrame . '/timestap.json'), true);
-        if ($lastTimestapJson['TIMESTAP'] && ((time() - $lastTimestapJson['TIMESTAP']) < 600) && !$devMode) {
-            devlogs("end, timestap dif -" . ' - ' . $timeMark, 'AgentBybitResp' . $timeFrame);
-            return;
-        } else {
-            file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitV5Exchange/' . $timeFrame . '/timestap.json', json_encode(['TIMESTAP' => time(), "TIMEMARK" => $timeMark]));
-        }
-    }
-    $marketVolumesJson['RESPONSE_EXCHENGE'] = [];
-
-    $bybitApiOb = new \Maksv\Bybit();
-    $bybitApiOb->openConnection();
-
-    //получаем контракты, которые будем анализировать
-    $exchangeSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitV5Exchange/exchangeSymbolsList.json'), true)['RESPONSE_EXCHENGE'];
-    if (!$exchangeSymbolsList || $timeFrame == '1d') {
-        $exchangeSymbolsResp = $bybitApiOb->getSymbolsV5("linear");
-        if ($exchangeSymbolsResp['result']['list']) {
-            $dataSymInfo = [
-                "TIMEMARK" => $timeMark,
-                "RESPONSE_EXCHENGE" => $exchangeSymbolsResp['result']['list'],
-                "EXCHANGE_CODE" => 'bybit'
-            ];
-            file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitV5Exchange/derivativeBaseCoin.json', json_encode($dataSymInfo));
-            $exchangeSymbolsList = $exchangeSymbolsResp['result']['list'];
-        }
-    }
-
-    $countReq = $analysisSymbolCount = 0;
-    foreach ($exchangeSymbolsList as &$symbol) {
-        if (
-            $symbol['status'] == 'Trading'
-            && in_array($symbol['quoteCoin'], ['USDT'/*, 'USDC', 'USDE', 'FDUSD', 'TUSD'*/])
-            && !in_array($symbol['baseCoin'], ['FDUSD', 'USDE', 'USDC'])
-        ) {
-            $countReq++;
-            try {
-                $klineHistory = [];
-                $symbolName = $symbol['symbol'];
-                $openInterest = 0;
-                $timestapOI = false;
-
-                $timeFrameOiMap = [
-                    '30m' => '15m',
-                    '1h' => '15m',
-                    '4h' => '30m',
-                    '1d' => '30m',
-                ];
-
-                //сначала фильтруем контракты по открытому интересу
-                $openInterestResp = $bybitApiOb->openInterest($symbolName, 'linear', $timeFrameOiMap[$timeFrame], '2');
-                if ($openInterestResp['result']['list'] && is_array($openInterestResp['result']['list']) && count($openInterestResp['result']['list']) >= 2) {
-                    $lastInterest = $openInterestResp['result']['list'][0]['openInterest'];
-                    $prevInterest = $openInterestResp['result']['list'][1]['openInterest'];
-                    $openInterest = round(($lastInterest / ($prevInterest / 100)) - 100, 2);
-                    $symbol['timestapOI'] = $timestapOI = date("d.m H:i", $openInterestResp['result']['list'][1]['timestamp'] / 1000) . ' - ' . date("d.m H:i", $openInterestResp['result']['list'][0]['timestamp'] / 1000);
-
-                    if (
-                        in_array($symbolName, ['BTCUSDT', 'ETHUSDT'])
-                        || ($openInterest >= $oiLimit /*|| $openInterest <= -$oiLimit*/)
-                    ) {
-                        $analysisSymbolCount++;
-                        $priceChange = $lastClosePrice = 0;
-                        $rsi = false;
-                        $barsCount = 100;
-
-                        // получаем свечи для определения тренда
-                        $kline = $bybitApiOb->klineV5("linear", $symbolName, $timeFrame, $barsCount);
-                        $supertrendData = $crossHistoryMA = false;
-                        if ($kline['result'] && $kline['result']['list']) {
-                            $klineList = array_reverse($kline['result']['list']);
-                            foreach ($klineList as $klineItem)
-                                $klineHistory['klineСlosePriceList'][] = $klineItem[4];
-
-                            $prevKline = $klineList[array_key_last($klineList) - 1] ?? false; //(смотрим на предыдущую свечу так как последняя - это еще не закрытая)
-                            if ($prevKline) {
-                                $priceChange = round((floatval($prevKline[4]) / (floatval($prevKline[1]) / 100)) - 100, 2);
-                                $lastClosePrice = floatval($prevKline[4]);
-                            }
-
-                            //MA x EMA
-                            $crossHistoryMA = \Maksv\TechnicalAnalysis::getMACrossHistory($klineHistory['klineСlosePriceList'], 5, 20, 11) ?? false;
-                            //$crossMA = \Maksv\TechnicalAnalysis::checkMACross($klineHistory['klineСlosePriceList'], 5, 20) ?? false;
-
-                            //SAR
-                            $sarCandles = array_map(function ($k) {
-                                return [
-                                    'h' => floatval($k[2]),
-                                    'l' => floatval($k[3])
-                                ];
-                            }, $klineList);
-                            $sarData = \Maksv\TechnicalAnalysis::calculateSARWithTrend($sarCandles);
-
-                            // Supertrend candles
-                            $supertrendCandles = array_map(function ($k) {
-                                return [
-                                    'h' => floatval($k[2]), // High price
-                                    'l' => floatval($k[3]), // Low price
-                                    'c' => floatval($k[4])  // Close price
-                                ];
-                            }, $klineList);
-                            $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($supertrendCandles, 10, 3) ?? false; // длина 10, фактор 3
-
-
-                            //$stochasticOscillatorData = \Maksv\TechnicalAnalysis::calculateStochasticOscillator($supertrendCandles, 14, 3, 1);
-                            $stochasticOscillatorData = \Maksv\TechnicalAnalysis::calculateStochasticRSI($supertrendCandles, 14, 14, 3, 3);
-                        }
-
-                        $symbol['kline'] = $kline['result']['list'] ?? [];
-
-                        if (!$crossHistoryMA)
-                            devlogs('ERR ' . $symbolName . ' | err - crossHistoryMA' . ' | timeMark - ' . date("d.m.y H:i:s"), 'AgentBybitResp' . $timeFrame);
-
-                        if (!$supertrendData)
-                            devlogs('ERR ' . $symbolName . ' | err - $supertrendData' . ' | timeMark - ' . date("d.m.y H:i:s"), 'AgentBybitResp' . $timeFrame);
-
-                        $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName] = [
-                            'klineHistory' => $klineHistory,
-                            'rsi' => $rsi,
-                            'openInterest' => $openInterest,
-                            'priceChange' => $priceChange,
-                            'crossHistoryMA' => $crossHistoryMA,
-                            'sarData' => $sarData,
-                            'supertrendData' => $supertrendData,
-                            'stochasticOscillatorData' => $stochasticOscillatorData,
-                            'timeMark' => date("H:i"),
-                            'timeStamp' => time(),
-                            'timeFrame' => $timeFrame,
-                            'lastClosePrice' => $lastClosePrice,
-                            'timestapOI' => $timestapOI,
-                        ];
-                    }
-
-                } else {
-                    devlogs('ERR ' .$symbolName.  ' | err - OI' . ' | timeMark - ' . date("d.m.y H:i:s"), 'AgentBybitResp'.$timeFrame);
-                }
-
-            } catch (Exception $e) {
-                devlogs('ERR ' .$symbolName. ' countReq - ' . $countReq . ' | err text - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), 'AgentBybitResp'.$timeFrame);
-            }
-
-            $res['symbols'][$symbolName] = $symbol;
-            usleep(50000);
-        }
-    }
-    unset($symbol);
-
-
-    devlogs('analysis symbols count  - ' . $analysisSymbolCount, 'AgentBybitResp'.$timeFrame);
-    devlogs('count symbols - ' . $countReq, 'AgentBybitResp'.$timeFrame);
-
-    $timeMark = date("d.m.y H:i:s");
-    devlogs('step2 - ' . $timeMark, 'AgentBybitResp'.$timeFrame);
-
-    $data = [
-        "TIMEMARK" => $timeMark,
-        "RESPONSE_EXCHENGE" => $res,
-        "EXCHANGE_CODE" => 'bybit',
-        'TIMEFRAME' => $timeFrame
-    ];
-
-    file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitV5Exchange/' . $timeFrame . '/exchangeResponse.json', json_encode($data));
-
-    $marketVolumesJson['TIMEMARK'] = $timeMark;
-    $marketVolumesJson['EXCHANGE_CODE'] = 'bybit';
-    file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitV5Exchange/' . $timeFrame . '/marketVolumes.json', json_encode($marketVolumesJson));
-
-    if ($marketVolumesJson['RESPONSE_EXCHENGE']) {
-
-        $opportunitiesRes = \Maksv\StrategyBuilder::findPumpOrDumpOpportunities($marketVolumesJson['RESPONSE_EXCHENGE'], $timeFrame, 'bybit');
-        \Maksv\DataOperation::sendInfoMessage($opportunitiesRes, $timeFrame);
-
-        if ($opportunitiesRes['masterPump'] || $opportunitiesRes['masterDump']) {
-
-            $bybitApproveExchangeRes = bybitApproveExchange($bybitApiOb, $timeFrame, $opportunitiesRes['masterPump'], $opportunitiesRes['masterDump']);
-            $opportunitiesRes['masterPump'] = $bybitApproveExchangeRes['pump'];
-            $opportunitiesRes['masterDump'] = $bybitApproveExchangeRes['dump'];
-
-            foreach ($opportunitiesRes['masterPump'] as $symbolName => $pump) {
-                if (/*!$pump['filter']['1h'] ||*/ !$pump['filter']['4h'] || !$pump['filter']['1d'])
-                    unset($opportunitiesRes['masterPump'][$symbolName]);
-            }
-
-            foreach ($opportunitiesRes['masterDump'] as $symbolName => $dump) {
-                if (/*!$dump['filter']['1h'] ||*/ !$dump['filter']['4h'] || !$dump['filter']['1d'])
-                    unset($opportunitiesRes['masterDump'][$symbolName]);
-            }
-
-            if ($opportunitiesRes['masterPump'] || $opportunitiesRes['masterDump']) {
-                $timeMark = date("d.m.y H:i:s");
-                $data = [
-                    "TIMEMARK" => $timeMark,
-                    "STRATEGIES" => $opportunitiesRes,
-                    //"SYMBOLS" => $actualOpportunities,
-                    "EXCHANGE_CODE" => 'bybit'
-                ];
-
-                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . 'bybitV5' . 'Exchange/' . $timeFrame . '/actualMarketVolumes.json', json_encode($data));
-                \Maksv\DataOperation::sendSignalMessage($opportunitiesRes['masterPump'], $opportunitiesRes['masterDump'], '@cryptoHelperMaster', $timeFrame);
-
-                try {
-                    $writeRes = \Maksv\DataOperation::saveSignalToIblock($timeFrame, 'bybit', true);
-                    devlogs($timeFrame . ' master write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), 'AgentBybitRespMaster');
-                } catch (Exception $e) {
-                    devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), 'AgentBybitRespMaster');
-                }
-            }
-        }
-
-        devlogs('step3 - ' . date("d.m.y H:i:s"), 'AgentBybitResp'.$timeFrame);
-
-        //\Maksv\DataOperation::sendInfoMessage($opportunitiesRes, $timeFrame);
-        if ($opportunitiesRes['pump'] || $opportunitiesRes['dump']) {
-            $bybitApproveExchangeRes = bybitApproveExchange($bybitApiOb, $timeFrame, $opportunitiesRes['pump'], $opportunitiesRes['dump']);
-            $opportunitiesRes['pump'] = $bybitApproveExchangeRes['pump'];
-            $opportunitiesRes['dump'] = $bybitApproveExchangeRes['dump'];
-
-           /* foreach ($opportunitiesRes['pump'] as $symbolName => $pump) {
-                if (!$pump['filter']['1h'] || !$pump['filter']['4h'] || !$pump['filter']['1d'])
-                    unset($opportunitiesRes['pump'][$symbolName]);
-            }
-
-            foreach ($opportunitiesRes['dump'] as $symbolName => $dump) {
-                if (!$dump['filter']['1h'] || !$dump['filter']['4h'] || !$dump['filter']['1d'])
-                    unset($opportunitiesRes['dump'][$symbolName]);
-            }*/
-
-            if ($opportunitiesRes['pump'] || $opportunitiesRes['dump']) {
-                \Maksv\DataOperation::sendSignalMessage($opportunitiesRes['pump'], $opportunitiesRes['dump'], '@infoCryptoHelperDev', $timeFrame);
-            }
-        }
-
-
-        //check reversal local BTC trend
-        //if ($timeFrame == '1h') {
-        try {
-            devlogs($timeFrame . ' Warn SUPERTRAND | reversal flag  - ' . $opportunitiesRes['headCoin']['BTCUSDT']['superTrandReversalFlag'] . ' | is up trend - ' .  $opportunitiesRes['headCoin']['BTCUSDT']['lastSupertrend']['isUptrend'] . ' | timeMark - ' . date("d.m.y H:i:s"), 'trendWarning');
-
-            if ($opportunitiesRes['headCoin']['BTCUSDT'] && $opportunitiesRes['headCoin']['BTCUSDT']['superTrandReversalFlag'] === true)
-                \Maksv\DataOperation::sendTrendWarning($opportunitiesRes['headCoin']['BTCUSDT'], 'SUPERTRAND', $opportunitiesRes['headCoin']['BTCUSDT']['lastSupertrend']['isUptrend'], '@infoCryptoHelperTrend', $timeFrame);
-
-        } catch (Exception $e) {
-            devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), 'trendWarning');
-        }
-        //}
-
-    }
-
-    devlogs('end - ' . date("d.m.y H:i:s"), 'AgentBybitResp'.$timeFrame);
-    $bybitApiOb->closeConnection();
-    return "agentBybitResp".$timeFrame."();";
-}
-
-function bybitApproveExchange($bybitApiOb, $timeFrame, $pumpAr = [], $dumpAr = []) {
-
-    try {
-
-        $parentTimeFrameMapMatrix = [
-            '30m' => ['1h', '4h', '1d', '1w'],
-            '1h' => ['4h', '1d', '1w'],
-            '4h' => ['1h', '1d', '1w'],
-            '1d' => ['1h', '4h', '1w'],
-        ];
-
-        foreach ($pumpAr as &$masterPump) {
-
-            /*if ($timeFrame == '1d')
-                continue;*/
-
-            $levels = false;
-            $orderBook = $bybitApiOb->orderBookV5('linear', $masterPump['symbolName'], 1000);
-            if ($orderBook['result'] && is_array($orderBook['result'])) {
-                //$levels = \Maksv\TechnicalAnalysis::findLevels($orderBook['result'], 5);
-                $findLevelsRes = \Maksv\TechnicalAnalysis::findLevels($orderBook['result'], 200, 0.01);
-                $levels = [
-                    'lower' => array_slice($findLevelsRes['lower'], 0, 5),
-                    'upper' => array_slice($findLevelsRes['upper'], 0, 5),
-                ];
-            }
-            $masterPump['levels'] = $levels;
-            $masterPump['filter'][$timeFrame] = $masterPump['approve'][$timeFrame]['filter'] = true;
-
-            foreach ($parentTimeFrameMapMatrix[$timeFrame] as $tf) {
-
-                try {
-                    $masterPump['filter'][$tf] = false;
-                    $masterPump['approve'][$tf]['filter'] = false;
-
-                    $actualSAR = $actualSupertrend = $crossMA = false;
-                    $priceChange = $lastClosePrice = 0;
-                    $barsCount = 100;
-                    $kline = $bybitApiOb->klineV5("linear", $masterPump['symbolName'], $tf, $barsCount);
-                    if ($kline['result'] && $kline['result']['list']) {
-                        $klineList = array_reverse($kline['result']['list']);
-
-                        $prevKline = $klineList[array_key_last($klineList) - 1] ?? false; //(смотрим на предыдущую свечу так как последняя - это еще не закрытая)
-                        if ($prevKline) {
-                            $priceChange = round((floatval($prevKline[4]) / (floatval($prevKline[1]) / 100)) - 100, 2);
-                            //$lastClosePrice = floatval($prevKline[4]);
-                        }
-                        $lastClosePrice = $masterPump['lastClosePrice'];
-
-                        //MA x EMA
-                        foreach ($klineList as $klineItem)
-                            $klineHistory['klineСlosePriceList'][] = $klineItem[4];
-
-                        $crossMA = \Maksv\TechnicalAnalysis::checkMACross($klineHistory['klineСlosePriceList'], 5, 20) ?? false;
-
-                        //SAR
-                        $sarCandles = array_map(function ($k) {
-                            return [
-                                'h' => floatval($k[2]),
-                                'l' => floatval($k[3])
-                            ];
-                        }, $klineList);
-
-                        $sarData = \Maksv\TechnicalAnalysis::calculateSARWithTrend($sarCandles) ?? false;
-                        if ($sarData && is_array($sarData)) {
-                            $actualSAR = $sarData[array_key_last($sarData)];
-                        }
-
-                        // Supertrend candles
-                        $supertrendCandles = array_map(function ($k) {
-                            return [
-                                'h' => floatval($k[2]), // High price
-                                'l' => floatval($k[3]), // Low price
-                                'c' => floatval($k[4]) // Close price
-                            ];
-                        }, $klineList);
-                        $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($supertrendCandles, 10, 3) ?? false; // длина 10, фактор 3
-                        if ($supertrendData && is_array($supertrendData)) {
-                            $actualSupertrend = $supertrendData[array_key_last($supertrendData)];
-                        }
-                    }
-                    $masterPump['approve'][$tf]['crossMA'] = $crossMA;
-                    $masterPump['approve'][$tf]['priceChange'] = $priceChange;
-                    //$masterPump['approve'][$tf]['actualSAR'] = $actualSAR;
-                    $masterPump['approve'][$tf]['actualSupertrend'] = $actualSupertrend;
-                    $masterPump['approve'][$tf]['lastClosePrice'] = $lastClosePrice;
-
-                    $openInterest = 0;
-                    $masterPump['approve'][$tf]['openInterest'] = $openInterest;
-
-                    if (
-                        (
-                            in_array($tf, ['1d', '1w'])
-                            //&& $actualSAR['isUptrend']
-                            //&& $actualSupertrend['isUptrend']
-                            && ($lastClosePrice >= $crossMA['sma'])
-                        )
-                        || (
-                            in_array($tf, ['30m', '1h', '4h'])
-                            && $actualSupertrend['isUptrend']
-                            //&& $actualSAR['isUptrend']
-                        )
-                    ) {
-                        $masterPump['filter'][$tf] = true;
-                        $masterPump['approve'][$tf]['filter'] = true;
-                    }
-
-                    if (in_array($tf, [/*'1d',*/ '1w']) && !$crossMA) {
-                        $masterPump['filter'][$tf] = true;
-                        $masterPump['approve'][$tf]['filter'] = true;
-                    }
-
-                } catch (Exception $e) {
-                    devlogs( $masterPump['symbolName'] . '-' .$tf . ' second filter     ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), 'bybitApproveExchange');
-                }
-            }
-
-        }
-        unset($masterPump);
-
-        foreach ($dumpAr as &$masterDump) {
-
-            $levels = false;
-            $orderBook = $bybitApiOb->orderBookV5('linear', $masterDump['symbolName'], 1000);
-            if ($orderBook['result'] && is_array($orderBook['result'])) {
-                //$levels = \Maksv\TechnicalAnalysis::findLevels($orderBook['result'], 5);
-                $findLevelsRes = \Maksv\TechnicalAnalysis::findLevels($orderBook['result'], 200, 0.01);
-                $levels = [
-                    'lower' => array_slice($findLevelsRes['lower'], 0, 5),
-                    'upper' => array_slice($findLevelsRes['upper'], 0, 5),
-                ];
-            }
-            $masterDump['levels'] = $levels;
-            $masterDump['filter'][$timeFrame] = $masterDump['approve'][$timeFrame]['filter'] = true;
-
-            foreach ($parentTimeFrameMapMatrix[$timeFrame] as $tf) {
-
-                try {
-                    $masterDump['filter'][$tf] = false;
-                    $masterDump['approve'][$tf]['filter'] = false;
-
-                    $actualSAR = $actualSupertrend = $crossMA = false;
-                    $priceChange = $lastClosePrice = 0;
-                    $barsCount = 100;
-                    $kline = $bybitApiOb->klineV5("linear", $masterDump['symbolName'], $tf, $barsCount);
-                    if ($kline['result'] && $kline['result']['list']) {
-                        $klineList = array_reverse($kline['result']['list']);
-
-                        $prevKline = $klineList[array_key_last($klineList) - 1] ?? false; //(смотрим на предыдущую свечу так как последняя - это еще не закрытая)
-                        if ($prevKline) {
-                            $priceChange = round((floatval($prevKline[4]) / (floatval($prevKline[1]) / 100)) - 100, 2);
-                        }
-                        $lastClosePrice = $masterDump['lastClosePrice'];
-
-                        //MA x EMA
-                        foreach ($klineList as $klineItem)
-                            $klineHistory['klineСlosePriceList'][] = $klineItem[4];
-
-                        $crossMA = \Maksv\TechnicalAnalysis::checkMACross($klineHistory['klineСlosePriceList'], 5, 20) ?? false;
-
-                        //SAR
-                        $sarCandles = array_map(function ($k) {
-                            return [
-                                'h' => floatval($k[2]),
-                                'l' => floatval($k[3])
-                            ];
-                        }, $klineList);
-
-                        $sarData = \Maksv\TechnicalAnalysis::calculateSARWithTrend($sarCandles) ?? false;
-                        if ($sarData && is_array($sarData)) {
-                            $actualSAR = $sarData[array_key_last($sarData)];
-                        }
-
-                        // Supertrend candles
-                        $supertrendCandles = array_map(function ($k) {
-                            return [
-                                'h' => floatval($k[2]), // High price
-                                'l' => floatval($k[3]), // Low price
-                                'c' => floatval($k[4])  // Close price
-                            ];
-                        }, $klineList);
-                        $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($supertrendCandles, 10, 3) ?? false; // длина 10, фактор 3
-                        if ($supertrendData && is_array($supertrendData)) {
-                            $actualSupertrend = $supertrendData[array_key_last($supertrendData)];
-                        }
-                    }
-
-                    $masterDump['approve'][$tf]['crossMA'] = $crossMA;
-                    $masterDump['approve'][$tf]['priceChange'] = $priceChange;
-                    //$masterDump['parent'][$tf]['actualSAR'] = $actualSAR;
-                    $masterDump['approve'][$tf]['lastClosePrice'] = $lastClosePrice;
-
-                    $openInterest = 0;
-                    $masterDump['approve'][$tf]['openInterest'] = $openInterest;
-
-                    if (
-                        (
-                            in_array($tf, ['1d', '1w'])
-                            //&& !$actualSupertrend['isUptrend']
-                            //&& !$actualSAR['isUptrend']
-                            && ($lastClosePrice <= $crossMA['sma'])
-                        ) || (
-                            in_array($tf, ['30m', '1h', '4h'])
-                            && !$actualSupertrend['isUptrend']
-                            //&& !$actualSAR['isUptrend']
-                        )
-                    ) {
-                        $masterDump['filter'][$tf] = true;
-                        $masterDump['approve'][$tf]['filter'] = true;
-                    }
-
-                    if (in_array($tf, [/*'1d',*/ '1w']) && !$crossMA) {
-                        $masterDump['filter'][$tf] = true;
-                        $masterDump['approve'][$tf]['filter'] = true;
-                    }
-
-                } catch (Exception $e) {
-                    devlogs( $masterDump['symbolName'] . '-' .$tf . ' second filter     ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), 'bybitApproveExchange');
-                }
-            }
-        }
-        unset($masterDump);
-
-    } catch (Exception $e) {
-        devlogs('ERR 23 ' . $timeFrame . ' - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), 'bybitApproveExchange');
-    }
-
-    return ['pump' => $pumpAr, 'dump' => $dumpAr];
+    return "btcDOthersExchange();";
 }
 
 function encryptMessage($message, $shift) {
@@ -617,4 +212,50 @@ function getBasketCnt(): int
     }
 
     return $cnt;
+}
+
+function clean_expire_cache($path = "") {
+    //devlogs("start" . ' - ' .  date("d.m.y H:i:s"), 'cleanCache');
+
+    if (!class_exists("CFileCacheCleaner"))
+        require_once ($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/classes/general/cache_files_cleaner.php");
+
+    //$curentTime = mktime();
+    $curentTime = time();
+    /*if (defined("BX_CRONTAB") && BX_CRONTAB === true) $endTime = time() + 5; //Если на кроне, то работаем 5 секунд
+    else $endTime = time() + 1; //Если на хитах, то не более секунды*/
+    $endTime = time() + 5;
+    //Работаем со всем кешем
+    $obCacheCleaner = new CFileCacheCleaner("all");
+
+    if (!$obCacheCleaner->InitPath($path))
+        return "clean_expire_cache();";
+
+    $obCacheCleaner->Start();
+    while ($file = $obCacheCleaner->GetNextFile()) {
+        if (is_string($file)) {
+            $date_expire = $obCacheCleaner->GetFileExpiration($file);
+            if ($date_expire) {
+                if ($date_expire < $curentTime) {
+                    unlink($file);
+                }
+            }
+            if (time() >= $endTime) break;
+        }
+    }
+    //devlogs("end" . ' - ' .  date("d.m.y H:i:s"), 'cleanCache');
+
+    if (is_string($file))
+        return "clean_expire_cache(\"" . $file . "\");";
+    else
+        return "clean_expire_cache();";
+}
+
+function convertExponentialToDecimal($number) {
+    // Преобразуем число в строку с фиксированной точкой (достаточно знаков после запятой)
+    $decimal = sprintf('%.20f', $number);
+    // Удаляем лишние нули в конце и точку, если она осталась
+    $decimal = rtrim($decimal, '0');
+    $decimal = rtrim($decimal, '.');
+    return $decimal;
 }

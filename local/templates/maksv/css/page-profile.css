@@ -545,7 +545,9 @@
 /*--------------- раздел ПРОГРАММА ЛОЯЛЬНОСТИ */
 
 .profile-section-loyalty {
-	width: 695px;
+	width: 98%;
+	max-width: 1000px;
+	/*width: 695px;*/
 	margin: 0 auto 90px;
 }
 
@@ -1084,7 +1086,9 @@
 	margin: 40px auto 0;
 }
 .profile-section-loyalty .profile-user-empty {
-	width: 498px;
+	/*width: 498px;*/
+	width: 98%;
+	max-width: 1000px;
 	margin-top: 60px;
 }
 
@@ -1149,8 +1153,9 @@
 	/*--------------- раздел ПРОГРАММА ЛОЯЛЬНОСТИ */
 
 	.profile-section-loyalty {
-		width: 67%;
-		max-width: 800px;
+		/*width: 67%;*/
+		width: 98%;
+		max-width: 1000px;
 		margin: unset;
 		padding-right: 20px;
 	}
@@ -1294,8 +1299,9 @@
 	/*--------------- раздел ПРОГРАММА ЛОЯЛЬНОСТИ */
 
 	.profile-section-loyalty {
-		width: 100%;
-		max-width: 500px;
+		width: 98%;
+		max-width: 1000px;
+		/*max-width: 500px;*/
 		margin: 0 auto;
 		padding: 0 15px;
 
@@ -1394,7 +1400,8 @@
 		margin: 40px auto 80px;
 	}
 	.profile-section-loyalty .profile-user-empty {
-		width: 100%;
+		width: 98%;
+		max-width: 1000px;
 		margin-top: 40px;
 	}
 

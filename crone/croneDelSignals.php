@@ -13,9 +13,10 @@ CModule::IncludeModule("iblock");
 
 echo("start");
 
-$difPeriod = '-2 weeks';
+$difPeriod = '-12 weeks';
+//$difPeriod = '-7 days';
 
-$startDate = (new DateTime($difPeriod))->format('d.m.Y');
+/*$startDate = (new DateTime($difPeriod))->format('d.m.Y');
 $endDate = date('Y-m-d');
 
 $date_to = (new DateTime($startDate))->format('d.m.Y');
@@ -42,4 +43,4 @@ foreach ($delElAr as $item) {
         $countDel++;
     }
 }
-echo '<pre>';  var_dump('del count - '.$countDel); echo '</pre>';
+echo '<pre>';  var_dump('del count - '.$countDel); echo '</pre>';*/

@@ -58,8 +58,7 @@ class TechnicalAnalysis
 
         return round($rsi, 2);
     }
-
-    // Функция для поиска дивергенции или конвергенции
+    
     public static function detectDivergence(array $prices, array $rsiValues) {
         $divergence = 'no divergence';
 
@@ -106,10 +105,11 @@ class TechnicalAnalysis
         return $peaks;
     }
 
-    public static function getMACrossHistory(array $prices, int $shortPeriod = 12, int $longPeriod = 26, int $n = 10) {
+    public static function getMACrossHistory(array $prices, int $shortPeriod = 9, int $longPeriod = 26, int $n = 10) {
         // Проверяем, что передано достаточно данных для расчета и для формирования истории на n свечей
         if (count($prices) < $longPeriod + $n - 1) {
-            throw new \Exception("Недостаточно данных для расчета скользящих средних на $n свечей.");
+            return [];
+            //throw new \Exception("Недостаточно данных для расчета скользящих средних на $n свечей.");
         }
 
         $crossHistory = [];
@@ -129,20 +129,149 @@ class TechnicalAnalysis
         return $crossHistory;
     }
 
-    public static function checkMACross(array $prices, int $shortPeriod = 12, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
+    public static function checkMACross(array $prices, int $shortPeriod = 9, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
     {
         if (count($prices) < max($longPeriod, $bollingerLength)) {
             return false;
         }
 
+        $milliseconds = $prices[array_key_last($prices)]['t'];
+
+        // Извлекаем цены закрытия и оставляем последние max(longPeriod, bollingerLength) значений
+        $closePrices = array_column($prices, 'c');
+        $closePrices = array_slice($closePrices, -max($longPeriod, $bollingerLength));
+
+        if (empty($closePrices) || count($closePrices) < $shortPeriod) {
+            return false;
+        }
+
+        // SMA для последних longPeriod значений
+        $sma = array_sum(array_slice($closePrices, -$longPeriod)) / $longPeriod;
+
+        // Inline расчет EMA для последних shortPeriod значений
+        $k = 2 / ($shortPeriod + 1);
+        $ema = $closePrices[0];
+        for ($i = 1; $i < count($closePrices); $i++) {
+            $ema = $closePrices[$i] * $k + $ema * (1 - $k);
+        }
+
+        // Предыдущие SMA и EMA (без последнего значения)
+        $previousSMA = array_sum(array_slice($closePrices, -(($longPeriod + 1)), $longPeriod)) / $longPeriod;
+        $prevPrices = array_slice($closePrices, 0, -1);
+        $prevK = 2 / ($shortPeriod + 1);
+        $previousEMA = $prevPrices[0];
+        for ($i = 1; $i < count($prevPrices); $i++) {
+            $previousEMA = $prevPrices[$i] * $prevK + $previousEMA * (1 - $prevK);
+        }
+
+        $currentPrice = end($closePrices);
+        $prevPrice = $closePrices[array_key_last($closePrices) - 1];
+        //$isUptrend = $prevPrice > $sma;
+        $isUptrend = $ema > $sma;
+
+        $isShort = ($previousEMA >= $previousSMA && $ema < $sma);
+        $isLong  = ($previousEMA <= $previousSMA && $ema > $sma);
+
+        // Формирование timestamp
+        $seconds = $milliseconds / 1000;
+        $microseconds = ($milliseconds % 1000) * 1000;
+        $date = \DateTime::createFromFormat('U.u', sprintf('%.6F', $seconds));
+        $date->modify("+$microseconds microseconds");
+        $timestamp = $date->format("H:i m.d");
+
+        if ($previousEMA <= $previousSMA && $ema > $sma) {
+            return [
+                'cross' => 'bull cross',
+                'sma' => $sma,
+                'ema' => $ema,
+                'isUptrend' => $isUptrend,
+                'is_reversal' => true,
+                'isLong' => true,
+                'isShort' => false,
+                'timestamp_gmt' => $timestamp,
+                'timestamp' => $milliseconds
+            ];
+        } elseif ($previousEMA >= $previousSMA && $ema < $sma) {
+            return [
+                'cross' => 'bear cross',
+                'sma' => $sma,
+                'ema' => $ema,
+                'isUptrend' => $isUptrend,
+                'is_reversal' => true,
+                'isLong' => false,
+                'isShort' => true,
+                'timestamp_gmt' => $timestamp,
+                'timestamp' => $milliseconds
+            ];
+        } else {
+            return [
+                'cross' => 'no cross',
+                'sma' => $sma,
+                'ema' => $ema,
+                'isUptrend' => $isUptrend,
+                'is_reversal' => false,
+                'isLong' => $isLong,
+                'isShort' => $isShort,
+                'timestamp_gmt' => $timestamp,
+                'timestamp' => $milliseconds
+            ];
+        }
+    }
+
+    /**
+     * Отдельный метод для расчета полос Боллинджера.
+     * Этот метод не зависит от checkMACross и может вызываться отдельно.
+     *
+     * @param array $prices Массив цен (обычно последние $length значений)
+     * @return array Ассоциативный массив с ключами:
+     *               'middle_band', 'upper_band', 'lower_band'
+     */
+    protected static function calculateBollingerBands(array $prices): array {
+        $length = 20;
+        $factor = 2;
+        if (count($prices) < $length) {
+            throw new \InvalidArgumentException("Not enough prices to calculate Bollinger Bands");
+        }
+        $sma = array_sum($prices) / $length;
+        $variance = 0;
+        foreach ($prices as $price) {
+            $variance += pow($price - $sma, 2);
+        }
+        $variance /= $length;
+        $stdDev = sqrt($variance);
+        return [
+            'middle_band' => $sma,
+            'upper_band' => $sma + ($factor * $stdDev),
+            'lower_band' => $sma - ($factor * $stdDev)
+        ];
+    }
+
+    public static function checkMACrossDev(array $prices, int $shortPeriod = 9, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
+    {
+        if (count($prices) < max($longPeriod, $bollingerLength)) {
+            return false;
+        }
+
+        $milliseconds = $prices[array_key_last($prices)]['t'];
+
+        $prices = array_column($prices, 'c');
         $prices = array_slice($prices, -max($longPeriod, $bollingerLength));
+
+        if (empty($prices) || !is_array($prices) || count($prices) < $shortPeriod) {
+            return false;
+        }
 
         $sma = array_sum(array_slice($prices, -$longPeriod)) / $longPeriod;
         $ema = self::calculateEMA($prices, $shortPeriod);
         $previousSMA = array_sum(array_slice($prices, -(($longPeriod + 1)), $longPeriod)) / $longPeriod;
         $previousEMA = self::calculateEMA(array_slice($prices, 0, -1), $shortPeriod);
         $currentPrice = end($prices);
-        $isUptrend = $currentPrice > $sma;
+        $prevPrice = $prices[array_key_last($prices) - 1];
+        $isUptrend = $prevPrice > $sma;
+
+        $isShort = ($previousEMA >= $previousSMA && $ema < $sma) /*|| ($sma >= $prevPrice && $sma < $ema)*/;
+        $isLong = ($previousEMA <= $previousSMA && $ema > $sma) /*|| ($sma <= $prevPrice && $sma > $ema)*/;
+        //$isUptrend = $ema >= $sma;
 
         // Расчет полос Боллинджера
         $bollingerPrices = array_slice($prices, -$bollingerLength);
@@ -157,6 +286,14 @@ class TechnicalAnalysis
         // Расчет %B
         $bollingerPercentB = ($currentPrice - $lowerBand) / ($upperBand - $lowerBand);
 
+        //timestamp
+        $seconds = $milliseconds / 1000;
+        $microseconds = ($milliseconds % 1000) * 1000;
+
+        $date = \DateTime::createFromFormat('U.u', sprintf('%.6F', $seconds));
+        $date->modify("+$microseconds microseconds");
+        $timestamp =  $date->format("H:i m.d");
+
         if ($previousEMA <= $previousSMA && $ema > $sma) {
             return [
                 'cross' => 'bull cross',
@@ -164,6 +301,10 @@ class TechnicalAnalysis
                 'ema' => $ema,
                 'isUptrend' => $isUptrend,
                 'is_reversal' => true,
+                'isLong' => true,
+                'isShort' => false,
+                'timestamp_gmt' => $timestamp,
+                'timestamp' => $milliseconds,
                 'bollinger' => [
                     'middle_band' => $bollingerSMA,
                     'upper_band' => $upperBand,
@@ -178,6 +319,10 @@ class TechnicalAnalysis
                 'ema' => $ema,
                 'isUptrend' => $isUptrend,
                 'is_reversal' => true,
+                'isLong' => false,
+                'isShort' => true,
+                'timestamp_gmt' => $timestamp,
+                'timestamp' => $milliseconds,
                 'bollinger' => [
                     'middle_band' => $bollingerSMA,
                     'upper_band' => $upperBand,
@@ -192,6 +337,10 @@ class TechnicalAnalysis
                 'ema' => $ema,
                 'isUptrend' => $isUptrend,
                 'is_reversal' => false,
+                'isLong' => $isLong,
+                'isShort' => $isShort,
+                'timestamp_gmt' => $timestamp,
+                'timestamp' => $milliseconds,
                 'bollinger' => [
                     'middle_band' => $bollingerSMA,
                     'upper_band' => $upperBand,
@@ -202,93 +351,16 @@ class TechnicalAnalysis
         }
     }
 
-/*    public static function checkMACross(array $prices, int $shortPeriod = 12, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
-    {
-        // Проверяем, что передано достаточно данных
-        if (count($prices) < max($longPeriod, $bollingerLength)) {
-            //throw new \Exception("Недостаточно данных для расчета.");
-            return false;
-        }
-
-        // Берем последние элементы для расчетов
-        $prices = array_slice($prices, -max($longPeriod, $bollingerLength));
-
-        // Вычисляем SMA для длинного периода
-        $sma = array_sum(array_slice($prices, -$longPeriod)) / $longPeriod;
-
-        // Вычисляем EMA для короткого периода
-        $ema = self::calculateEMA($prices, $shortPeriod);
-
-        // Проверяем пересечение
-        $previousSMA = array_sum(array_slice($prices, -(($longPeriod + 1)), $longPeriod)) / $longPeriod;
-        $previousEMA = self::calculateEMA(array_slice($prices, 0, -1), $shortPeriod);
-
-        // Определяем текущую цену
-        $currentPrice = end($prices); // Последний элемент массива
-        $isUptrend = $currentPrice > $sma;
-
-        // Вычисляем Bollinger Bands
-        $bollingerPrices = array_slice($prices, -$bollingerLength); // Последние $bollingerLength значений
-        $bollingerSMA = array_sum($bollingerPrices) / $bollingerLength;
-
-        // Вычисляем стандартное отклонение
-        $variance = array_sum(array_map(function ($price) use ($bollingerSMA) {
-                return pow($price - $bollingerSMA, 2);
-            }, $bollingerPrices)) / $bollingerLength;
-
-        $stdDev = sqrt($variance);
-
-        // Верхняя и нижняя полосы
-        $upperBand = $bollingerSMA + ($bollingerFactor * $stdDev);
-        $lowerBand = $bollingerSMA - ($bollingerFactor * $stdDev);
-
-        // Логика пересечения SMA и EMA
-        if ($previousEMA <= $previousSMA && $ema > $sma) {
-            return [
-                'cross' => 'bull cross',
-                'sma' => $sma,
-                'ema' => $ema,
-                'isUptrend' => $isUptrend,
-                'is_reversal' => true,
-                'bollinger' => [
-                    'middle_band' => $bollingerSMA,
-                    'upper_band' => $upperBand,
-                    'lower_band' => $lowerBand,
-                ],
-            ];
-        } elseif ($previousEMA >= $previousSMA && $ema < $sma) {
-            return [
-                'cross' => 'bear cross',
-                'sma' => $sma,
-                'ema' => $ema,
-                'isUptrend' => $isUptrend,
-                'is_reversal' => true,
-                'bollinger' => [
-                    'middle_band' => $bollingerSMA,
-                    'upper_band' => $upperBand,
-                    'lower_band' => $lowerBand,
-                ],
-            ];
-        } else {
-            return [
-                'cross' => 'no cross',
-                'sma' => $sma,
-                'ema' => $ema,
-                'isUptrend' => $isUptrend,
-                'is_reversal' => false,
-                'bollinger' => [
-                    'middle_band' => $bollingerSMA,
-                    'upper_band' => $upperBand,
-                    'lower_band' => $lowerBand,
-                ],
-            ];
-        }
-    }*/
-
     protected static function calculateEMA(array $prices, int $period) {
+        if (empty($prices)) {
+            throw new \InvalidArgumentException("calculateEMA: prices array is empty");
+        }
         $k = 2 / ($period + 1);
         $ema = $prices[0];
         for ($i = 1; $i < count($prices); $i++) {
+            if (!is_numeric($prices[$i])) {
+                throw new \UnexpectedValueException("calculateEMA: Non-numeric value in prices array");
+            }
             $ema = $prices[$i] * $k + $ema * (1 - $k);
         }
         return $ema;
@@ -483,65 +555,78 @@ class TechnicalAnalysis
         return $supertrend;
     }
 
-     public static function findLevels($orderBook, $topN = 3, $deviationPercent = 0.3) {
-         $bids = [];
-         $asks = [];
+    public static function findLevels($orderBook, $topN = 3, $deviationPercent = 0.3)
+    {
+        $bids = [];
+        $asks = [];
 
-         // Самая высокая цена покупок и самая низкая цена продаж
-         $maxBidPrice = (float) $orderBook['b'][0][0];
-         $minAskPrice = (float) $orderBook['a'][0][0];
+        // Самая высокая цена покупок и самая низкая цена продаж
+        $maxBidPrice = (float) $orderBook['b'][0][0];
+        $minAskPrice = (float) $orderBook['a'][0][0];
 
-         // Рассчитываем предельные уровни
-         $minAskPriceLimit = $minAskPrice * (1 + ($deviationPercent / 100));
-         $maxBidPriceLimit = $maxBidPrice * (1 - ($deviationPercent / 100));
+        // Рассчитываем предельные уровни
+        $minAskPriceLimit = $minAskPrice * (1 + ($deviationPercent / 100));
+        $maxBidPriceLimit = $maxBidPrice * (1 - ($deviationPercent / 100));
 
-         // Проходим по покупкам (bids)
-         foreach ($orderBook['b'] as $bid) {
-             $price = (float) $bid[0];
-             $volume = (float) $bid[1];
-             if ($price <= $maxBidPriceLimit) {
-                 $bids[] = [
-                     'price' => $price,
-                     'volume' => round($volume),
-                     'percent_from_last_close' => round((($maxBidPrice - $price) / $maxBidPrice) * 100, 2) // Отклонение от maxBidPrice
-                 ];
-             }
-         }
+        $totalBidVolume = 0;
+        $totalAskVolume = 0;
 
-         // Проходим по продажам (asks)
-         foreach ($orderBook['a'] as $ask) {
-             $price = (float) $ask[0];
-             $volume = (float) $ask[1];
-             if ($price >= $minAskPriceLimit) {
-                 $asks[] = [
-                     'price' => $price,
-                     'volume' => round($volume),
-                     'percent_from_last_close' => round((($price - $minAskPrice) / $minAskPrice) * 100, 2) // Отклонение от minAskPrice
-                 ];
-             }
-         }
+        // Проходим по покупкам (bids)
+        foreach ($orderBook['b'] as $bid) {
+            $price = (float) $bid[0];
+            $volume = (float) $bid[1];
+            if ($price <= $maxBidPriceLimit) {
+                $bids[] = [
+                    'price' => $price,
+                    'volume' => $volume,
+                    'distance' => round((($maxBidPrice - $price) / $maxBidPrice) * 100, 2) ?? 0 // Отклонение от maxBidPrice
+                ];
+                $totalBidVolume += $volume;
+            }
+        }
 
-         // Объединение похожих уровней
-         $bids = self::mergeSimilarLevels($bids, 'bids');
-         $asks = self::mergeSimilarLevels($asks, 'asks');
+        // Проходим по продажам (asks)
+        foreach ($orderBook['a'] as $ask) {
+            $price = (float) $ask[0];
+            $volume = (float) $ask[1];
+            if ($price >= $minAskPriceLimit) {
+                $asks[] = [
+                    'price' => $price,
+                    'volume' => $volume,
+                    'distance' => round((($price - $minAskPrice) / $minAskPrice) * 100, 2) ?? 0 // Отклонение от minAskPrice
+                ];
+                $totalAskVolume += $volume;
+            }
+        }
 
-         // Сортировка по объему
-         usort($bids, function($a, $b) {
-             return $b['volume'] <=> $a['volume'];
-         });
-         usort($asks, function($a, $b) {
-             return $b['volume'] <=> $a['volume'];
-         });
+        // Вычисляем volume в процентах от общего объема
+        foreach ($bids as &$bid) {
+            $bid['volume_percent'] = $totalBidVolume > 0 ? round(($bid['volume'] / $totalBidVolume) * 100, 2) : 0;
+        }
+        foreach ($asks as &$ask) {
+            $ask['volume_percent'] = $totalAskVolume > 0 ? round(($ask['volume'] / $totalAskVolume) * 100, 2) : 0;
+        }
 
-         // Возвращаем топ-N уровней
-         return [
-             'upper' => array_slice($asks, 0, $topN),
-             'lower' => array_slice($bids, 0, $topN)
-         ];
-     }
+        // Объединение похожих уровней
+        $bids = self::mergeSimilarLevels($bids, 'bids');
+        $asks = self::mergeSimilarLevels($asks, 'asks');
 
-     // Функция для объединения похожих уровней
-     public static function mergeSimilarLevels($levels, $type) {
+        // Сортировка по возрастанию
+        usort($bids, function($a, $b) {
+            return $a['distance'] <=> $b['distance'];
+        });
+        usort($asks, function($a, $b) {
+            return $a['distance'] <=> $b['distance'];
+        });
+
+        // Возвращаем топ-N уровней
+        return [
+            'upper' => array_slice($asks, 0, $topN),
+            'lower' => array_slice($bids, 0, $topN)
+        ];
+    }
+
+    public static function mergeSimilarLevels($levels, $type) {
          $merged = [];
 
          foreach ($levels as $level) {
@@ -569,8 +654,7 @@ class TechnicalAnalysis
          return $merged;
      }
 
-     // Функция для вычисления динамической точности на основе цены
-     public static function getDynamicPrecision($price) {
+    public static function getDynamicPrecision($price) {
          if ($price > 10000) {
              return 0.5;  // Высокие цены (например, BTC) — точность 0.1
          } elseif ($price > 100) {
@@ -668,7 +752,7 @@ class TechnicalAnalysis
         return $result;
     }
 
-    public static function calculateStochasticRSI(array $candles, int $rsiPeriod = 14, int $stochPeriod = 14, int $smoothK = 3, int $smoothD = 3): array
+/*    public static function calculateStochasticRSI(array $candles, int $rsiPeriod = 14, int $stochPeriod = 14, int $smoothK = 3, int $smoothD = 3, $stepK = 3, $stepKD = 8): array
     {
         $closingPrices = array_column($candles, 'c');
 
@@ -726,187 +810,2222 @@ class TechnicalAnalysis
             $indexD = $i - ($rsiPeriod + $stochPeriod + $smoothD - 1);
 
             $smoothedKVal = $smoothedK[$indexK] ?? null;
-            $smoothedDVal = $smoothedD[$indexD - 2] ?? null;
+            $smoothedDVal = $smoothedD[$indexD - ($smoothK - 1)] ?? null;
 
             $previewSmoothedKVal = $smoothedK[$indexK - 1] ?? null;
-            $previewSmoothedDVal = $smoothedD[$indexD - 3] ?? null;
+            $previewSmoothedDVal = $smoothedD[$indexD - $smoothK] ?? null;
 
-            $isKDLong = isset($previewSmoothedKVal, $previewSmoothedDVal) && $previewSmoothedKVal > $previewSmoothedDVal && $smoothedKVal > $smoothedDVal && $smoothedKVal <= 20;
-            $isKBorderLong = isset($previewSmoothedKVal) && $previewSmoothedKVal < 20 && $smoothedKVal >= 20;
 
-            $isKDShort = isset($previewSmoothedKVal, $previewSmoothedDVal) && $previewSmoothedKVal < $previewSmoothedDVal && $smoothedKVal < $smoothedDVal && $smoothedKVal >= 80;
-            $isKBorderShort = isset($previewSmoothedKVal) && $previewSmoothedKVal > 80 && $smoothedKVal <= 80;
+            $isKLong = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal > $previewSmoothedDVal && $smoothedKVal > $smoothedDVal && $smoothedKVal > $previewSmoothedKVal && (($smoothedKVal - $previewSmoothedKVal) >= $stepK) && $smoothedKVal <= 70;
+            $isKDLong = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < $previewSmoothedDVal && $smoothedKVal > $smoothedDVal && (($smoothedKVal - $previewSmoothedKVal) >= $stepK) && $smoothedKVal <= 70;
+            $isHalfLong = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal > $previewSmoothedDVal && $smoothedKVal > $previewSmoothedKVal && $smoothedKVal > $smoothedDVal && $previewSmoothedKVal < 50 && $smoothedKVal > 50 && (($smoothedKVal - $previewSmoothedKVal) >= $stepK);
+            $isKBorderLong = false;//isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < 20 && $smoothedKVal >= 20 && $smoothedKVal > $smoothedDVal;
+
+            $isKShort = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < $previewSmoothedDVal && $smoothedKVal < $smoothedDVal && $smoothedKVal < $previewSmoothedKVal && (($previewSmoothedKVal - $smoothedKVal) >= $stepK) && $smoothedKVal >= 30;
+            $isKDShort = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal > $previewSmoothedDVal && $smoothedKVal < $smoothedDVal && (($previewSmoothedKVal- $smoothedKVal) >= $stepK) && $smoothedKVal >= 30;
+            $isHalfShort = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < $previewSmoothedDVal && $smoothedKVal < $previewSmoothedKVal && $smoothedKVal < $smoothedDVal && $previewSmoothedKVal > 50 && $smoothedKVal < 50  && (($previewSmoothedKVal - $smoothedKVal) >= $stepK);
+            $isKBorderShort = false;//isset($previewSmoothedKVal) && $previewSmoothedKVal > 80 && $smoothedKVal <= 80 && $smoothedKVal < $smoothedDVal;
 
             $result[] = [
                 'close' => $candles[$i]['c'],
                 '%K' => $smoothedKVal,
                 '%D' => $smoothedDVal,
-                'isLong' => $isKDLong || $isKBorderLong,
-                'isShort' => $isKDShort || $isKBorderShort,
-               /* 'isKDLong' => $isKDLong,
-                'isKBorderLong' => $isKBorderLong,
-                'isKDShort' => $isKDShort,
-                'isKBorderShort' => $isKBorderShort,*/
+                'isLong' => $isKDLong || $isKBorderLong || $isKLong || $isHalfLong,
+                'longStep' => round($smoothedKVal - $previewSmoothedKVal, 1),
+                'shortStep' => round($previewSmoothedKVal - $smoothedKVal, 1),
+                'longTypeAr' => ['isKDLong' => $isKDLong, 'isKBorderLong' => $isKBorderLong, 'isKLong' => $isKLong, 'isHalfLong' => $isHalfLong],
+                'isShort' => $isKDShort || $isKBorderShort || $isKShort || $isHalfShort,
+                'shortTypeAr' => ['isKDShort' => $isKDShort, 'isKBorderShort' => $isKBorderShort, 'isKShort' => $isKShort, 'isHalfShort' => $isHalfShort],
+            ];
+        }
+
+        return $result;
+    }*/
+    public static function calculateStochasticRSI(
+        array $candles,
+        int $rsiPeriod = 14,
+        int $stochPeriod = 14,
+        int $smoothK = 3,
+        int $smoothD = 3,
+        float $stepKD = 2.5, // порог для разницы %K и %D
+        float $stepK = 3.0,
+    ): array {
+        $closingPrices = array_column($candles, 'c');
+        // Проверка данных
+        $minRequired = $rsiPeriod + $stochPeriod + max($smoothK, $smoothD) - 1;
+        if (count($candles) < $minRequired) {
+            return [];
+        }
+
+        // 1. RSI
+        $gains = [];
+        $losses = [];
+        for ($i = 1; $i < count($closingPrices); $i++) {
+            $change = $closingPrices[$i] - $closingPrices[$i - 1];
+            $gains[] = max($change, 0);
+            $losses[] = max(-$change, 0);
+        }
+        $avgGain = array_sum(array_slice($gains, 0, $rsiPeriod)) / $rsiPeriod;
+        $avgLoss = array_sum(array_slice($losses, 0, $rsiPeriod)) / $rsiPeriod;
+        $rsi = [];
+        for ($i = $rsiPeriod; $i < count($gains); $i++) {
+            $avgGain = (($avgGain * ($rsiPeriod - 1)) + $gains[$i]) / $rsiPeriod;
+            $avgLoss = (($avgLoss * ($rsiPeriod - 1)) + $losses[$i]) / $rsiPeriod;
+            $rs = $avgLoss == 0 ? 100 : $avgGain / $avgLoss;
+            $rsi[] = $avgLoss == 0 ? 100 : 100 - (100 / (1 + $rs));
+        }
+
+        // 2. Stoch RSI
+        $stochRSI = [];
+        for ($i = $stochPeriod - 1; $i < count($rsi); $i++) {
+            $slice = array_slice($rsi, $i - $stochPeriod + 1, $stochPeriod);
+            $minRSI = min($slice);
+            $maxRSI = max($slice);
+            $stochRSI[] = ($maxRSI - $minRSI == 0)
+                ? 0
+                : ($rsi[$i] - $minRSI) / ($maxRSI - $minRSI) * 100;
+        }
+
+        // 3. Smooth %K
+        $smoothedK = [];
+        for ($i = $smoothK - 1; $i < count($stochRSI); $i++) {
+            $smoothedK[] = array_sum(array_slice($stochRSI, $i - $smoothK + 1, $smoothK)) / $smoothK;
+        }
+
+        // 4. Smooth %D
+        $smoothedD = [];
+        for ($i = $smoothD - 1; $i < count($smoothedK); $i++) {
+            $smoothedD[] = array_sum(array_slice($smoothedK, $i - $smoothD + 1, $smoothD)) / $smoothD;
+        }
+
+        $result = [];
+        $offset = max($rsiPeriod + $stochPeriod + $smoothK - 1, $rsiPeriod + $stochPeriod + $smoothD - 1);
+        for ($i = $offset; $i < count($candles); $i++) {
+            $idxK = $i - ($rsiPeriod + $stochPeriod + $smoothK - 1);
+            $idxD = $i - ($rsiPeriod + $stochPeriod + $smoothD - 1);
+            $curK = $smoothedK[$idxK] ?? null;
+            $curD = $smoothedD[$idxD - ($smoothK - 1)] ?? null;
+            $prevK = $smoothedK[$idxK - 1] ?? null;
+            $prevD = $smoothedD[$idxD - $smoothK] ?? null;
+
+            // Расчёт гистограммы StochRSI как разница %K и %D
+            $hist = isset($curK, $curD) ? $curK - $curD : null;
+            $histPrev = isset($prevK, $prevD) ? $prevK - $prevD : null;
+
+            // Условия на длинную позицию:
+            $isKDLong    = isset($prevK, $prevD, $curK, $curD) &&
+                $prevK < $prevD &&    // пересечение %K вверх через %D
+                $curK > $curD &&    // пересечение %K вверх через %D
+                $hist !== null &&
+                $hist >= $stepKD &&   // достаточный гист. импульс
+                $curK <= 79;          // не в перекупленности
+
+            $isKLong     = isset($prevK, $prevD, $curK, $curD) &&
+                $prevK > $prevD &&     // %K выше прошл.%D
+                $curK > $curD &&     // %K выше прошл.%D
+                $curK > $prevK &&     // %K выше прошл.%D
+                $hist !== null &&
+                $hist >= $stepKD &&
+                $curK <= 79;
+
+            $isHalfLong  = isset($prevK, $prevD, $curK, $curD) &&
+                $curK > $prevK &&    // был крест, но не чувствителен к %D текущему
+                $curK > 50 &&
+                $prevK < 50 &&
+                $hist !== null &&
+                $hist >= $stepKD;
+
+            // Аналогично для короткой позиции:
+            $isKDShort   = isset($prevK, $prevD, $curK, $curD) &&
+                $curK < $prevK &&
+                $prevK > $prevD &&
+                $curK < $curD &&
+                $hist !== null &&
+                $hist <= -$stepKD &&  // отрицательный импульс
+                $curK >= 21;
+
+            $isKShort    = isset($prevK, $prevD, $curK, $curD) &&
+                $curK < $prevK &&
+                $curK < $curD &&
+                $prevK < $prevD &&
+                $hist !== null &&
+                $hist <= -$stepKD &&
+                $curK >= 21;
+
+            $isHalfShort = isset($prevK, $prevD, $curK, $curD) &&
+                $curK < $prevK &&
+                $curK < 50 &&
+                $prevK > 50 &&
+                $hist !== null &&
+                $hist <= -$stepKD;
+
+            $result[] = [
+                'close'    => $candles[$i]['c'],
+                '%K'       => $curK,
+                '%prevK'       => $prevK,
+                '%D'       => $curD,
+                '%prevD'       => $prevD,
+                'hist'     => $hist,
+                'isLong'   => $isKDLong || $isKLong || $isHalfLong,
+                'isShort'  => $isKDShort || $isKShort || $isHalfShort,
             ];
         }
 
         return $result;
     }
 
-    /*   public static function calculateStochasticRSI(array $candles, int $rsiPeriod = 14, int $stochPeriod = 14, int $smoothK = 3, int $smoothD = 3): array
-        {
-            $closingPrices = array_column($candles, 'c');
+    /**
+    30m: 200-300 свечей (примерно 2-3 недели данных).
+    1h: 200 свечей (около 2 недель).
+    4h: 150 свечей (порядка 3 недель).
+    1d: 100 свечей (3-4 месяца).
 
-            // Проверка на наличие достаточного количества данных
-            $minRequired = $rsiPeriod + $stochPeriod + max($smoothK, $smoothD) - 1;
-            if (count($candles) < $minRequired) {
-                //throw new \Exception("Недостаточно данных для расчёта Stochastic RSI.");
-                false;
+    $zoneWidthPercentage
+    1m	0.05% – 0.1%
+    5m	0.1% – 0.3%
+    15m	0.3% – 0.5%
+    1h	0.5% – 1.0%
+    4h	1.0% – 2.0%
+    1d	2.0% – 5.0%
+    1w	5.0% – 10.0%
+    */
+    public static function findSupportResistanceZones(array $candles, float $zoneWidthPercentage, array $orderBook = []): array
+    {
+        // Проверяем входные данные
+        $totalCandles = count($candles);
+        if ($totalCandles < 20) {
+            throw new \Exception("Недостаточно данных для анализа зон.");
+        }
+
+        if ($orderBook) {
+            // Извлечение максимального бида и минимального аска
+            $maxBidPrice = (float)$orderBook['b'][0][0];
+            $minAskPrice = (float)$orderBook['a'][0][0];
+        } else {
+            $maxBidPrice = $minAskPrice = $candles[array_key_last($candles)]['c'];
+        }
+
+        // Ищем зоны
+        $zones = [];
+        $localExtremes = [];
+        for ($i = 1; $i < $totalCandles - 1; $i++) {
+            $prevCandle = $candles[$i - 1];
+            $currentCandle = $candles[$i];
+            $nextCandle = $candles[$i + 1];
+
+            // Локальный максимум
+            if ($currentCandle['h'] > $prevCandle['h'] && $currentCandle['h'] > $nextCandle['h']) {
+                $localExtremes[] = ['type' => 'resistance', 'value' => $currentCandle['h'], 'index' => $i];
             }
 
-            // 1. Расчёт RSI
-            $rsi = [];
-            $gains = [];
-            $losses = [];
-            for ($i = 1; $i < count($closingPrices); $i++) {
-                $change = $closingPrices[$i] - $closingPrices[$i - 1];
-                $gains[] = max($change, 0);
-                $losses[] = max(-$change, 0);
+            // Локальный минимум
+            if ($currentCandle['l'] < $prevCandle['l'] && $currentCandle['l'] < $nextCandle['l']) {
+                $localExtremes[] = ['type' => 'support', 'value' => $currentCandle['l'], 'index' => $i];
+            }
+        }
+
+        // Группируем экстремумы в зоны
+        foreach ($localExtremes as $extreme) {
+            $zoneMatched = false;
+            $zoneWidth = $extreme['value'] * ($zoneWidthPercentage / 100);
+
+            foreach ($zones as &$zone) {
+                if (
+                    ($extreme['value'] >= $zone['lower'] - $zoneWidth) &&
+                    ($extreme['value'] <= $zone['upper'] + $zoneWidth)
+                ) {
+                    $zone['lower'] = min($zone['lower'], $extreme['value']);
+                    $zone['upper'] = max($zone['upper'], $extreme['value']);
+                    $zone['volume'] += $candles[$extreme['index']]['v'];
+                    $zone['hits']++;
+                    $zoneMatched = true;
+                    break;
+                }
             }
 
-            $avgGain = array_sum(array_slice($gains, 0, $rsiPeriod)) / $rsiPeriod;
-            $avgLoss = array_sum(array_slice($losses, 0, $rsiPeriod)) / $rsiPeriod;
-
-            for ($i = $rsiPeriod; $i < count($gains); $i++) {
-                $avgGain = (($avgGain * ($rsiPeriod - 1)) + $gains[$i]) / $rsiPeriod;
-                $avgLoss = (($avgLoss * ($rsiPeriod - 1)) + $losses[$i]) / $rsiPeriod;
-
-                $rs = $avgLoss == 0 ? 100 : $avgGain / $avgLoss;
-                $rsi[] = $avgLoss == 0 ? 100 : 100 - (100 / (1 + $rs));
-            }
-
-            // 2. Расчёт Stochastic RSI
-            $stochRSI = [];
-            for ($i = $stochPeriod - 1; $i < count($rsi); $i++) {
-                $minRSI = min(array_slice($rsi, $i - $stochPeriod + 1, $stochPeriod));
-                $maxRSI = max(array_slice($rsi, $i - $stochPeriod + 1, $stochPeriod));
-                $stochRSI[] = ($maxRSI - $minRSI == 0) ? 0 : ($rsi[$i] - $minRSI) / ($maxRSI - $minRSI) * 100;
-            }
-
-            // 3. Сглаживание %K
-            $smoothedK = [];
-            for ($i = $smoothK - 1; $i < count($stochRSI); $i++) {
-                $smoothedK[] = array_sum(array_slice($stochRSI, $i - $smoothK + 1, $smoothK)) / $smoothK;
-            }
-
-            // 4. Сглаживание %D
-            $smoothedD = [];
-            for ($i = $smoothD - 1; $i < count($smoothedK); $i++) {
-                $smoothedD[] = array_sum(array_slice($smoothedK, $i - $smoothD + 1, $smoothD)) / $smoothD;
-            }
-
-            // 5. Формирование результата
-            $result = [];
-            for ($i = max($rsiPeriod + $stochPeriod + $smoothK - 1, $rsiPeriod + $stochPeriod + $smoothD - 1); $i < count($candles); $i++) {
-                $indexK = $i - ($rsiPeriod + $stochPeriod + $smoothK - 1);
-                $indexD = $i - ($rsiPeriod + $stochPeriod + $smoothD - 1);
-
-                $smoothedKVal = $smoothedK[$indexK] ?? null;
-                $smoothedDVal = $smoothedD[$indexD-2] ?? null;
-
-                $previewSmoothedKVal = $smoothedK[$indexK-1] ?? null;
-                $previewSmoothedDVal = $smoothedD[$indexD-3] ?? null;
-
-                $overboughtVal = 75;
-                $oversoldVal = 25;
-
-                $result[] = [
-                    'close' => $candles[$i]['c'] ?? $candles[$i - 1]['c'], // Если цена закрытия отсутствует, используем предыдущую
-                    '%K' => $smoothedKVal,
-                    '%D' => $smoothedDVal,//$smoothedD[$indexD-2] ?? null,
-                    'isOverbought' => isset($smoothedKVal) && $smoothedKVal > $overboughtVal,
-                    'isOversold' => isset($smoothedKVal) && $smoothedKVal < $oversoldVal,
-                    'isLong' => isset($smoothedKVal, $smoothedDVal) && $smoothedKVal < $oversoldVal && $smoothedKVal > $smoothedDVal,
-                    'isShort' => isset($smoothedKVal, $smoothedDVal) && $smoothedKVal > $overboughtVal && $smoothedKVal < $smoothedDVal,
+            if (!$zoneMatched) {
+                $zones[] = [
+                    'lower' => $extreme['value'] - $zoneWidth,
+                    'upper' => $extreme['value'] + $zoneWidth,
+                    'volume' => $candles[$extreme['index']]['v'],
+                    'hits' => 1
                 ];
+            }
+        }
+
+        // Разделение зон на поддержку и сопротивление
+        $supportZones = [];
+        $resistanceZones = [];
+        foreach ($zones as $zone) {
+            $isSupport = $zone['lower'] < $maxBidPrice;
+            $isResistance = $zone['upper'] > $minAskPrice;
+
+            $zone['distance'] = 0;
+            if ($isSupport && $isResistance) {
+                // Объединение зон
+                $merged = false;
+                foreach ($supportZones as &$supportZone) {
+                    if (
+                        abs($supportZone['lower'] - $zone['lower']) < ($zoneWidthPercentage / 100) &&
+                        abs($supportZone['upper'] - $zone['upper']) < ($zoneWidthPercentage / 100)
+                    ) {
+                        $supportZone['hits'] += $zone['hits'];
+                        $supportZone['volume'] += $zone['volume'];
+                        $merged = true;
+                        break;
+                    }
+                }
+                if (!$merged) {
+                    $supportZones[] = $zone;
+                }
+            } elseif ($isSupport) {
+                $zone['distance'] = ($maxBidPrice - $zone['upper']) / $maxBidPrice * 100;
+                $supportZones[] = $zone;
+            } elseif ($isResistance) {
+                $zone['distance'] = ($zone['lower'] - $minAskPrice) / $minAskPrice * 100;
+                $resistanceZones[] = $zone;
+            }
+        }
+
+        // Сортировка зон по расстоянию
+        usort($supportZones, fn($a, $b) => $a['distance'] <=> $b['distance']);
+        usort($resistanceZones, fn($a, $b) => $a['distance'] <=> $b['distance']);
+
+        return [
+            'support' => $supportZones,
+            'resistance' => $resistanceZones,
+        ];
+    }
+
+    public static function detectOrderBlocks(
+        array $candles,
+        array $orderBook = [],
+        float $distanceTolerance = -0.5,
+        int $periods = 5,
+        float $threshold = 0.0,
+        bool $useWicks = false,
+        int $bullishExtension = 6,
+        int $bearishExtension = 6,
+    ): array {
+        $totalCandles = count($candles);
+        if ($totalCandles <= $periods) {
+            throw new \Exception("Недостаточно данных для анализа ордерных блоков.");
+        }
+
+        $bullishBlocks = [];
+        $bearishBlocks = [];
+
+        if ($orderBook) {
+            $maxBidPrice = (float)$orderBook['b'][0][0];
+            $minAskPrice = (float)$orderBook['a'][0][0];
+        } else {
+            $maxBidPrice = $minAskPrice = $candles[array_key_last($candles)]['c'];
+        }
+
+        for ($i = $periods; $i < $totalCandles; $i++) {
+            $obIndex = $i - $periods;
+            $potentialOB = $candles[$obIndex];
+
+            // Проверка на бычий ордерный блок
+            if ($potentialOB['c'] < $potentialOB['o']) {
+                $isBullishOB = true;
+                for ($j = 1; $j <= $periods; $j++) {
+                    if ($candles[$obIndex + $j]['c'] <= $candles[$obIndex + $j]['o']) {
+                        $isBullishOB = false;
+                        break;
+                    }
+                }
+                $absMove = (abs($candles[$obIndex]['c'] - $candles[$obIndex + $periods]['c']) / $candles[$obIndex]['c']) * 100;
+                if ($isBullishOB && $absMove >= $threshold) {
+                    $upper = $useWicks ? $potentialOB['h'] : $potentialOB['o'];
+                    $lower = $potentialOB['l'];
+                    $average = ($upper + $lower) / 2;
+
+                    $distance = (($maxBidPrice - $lower) / $lower) * 100;
+
+                    if ($distance > $distanceTolerance && $absMove > 1) {
+                        $bullishBlocks[] = [
+                            'type' => 'bullish',
+                            'upper' => $upper,
+                            'lower' => $lower,
+                            'average' => $average,
+                            'distance' => $distance,
+                            'strength' => $absMove,
+                        ];
+                    }
+                }
+            }
+
+            // Проверка на медвежий ордерный блок
+            if ($potentialOB['c'] > $potentialOB['o']) {
+                $isBearishOB = true;
+                for ($j = 1; $j <= $periods; $j++) {
+                    if ($candles[$obIndex + $j]['c'] >= $candles[$obIndex + $j]['o']) {
+                        $isBearishOB = false;
+                        break;
+                    }
+                }
+                $absMove = (abs($candles[$obIndex]['c'] - $candles[$obIndex + $periods]['c']) / $candles[$obIndex]['c']) * 100;
+                if ($isBearishOB && $absMove >= $threshold) {
+                    $upper = $potentialOB['h'];
+                    $lower = $useWicks ? $potentialOB['l'] : $potentialOB['o'];
+                    $average = ($upper + $lower) / 2;
+
+                    $distance = (($upper - $minAskPrice) / $minAskPrice) * 100;
+
+                    if ($distance > $distanceTolerance && $absMove > 1) {
+                        $bearishBlocks[] = [
+                            'type' => 'bearish',
+                            'upper' => $upper,
+                            'lower' => $lower,
+                            'average' => $average,
+                            'distance' => $distance,
+                            'strength' => $absMove,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Сортировка зон
+        usort($bullishBlocks, fn($a, $b) => $a['distance'] <=> $b['distance']);
+        usort($bearishBlocks, fn($a, $b) => $a['distance'] <=> $b['distance']);
+
+        return [
+            'bullish' => array_slice($bullishBlocks, 0, $bullishExtension),
+            'bearish' => array_slice($bearishBlocks, 0, $bearishExtension),
+        ];
+    }
+    
+    public static function analyzeMACD(array $candles, int $fastLength = 12, int $slowLength = 26, int $signalLength = 9): array
+    {
+        // Проверяем, что данных достаточно для расчета
+        if (count($candles) < max($fastLength, $slowLength, $signalLength)) {
+            return [];
+            //throw new \Exception("Недостаточно данных для анализа MACD.");
+        }
+
+        // Извлекаем цены закрытия
+        $closingPrices = array_column($candles, 'c');
+
+        // Вспомогательная функция для расчета EMA
+        $calculateEMAForSeries = function (array $prices, int $length): array {
+            $ema = [];
+            $multiplier = 2 / ($length + 1);
+            $previousEMA = array_sum(array_slice($prices, 0, $length)) / $length;
+
+            foreach ($prices as $i => $price) {
+                if ($i < $length - 1) {
+                    $ema[] = null; // Недостаточно данных для расчета
+                } elseif ($i == $length - 1) {
+                    $ema[] = $previousEMA; // Первое значение EMA
+                } else {
+                    $currentEMA = (($price - $previousEMA) * $multiplier) + $previousEMA;
+                    $ema[] = $currentEMA;
+                    $previousEMA = $currentEMA;
+                }
+            }
+
+            return $ema;
+        };
+
+        // Вычисляем EMA для быстрого и медленного периодов
+        $fastEMA = $calculateEMAForSeries($closingPrices, $fastLength);
+        $slowEMA = $calculateEMAForSeries($closingPrices, $slowLength);
+
+        // Вычисляем MACD Line
+        $macdLine = [];
+        foreach ($fastEMA as $i => $fast) {
+            $macdLine[] = isset($slowEMA[$i]) ? $fast - $slowEMA[$i] : null;
+        }
+
+        // Вычисляем Signal Line (EMA от MACD Line)
+        $signalLine = $calculateEMAForSeries($macdLine, $signalLength);
+
+        // Вычисляем гистограмму MACD
+        $histogram = [];
+        for ($i = 0; $i < count($signalLine); $i++) {
+            $histogram[] = $macdLine[$i] - $signalLine[$i];
+        }
+
+        // Анализ сигналов
+        $result = [];
+        for ($i = 1; $i < count($histogram); $i++) {
+            $macdLineValue = $macdLine[$i] ?? null;
+            $signalLineValue = $signalLine[$i] ?? null;
+            $histogramValue = $histogram[$i] ?? null;
+
+            $prevHistogramValue = $histogram[$i - 1] ?? null;
+            $prevMacdLineValue = $macdLine[$i - 1] ?? null;
+            $prevPrevMacdLineValue = $macdLine[$i - 2] ?? null;
+            $prevPrevPrevMacdLineValue = $macdLine[$i - 3] ?? null;
+            $prevSignalLineValue = $signalLine[$i - 1] ?? null;
+            $prevPrevSignalLineValue = $signalLine[$i - 2] ?? null;
+
+            // Лонг сигналы
+            $isMACDApproachingSignalLong = $isMACDCrossSignalLong = $isMACDAboveZeroLong = $isMACDCrossAboveZeroLong = false;
+            if ($prevMacdLineValue !== null && $prevSignalLineValue !== null && $macdLineValue !== null && $signalLineValue !== null && $prevPrevMacdLineValue !== null && $prevPrevSignalLineValue !== null) {
+                $isMACDCrossSignalLong = ($prevMacdLineValue <= $prevSignalLineValue && $macdLineValue > $signalLineValue && $macdLineValue < 0) || ($prevPrevMacdLineValue <= $prevPrevSignalLineValue && $prevMacdLineValue > $prevSignalLineValue && $macdLineValue > $signalLineValue && $macdLineValue < 0);
+                $isMACDAboveZeroLong = $prevMacdLineValue < 0 && $macdLineValue > 0 && $macdLineValue >= $signalLineValue;
+                $isMACDCrossAboveZeroLong = ($prevMacdLineValue <= $prevSignalLineValue && $macdLineValue > $signalLineValue  && $macdLine > 0) || ($prevPrevMacdLineValue <= $prevPrevSignalLineValue && $prevMacdLineValue > $prevSignalLineValue && $macdLineValue > $signalLineValue  && $macdLine > 0);
+                $isMACDApproachingSignalLong = $prevPrevMacdLineValue > $prevPrevPrevMacdLineValue &&  $prevMacdLineValue > $prevPrevMacdLineValue /*&& $macdLineValue > $signalLineValue*/;
+            }
+
+            // Шорт сигналы
+            $isMACDApproachingSignalShort = $isMACDCrossSignalShort = $isMACDBelowZeroShort = $isMACDCrossBelowZeroShort = false;
+            if ($prevMacdLineValue !== null && $prevSignalLineValue !== null && $macdLineValue !== null && $signalLineValue !== null && $prevPrevMacdLineValue !== null && $prevPrevSignalLineValue !== null) {
+                $isMACDCrossSignalShort = ($prevMacdLineValue >= $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue > 0) || ($prevPrevMacdLineValue >= $prevPrevSignalLineValue && $prevMacdLineValue < $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue > 0);
+                $isMACDBelowZeroShort = $prevMacdLineValue > 0 && $macdLineValue < 0 && $macdLineValue <= $signalLineValue;
+                $isMACDCrossBelowZeroShort = ($prevMacdLineValue >= $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue < 0) || ($prevPrevMacdLineValue >= $prevPrevSignalLineValue && $prevMacdLineValue < $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue < 0);
+                $isMACDApproachingSignalShort = $prevPrevMacdLineValue < $prevPrevPrevMacdLineValue && $prevMacdLineValue < $prevPrevMacdLineValue /*&& $macdLineValue < $signalLineValue*/;
+            }
+
+            $result[] = [
+                'close' => $candles[$i]['c'],
+                'macd_line' => $macdLineValue,
+                'signal_line' => $signalLineValue,
+                'histogram_value' => $histogramValue,
+                'isLongDirection' => $isMACDApproachingSignalLong,
+                'isShortDirection' => $isMACDApproachingSignalShort,
+                'isLong' => $isMACDCrossSignalLong || $isMACDAboveZeroLong || $isMACDCrossAboveZeroLong,
+                'isShort' => $isMACDCrossSignalShort || $isMACDBelowZeroShort || $isMACDCrossBelowZeroShort,
+                'shortTypeAr' => [
+                    'cross' => $isMACDCrossSignalShort,
+                    'cross0' => $isMACDBelowZeroShort,
+                    'crossB0' => $isMACDCrossBelowZeroShort,
+                    'noCross' => $isMACDApproachingSignalShort,
+                ],
+                'longTypeAr' => [
+                    'cross' => $isMACDCrossSignalLong,
+                    'cross0' => $isMACDAboveZeroLong,
+                    'crossA0' => $isMACDCrossAboveZeroLong,
+                    'noCross' => $isMACDApproachingSignalLong,
+                ],
+                'params' => [
+                    'fastLength' => $fastLength,
+                    'slowLength' => $slowLength,
+                    'signalLength' => $signalLength,
+                ],
+            ];
+        }
+
+        return $result;
+    }
+
+    //https://www.tradingview.com/script/soSwR4mX-MACD-Divergences-by-DaviddTech/
+    public static function calculateMACDDivergences(
+        array $candles,
+        int $fastLength = 5,
+        int $slowLength = 35,
+        int $signalLength = 5,
+        string $oscillatorType = 'SMA',
+        string $signalLineType = 'SMA'
+    ) {
+        $result = [];
+
+        $closePrices = array_column($candles, 'c');
+        $macdLine = [];
+        $signalLine = [];
+        $histogram = [];
+
+        // Вычисление MACD
+        for ($i = 0; $i < count($closePrices); $i++) {
+            $fastMa = self::calculateMa(array_slice($closePrices, max(0, $i - $fastLength + 1), $fastLength), $fastLength, $oscillatorType);
+            $slowMa = self::calculateMa(array_slice($closePrices, max(0, $i - $slowLength + 1), $slowLength), $slowLength, $oscillatorType);
+            //$fastMa = self::calculateMa($closePrices, $fastLength, $oscillatorType);
+            //$slowMa = self::calculateMa($closePrices, $slowLength, $oscillatorType);
+
+            $macd = $fastMa - $slowMa;
+            $macdLine[] = $macd;
+
+            $signal = self::calculateMa(array_slice($macdLine, max(0, $i - $signalLength + 1), $signalLength), $signalLength, $signalLineType);
+            //$signal = self::calculateMa($macdLine, $signalLength, $signalLineType);
+            $signalLine[] = $signal;
+
+            $histogram[] = $macd - $signal;
+        }
+
+        // Поиск локальных экстремумов
+        $priceLows = self::findLocalExtremes(array_column($candles, 'l'), 'low', 3);
+        $priceHighs = self::findLocalExtremes(array_column($candles, 'h'), 'high', 3);
+        $macdLows = self::findLocalExtremes($macdLine, 'low', 3);
+        $macdHighs = self::findLocalExtremes($macdLine, 'high', 3);
+
+        // Анализ дивергенций
+        for ($i = 0; $i < count($closePrices); $i++) {
+            //# ищем пересечения
+            $macdLineValue = $macdLine[$i] ?? null;
+            $signalLineValue = $signalLine[$i] ?? null;
+            $histogramValue = $histogram[$i] ?? null;
+
+            $prevHistogramValue = $histogram[$i - 1] ?? null;
+            $prevMacdLineValue = $macdLine[$i - 1] ?? null;
+            $prevPrevMacdLineValue = $macdLine[$i - 2] ?? null;
+            $prevSignalLineValue = $signalLine[$i - 1] ?? null;
+            $prevPrevSignalLineValue = $signalLine[$i - 2] ?? null;
+
+            // Лонг сигналы
+            $isMACDCrossSignalLong = $isMACDAboveZeroLong = $isMACDCrossAboveZeroLong = false;
+            if ($prevMacdLineValue !== null && $prevSignalLineValue !== null && $macdLineValue !== null && $signalLineValue !== null && $prevPrevMacdLineValue !== null && $prevPrevSignalLineValue !== null) {
+                $isMACDCrossSignalLong = ($prevMacdLineValue <= $prevSignalLineValue && $macdLineValue > $signalLineValue && $macdLineValue < 0) || ($prevPrevMacdLineValue <= $prevPrevSignalLineValue && $prevMacdLineValue > $prevSignalLineValue && $macdLineValue > $signalLineValue && $macdLineValue < 0);
+                $isMACDAboveZeroLong = $prevPrevMacdLineValue <= 0 && $prevMacdLineValue > 0 && $macdLineValue > 0 && $macdLineValue >= $signalLineValue;
+                $isMACDCrossAboveZeroLong = ($prevMacdLineValue <= $prevSignalLineValue && $macdLineValue > $signalLineValue  && $macdLine > 0) || ($prevPrevMacdLineValue <= $prevPrevSignalLineValue && $prevMacdLineValue > $prevSignalLineValue && $macdLineValue > $signalLineValue  && $macdLine > 0);
+            }
+
+            // Шорт сигналы
+            $isMACDCrossSignalShort = $isMACDBelowZeroShort = $isMACDCrossBelowZeroShort = false;
+            if ($prevMacdLineValue !== null && $prevSignalLineValue !== null && $macdLineValue !== null && $signalLineValue !== null && $prevPrevMacdLineValue !== null && $prevPrevSignalLineValue !== null) {
+                $isMACDCrossSignalShort = ($prevMacdLineValue >= $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue > 0) || ($prevPrevMacdLineValue >= $prevPrevSignalLineValue && $prevMacdLineValue < $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue > 0);
+                $isMACDBelowZeroShort = $prevPrevMacdLineValue >= 0 && $prevMacdLineValue < 0 && $macdLineValue < 0 && $macdLineValue <= $signalLineValue;
+                $isMACDCrossBelowZeroShort = ($prevMacdLineValue >= $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue < 0) || ($prevPrevMacdLineValue >= $prevPrevSignalLineValue && $prevMacdLineValue < $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue < 0);
+            }
+
+            //# ищем дивергенцию
+            $isRegularBullish = $isHiddenBullish = $isRegularBearish = $isHiddenBearish = false;
+
+            // Погрешность для отклонения индексов (например, ±n)
+            $priceIndexTolerance = 10;
+            $indexTolerance = 4;
+
+            // проверяем на бычью дивергенцию
+            $priceLow1 = $priceLow2 = $macdLow1 = $macdLow2 = null;
+
+            $reversPriceLows = array_reverse($priceLows);
+            foreach ($reversPriceLows as $key => $priceLow) {
+                if ($priceLow['index'] <= $i && abs($priceLow['index'] - $i) <= $priceIndexTolerance) {
+                    $priceLow2 = $priceLow;
+                    $priceLow1 = $reversPriceLows[$key + 1];
+                    break;
+                }
+            }
+
+            if ($priceLow1 != null && $priceLow2 != null) {
+                foreach ($macdLows as $macdLow) {
+                    if (abs($priceLow1['index'] - $macdLow['index']) <= $indexTolerance) {
+                        $macdLow1 = $macdLow;
+                    } else if (abs($priceLow2['index'] - $macdLow['index']) <= $indexTolerance) {
+                        $macdLow2 = $macdLow;
+                    }
+                }
+
+                if ($macdLow1 != null && $macdLow2 != null) {
+                    if ($priceLow1['value'] > $priceLow2['value'] && $macdLow1['value'] < $macdLow2['value']) {
+                        $isRegularBullish = true;
+                    } else if ($priceLow1['value'] < $priceLow2['value'] && $macdLow1['value'] > $macdLow2['value']) {
+                        $isHiddenBullish = true;
+                    }
+                }
+            }
+
+            // проверяем на медвежью дивергенцию
+            $priceHigh1 = $priceHigh2 = $macdHigh1 = $macdHigh2 = null;
+
+            $reversPriceHighs = array_reverse($priceHighs);
+            foreach ($reversPriceHighs as $key => $priceHigh) {
+                if ($priceHigh['index'] <= $i && abs($priceHigh['index'] - $i) <= $priceIndexTolerance) {
+                    $priceHigh2 = $priceHigh;
+                    $priceHigh1 = $reversPriceHighs[$key + 1];
+                    break;
+                }
+            }
+
+            if ($priceHigh1 != null && $priceHigh2 != null) {
+                foreach ($macdHighs as $macdHigh) {
+                    if (abs($priceHigh1['index'] - $macdHigh['index']) <= $indexTolerance) {
+                        $macdHigh1 = $macdHigh;
+                    } else if (abs($priceHigh2['index'] - $macdHigh['index']) <= $indexTolerance) {
+                        $macdHigh2 = $macdHigh;
+                    }
+                }
+
+                if ($macdHigh1 != null && $macdHigh2 != null) {
+                    if ($priceHigh1['value'] < $priceHigh2['value'] && $macdHigh1['value'] > $macdHigh2['value']) {
+                        $isRegularBearish = true;
+                    } else if ($priceHigh1['value'] > $priceHigh2['value'] && $macdHigh1['value'] < $macdHigh2['value']) {
+                        $isHiddenBearish = true;
+                    }
+                }
+            }
+
+            $result[] = [
+                'close' => $closePrices[$i],
+                'macd_line' => $macdLine[$i],
+                'signal_line' => $signalLine[$i],
+                'histogram_value' => $histogram[$i],
+                'longDivergenceTypeAr' => [
+                    'regular' => $isRegularBullish,
+                    'hidden' => $isHiddenBullish,
+                ],
+                'shortDivergenceTypeAr' => [
+                    'regular' => $isRegularBearish,
+                    'hidden' => $isHiddenBearish,
+                ],
+                'shortCrossTypeAr' => [
+                    'cross' => $isMACDCrossSignalShort,
+                    'cross0' => $isMACDBelowZeroShort,
+                    'crossB0' => $isMACDCrossBelowZeroShort,
+                ],
+                'longCrossTypeAr' => [
+                    'cross' => $isMACDCrossSignalLong,
+                    'cross0' => $isMACDAboveZeroLong,
+                    'crossA0' => $isMACDCrossAboveZeroLong,
+                ],
+                'isShort' => ($isRegularBearish || $isHiddenBearish) && ($isMACDCrossSignalShort || $isMACDCrossBelowZeroShort),
+                'isLong' => ($isRegularBullish || $isHiddenBullish) && ($isMACDCrossSignalLong || $isMACDCrossAboveZeroLong),
+                'params' => [
+                    'fastLength' => $fastLength,
+                    'slowLength' => $slowLength,
+                    'signalLength' => $signalLength,
+                ],
+                'extremes' => [
+                    'priceLows' => $priceLows,
+                    'priceHighs' => $priceHighs,
+                    'macdLows' => $macdLows,
+                    'macdHighs' => $macdHighs,
+                    'selected' => [
+                        'priceHigh1' => $priceHigh1,
+                        'priceHigh2' => $priceHigh2,
+                        'macdHigh1' => $macdHigh1,
+                        'macdHigh2' => $macdHigh2,
+
+                        'priceLow1' => $priceLow1,
+                        'priceLow2' => $priceLow2,
+                        'macdLow1' => $macdLow1,
+                        'macdLow2' => $macdLow2,
+                    ],
+
+                ],
+            ];
+        }
+
+        return $result;
+    }
+
+    private static function calculateMa(array $values, int $length, string $type): float
+    {
+        if (empty($values)) {
+            return 0.0;
+        }
+
+        if ($type === 'SMA') {
+            return array_sum($values) / count($values);
+        }
+
+        if ($type === 'EMA') {
+            $k = 2 / ($length + 1);
+
+            // Проверяем, достаточно ли значений для вычисления начального SMA
+            if (count($values) < $length) {
+                return array_sum($values) / count($values); // Если значений меньше, возвращаем их среднее
+            }
+
+            // Первое значение EMA инициализируется через SMA
+            $ema = array_sum(array_slice($values, 0, $length)) / $length;
+
+            // Вычисляем EMA для оставшихся значений
+            for ($i = $length; $i < count($values); $i++) {
+                $ema = $values[$i] * $k + $ema * (1 - $k);
+            }
+
+            return $ema;
+        }
+
+        throw new InvalidArgumentException('Unknown MA type');
+    }
+
+    // аналог метода из внутренней библиотеки php
+    public static function calculateMacdExt(
+        array $prices,
+        int $fastPeriod = 5,
+        string $fastMAType = 'SMA' ,
+        int $slowPeriod = 35,
+        string $slowMAType = 'SMA',
+        int $signalPeriod = 5,
+        string $signalMAType = 'SMA',
+        int $priceIndexTolerance = 10,
+        string $divergenceType = 'macdLine',
+        int $indexTolerance = 5,
+        int $widthTolerance = 6,
+        int $extremesRange = 4,
+
+    ): array
+    {
+        $closePrices = array_column($prices, 'c');
+
+        // Проверка входных данных
+        if (count($closePrices) < max($fastPeriod, $slowPeriod, $signalPeriod)) {
+            return [];
+            //throw new \Exception("Недостаточно данных для расчёта MACD");
+        }
+
+        // Функция для расчёта скользящих средних
+        $calculateMA = function (array $data, int $period, string $type) {
+            $result = [];
+            $length = count($data);
+
+            if ($type === 'SMA') {
+                for ($i = 0; $i <= $length - $period; $i++) {
+                    $result[] = array_sum(array_slice($data, $i, $period)) / $period;
+                }
+            } elseif ($type === 'EMA') {
+                $multiplier = 2 / ($period + 1);
+                $result[] = array_sum(array_slice($data, 0, $period)) / $period; // SMA для первого значения
+                for ($i = $period; $i < $length; $i++) {
+                    $result[] = ($data[$i] - end($result)) * $multiplier + end($result);
+                }
+            } else {
+                throw new Exception("Неподдерживаемый тип MA: $type");
             }
 
             return $result;
-        }*/
+        };
+
+        // 1. Расчёт быстрого и медленного MA
+        $fastMA = $calculateMA($closePrices, $fastPeriod, $fastMAType);
+        $slowMA = $calculateMA($closePrices, $slowPeriod, $slowMAType);
+
+        // Выравниваем массивы (медленное MA короче)
+        $fastMA = array_slice($fastMA, count($fastMA) - count($slowMA));
+
+        // 2. Расчёт линии MACD
+        $macdLine = [];
+        for ($i = 0; $i < count($slowMA); $i++) {
+            $macdLine[] = $fastMA[$i] - $slowMA[$i];
+        }
+
+        // 3. Расчёт сигнальной линии
+        $signalLine = $calculateMA($macdLine, $signalPeriod, $signalMAType);
+
+        // Выравниваем массивы (MACD короче)
+        $macdLine = array_slice($macdLine, count($macdLine) - count($signalLine));
+
+        // 4. Расчёт гистограммы
+        $histogram = [];
+        for ($i = 0; $i < count($signalLine); $i++) {
+            $histogram[] = $macdLine[$i] - $signalLine[$i];
+        }
+
+        $extremesPrices = array_slice($prices, -count($signalLine));
+        // Поиск локальных экстремумов
+        $priceLows = self::findLocalExtremes(array_column($extremesPrices, 'l'), 'low', $extremesRange);
+        $priceHighs = self::findLocalExtremes(array_column($extremesPrices, 'h'), 'high', $extremesRange);
+
+        $macdLows = $macdHighs = [];
+        if ($divergenceType == 'macdLine') {
+            $macdLows = self::findLocalExtremes($macdLine, 'low', $extremesRange);
+            $macdHighs = self::findLocalExtremes($macdLine, 'high', $extremesRange);
+        } else if ($divergenceType == 'histogram') {
+            $macdLows = self::findLocalExtremes($histogram, 'low', $extremesRange);
+            $macdHighs = self::findLocalExtremes($histogram, 'high', $extremesRange);
+        }
+
+        $res = [];
+        for ($i = 0; $i < count($signalLine); $i++) {
+
+            //# ищем пересечения
+            $macdLineValue = $macdLine[$i] ?? null;
+            $signalLineValue = $signalLine[$i] ?? null;
+            $histogramValue = $histogram[$i] ?? null;
+
+            $prevHistogramValue = $histogram[$i - 1] ?? null;
+            $prevMacdLineValue = $macdLine[$i - 1] ?? null;
+            $prevPrevMacdLineValue = $macdLine[$i - 2] ?? null;
+            $prevSignalLineValue = $signalLine[$i - 1] ?? null;
+            $prevPrevSignalLineValue = $signalLine[$i - 2] ?? null;
+
+            // Лонг сигналы
+            $isMACDCrossSignalLong = $isMACDAboveZeroLong = $isMACDCrossAboveZeroLong = false;
+            if ($prevMacdLineValue !== null && $prevSignalLineValue !== null && $macdLineValue !== null && $signalLineValue !== null && $prevPrevMacdLineValue !== null && $prevPrevSignalLineValue !== null) {
+                $isMACDCrossSignalLong = ($prevMacdLineValue <= $prevSignalLineValue && $macdLineValue > $signalLineValue && $macdLineValue < 0) || ($prevPrevMacdLineValue <= $prevPrevSignalLineValue && $prevMacdLineValue > $prevSignalLineValue && $macdLineValue > $signalLineValue && $macdLineValue < 0);
+                $isMACDAboveZeroLong = false;// $prevMacdLineValue < 0 && $macdLineValue > 0 && $macdLineValue >= $signalLineValue;
+                $isMACDCrossAboveZeroLong = ($prevMacdLineValue <= $prevSignalLineValue && $macdLineValue > $signalLineValue  && $macdLine > 0) || ($prevPrevMacdLineValue <= $prevPrevSignalLineValue && $prevMacdLineValue > $prevSignalLineValue && $macdLineValue > $signalLineValue  && $macdLine > 0);
+            }
+
+            // Шорт сигналы
+            $isMACDCrossSignalShort = $isMACDBelowZeroShort = $isMACDCrossBelowZeroShort = false;
+            if ($prevMacdLineValue !== null && $prevSignalLineValue !== null && $macdLineValue !== null && $signalLineValue !== null && $prevPrevMacdLineValue !== null && $prevPrevSignalLineValue !== null) {
+                $isMACDCrossSignalShort = ($prevMacdLineValue >= $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue > 0) || ($prevPrevMacdLineValue >= $prevPrevSignalLineValue && $prevMacdLineValue < $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue > 0);
+                $isMACDBelowZeroShort = false;//$prevMacdLineValue > 0 && $macdLineValue < 0 && $macdLineValue <= $signalLineValue;
+                $isMACDCrossBelowZeroShort = ($prevMacdLineValue >= $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue < 0) || ($prevPrevMacdLineValue >= $prevPrevSignalLineValue && $prevMacdLineValue < $prevSignalLineValue && $macdLineValue < $signalLineValue && $macdLineValue < 0);
+            }
+            
+            //# ищем дивергенцию
+            $isRegularBullish = $isHiddenBullish = $isRegularBearish = $isHiddenBearish = false;
+
+            // проверяем на бычью дивергенцию
+            for ($tolerance = 1; $tolerance <= 3; $tolerance++) {
+                list($priceLow1, $priceLow2, $macdLow1, $macdLow2) = self::findMACDDivergence(
+                    $priceLows, $macdLows, $indexTolerance, $priceIndexTolerance, $i, $tolerance
+                );
+
+                if ($priceLow1 && $priceLow2 && $macdLow1 && $macdLow2) {
+                    if ($priceLow1['value'] > $priceLow2['value'] && $macdLow1['value'] < $macdLow2['value']) {
+                        $isRegularBullish = true;
+                    } elseif ($priceLow1['value'] < $priceLow2['value'] && $macdLow1['value'] > $macdLow2['value']) {
+                        $isHiddenBullish = true;
+                    }
+                }
+
+                if (($isRegularBullish || $isHiddenBullish) && ($priceLow2['index'] - $priceLow1['index']) >= $widthTolerance) {
+                    break;
+                }
+            }
+
+            for ($tolerance = 1; $tolerance <= 3; $tolerance++) {
+                list($priceHigh1, $priceHigh2, $macdHigh1, $macdHigh2) = self::findMACDDivergence(
+                    $priceHighs, $macdHighs, $indexTolerance, $priceIndexTolerance, $i, $tolerance
+                );
+
+                if ($priceHigh1 && $priceHigh2 && $macdHigh1 && $macdHigh2) {
+                    if ($priceHigh1['value'] < $priceHigh2['value'] && $macdHigh1['value'] > $macdHigh2['value']) {
+                        $isRegularBearish = true;
+                    } elseif ($priceHigh1['value'] > $priceHigh2['value'] && $macdHigh1['value'] < $macdHigh2['value']) {
+                        $isHiddenBearish = true;
+                    }
+                }
+
+                if (($isRegularBearish || $isHiddenBearish) && ($priceHigh2['index'] - $priceHigh1['index']) >= $widthTolerance) {
+                    break;
+                }
+            }
+
+            $longDivergenceDistance = $shortDivergenceDistance = false;
+            if ($isRegularBullish || $isHiddenBullish)
+                $longDivergenceDistance = count($signalLine) - intval($priceLow2['index']);
+
+            if ($isRegularBearish || $isHiddenBearish)
+                $shortDivergenceDistance = count($signalLine) - intval($priceHigh2['index']);
+
+            $res[] = [
+                //'close' => $closePrices[$i],
+                'main_values' => [
+                    'macd_line' => $macdLine[$i],
+                    'signal_line' => $signalLine[$i],
+                    'histogram_value' => $histogram[$i],
+                ],
+                'longDivergenceTypeAr' => [
+                    'regular' => $isRegularBullish,
+                    'hidden' => $isHiddenBullish,
+                ],
+                'shortDivergenceTypeAr' => [
+                    'regular' => $isRegularBearish,
+                    'hidden' => $isHiddenBearish,
+                ],
+                'longDivergenceDistance' => $longDivergenceDistance,
+                'shortDivergenceDistance' => $shortDivergenceDistance,
+                'shortCrossTypeAr' => [
+                    'cross' => $isMACDCrossSignalShort,
+                    'cross0' => $isMACDBelowZeroShort,
+                    'crossB0' => $isMACDCrossBelowZeroShort,
+                ],
+                'longCrossTypeAr' => [
+                    'cross' => $isMACDCrossSignalLong,
+                    'cross0' => $isMACDAboveZeroLong,
+                    'crossA0' => $isMACDCrossAboveZeroLong,
+                ],
+                'isShort' => ($isRegularBearish || $isHiddenBearish) && ($isMACDCrossSignalShort || $isMACDCrossBelowZeroShort),
+                'isLong' => ($isRegularBullish || $isHiddenBullish) && ($isMACDCrossSignalLong || $isMACDCrossAboveZeroLong),
+                'extremes' => [
+                    //'extremesPrices' => $extremesPrices,
+                    'priceLows' => $priceLows,
+                    'priceHighs' => $priceHighs,
+                    'macdLows' => $macdLows,
+                    'macdHighs' => $macdHighs,
+                    'selected' => [
+                        'high' => [
+                            'priceHigh1' => $priceHigh1,
+                            'priceHigh2' => $priceHigh2,
+                            'macdHigh1' => $macdHigh1,
+                            'macdHigh2' => $macdHigh2,
+                        ],
+                        'low' => [
+                            'priceLow1' => $priceLow1,
+                            'priceLow2' => $priceLow2,
+                            'macdLow1' => $macdLow1,
+                            'macdLow2' => $macdLow2,
+                        ],
+                    ],
+
+                ],
+            ];
+
+        }
+
+        return $res ?? [];
+    }
+
+    private static function findMACDDivergence($priceExtremes, $macdExtremes, $indexTolerance, $priceIndexTolerance, $currentIndex, $priceStep = 1) {
+        $price1 = $price2 = $macd1 = $macd2 = null;
+        $reversedPriceExtremes = array_reverse($priceExtremes);
+
+        foreach ($reversedPriceExtremes as $key => $priceExtreme) {
+            if ($priceExtreme['index'] <= $currentIndex && abs($priceExtreme['index'] - $currentIndex) <= $priceIndexTolerance) {
+                $price2 = $priceExtreme;
+                $price1 = $reversedPriceExtremes[$key + $priceStep] ?? null;
+                break;
+            }
+        }
+
+        if ($price1 !== null && $price2 !== null) {
+            foreach ($macdExtremes as $macdExtreme) {
+                if (abs($price1['index'] - $macdExtreme['index']) <= $indexTolerance) {
+                    $macd1 = $macdExtreme;
+                } elseif (abs($price2['index'] - $macdExtreme['index']) <= $indexTolerance) {
+                    $macd2 = $macdExtreme;
+                }
+            }
+        }
+
+        return [$price1, $price2, $macd1, $macd2];
+    }
+
+    private static function findLocalExtremes(array $values, string $type, int $range): array
+    {
+        $extremes = [];
+        $count = count($values);
+
+        for ($i = $range; $i < $count - $range; $i++) {
+            $isExtreme = true;
+
+            for ($j = $i - $range; $j <= $i + $range; $j++) {
+                if ($j === $i) {
+                    continue;
+                }
+
+                if (($type === 'low' && $values[$j] <= $values[$i]) ||
+                    ($type === 'high' && $values[$j] >= $values[$i])) {
+                    $isExtreme = false;
+                    break;
+                }
+            }
+
+            if ($isExtreme) {
+                $extremes[] = [
+                    'index' => $i,
+                    'value' => $values[$i],
+                ];
+            }
+        }
+
+        return $extremes;
+    }
+
+    //https://www.tradingview.com/script/qt6xLfLi-Impulse-MACD-LazyBear/
+    public static function analyzeImpulseMACD(array $candles, int $lengthMA = 34, int $lengthSignal = 9): array
+    {
+        $count = count($candles);
+        if ($count < $lengthMA + $lengthSignal) {
+            throw new \Exception("Недостаточно данных для расчета Impulse MACD.");
+        }
+
+        // Вычисляем HLC3 (среднее High, Low, Close)
+        $hlc3   = array_map(fn($c) => ($c['h'] + $c['l'] + $c['c']) / 3, $candles);
+        $highs  = array_column($candles, 'h');
+        $lows   = array_column($candles, 'l');
+
+        // Функция расчета SMMA (Wilders)
+        $calculateSMMA = function(array $data, int $len): array {
+            $smma     = [];
+            $prev     = null;
+            foreach ($data as $i => $val) {
+                if ($i < $len - 1) {
+                    $smma[] = null;
+                } elseif ($i === $len - 1) {
+                    $sma     = array_sum(array_slice($data, 0, $len)) / $len;
+                    $smma[]  = $sma;
+                    $prev    = $sma;
+                } else {
+                    $cur     = ($prev * ($len - 1) + $val) / $len;
+                    $smma[]  = $cur;
+                    $prev    = $cur;
+                }
+            }
+            return $smma;
+        };
+
+        // Функция расчета простого скользящего среднего (SMA)
+        $calculateSMA = function(array $data, int $len): array {
+            $sma = [];
+            foreach ($data as $i => $val) {
+                if ($i < $len - 1) {
+                    $sma[] = null;
+                } else {
+                    $slice   = array_slice($data, $i - $len + 1, $len);
+                    $sma[]   = array_sum($slice) / $len;
+                }
+            }
+            return $sma;
+        };
+
+        // Функция расчета ZLEMA (нулевое запаздывание)
+        $calculateZLEMA = function(array $data, int $len): array {
+            $zlema      = [];
+            $multiplier = 2 / ($len + 1);
+            $ema1       = $ema2 = null;
+
+            foreach ($data as $i => $val) {
+                if ($i < $len - 1) {
+                    $zlema[] = null;
+                } elseif ($i === $len - 1) {
+                    $sum      = array_sum(array_slice($data, 0, $len));
+                    $ema1     = $sum / $len;
+                    $ema2     = $ema1;
+                    $zlema[]  = $ema1;
+                } else {
+                    $ema1     = (($val - $ema1) * $multiplier) + $ema1;
+                    $ema2     = (($ema1 - $ema2) * $multiplier) + $ema2;
+                    $zlema[]  = $ema1 + ($ema1 - $ema2);
+                }
+            }
+            return $zlema;
+        };
+
+        // Расчет основных линий
+        $hi    = $calculateSMMA($highs, $lengthMA);
+        $lo    = $calculateSMMA($lows,  $lengthMA);
+        $mi    = $calculateZLEMA($hlc3,  $lengthMA);
+
+        // Расчет Impulse MACD
+        $md = [];
+        foreach ($mi as $i => $m) {
+            if (isset($m, $hi[$i], $lo[$i])) {
+                $md[] = $m > $hi[$i]
+                    ? $m - $hi[$i]
+                    : ($m < $lo[$i]
+                        ? $m - $lo[$i]
+                        : 0
+                    );
+            } else {
+                $md[] = null;
+            }
+        }
+
+        // Сигнальная линия (SMA от Impulse MACD)
+        $signal = $calculateSMA($md, $lengthSignal);
+
+        // Гистограмма (Impulse MACD - Signal)
+        $histogram = [];
+        foreach ($md as $i => $m) {
+            $histogram[] = isset($m, $signal[$i])
+                ? $m - $signal[$i]
+                : null;
+        }
+
+        // Формируем результат
+        $result = [];
+        foreach ($candles as $i => $c) {
+            // Преобразуем метку времени
+            $ts    = $c['t'] / 1000;
+            $dt    = \DateTime::createFromFormat('U.u', sprintf('%.6F', $ts));
+            $dt->modify('+3 hours'); // корректировка по таймзоне
+
+            $result[] = [
+                'timestamp'     => $dt->format("H:i d.m"),
+                'close'         => $c['c'],
+                'impulse_macd'  => $md[$i]        ?? null,
+                'signal_line'   => $signal[$i]    ?? null,
+                'histogram'     => $histogram[$i] ?? null,
+            ];
+        }
+
+        return $result;
+    }
+
+    public static function simpleTrendLine(array $candles, int $shortPeriod = 30, int $longPeriod = 100): array
+    {
+        // Шаг 1: Поиск экстремумов
+        $priceLows = self::findLocalExtremes(array_column($candles, 'l'), 'low', 3);
+        $priceHighs = self::findLocalExtremes(array_column($candles, 'h'), 'high', 3);
+
+        $results = [];
+
+        // Шаг 2: Обработка свечей
+        for ($i = count($candles) - $longPeriod; $i < count($candles); $i++) {
+            // Находим экстремумы для короткого и длинного периодов
+            $shortLows = array_filter($priceLows, fn($low) => $low['index'] >= $i - $shortPeriod && $low['index'] <= $i);
+            $shortHighs = array_filter($priceHighs, fn($high) => $high['index'] >= $i - $shortPeriod && $high['index'] <= $i);
+            $longLows = array_filter($priceLows, fn($low) => $low['index'] >= $i - $longPeriod && $low['index'] <= $i);
+            $longHighs = array_filter($priceHighs, fn($high) => $high['index'] >= $i - $longPeriod && $high['index'] <= $i);
+
+            if (empty($shortLows) || empty($shortHighs) || empty($longLows) || empty($longHighs)) {
+                continue; // Пропускаем итерацию, если данных недостаточно
+            }
+
+            // Находим экстремумы
+            $lowestShort = min(array_column($shortLows, 'value'));
+            $highestShort = max(array_column($shortHighs, 'value'));
+            $lowestLong = min(array_column($longLows, 'value'));
+            $highestLong = max(array_column($longHighs, 'value'));
+
+            // Шаг 3: Определение тренда
+            $trend = '';
+            $trendPrice = 0;
+            $currentCandle = $candles[$i];
+
+            if ($lowestShort > $lowestLong && $highestShort > $highestLong) {
+                // Восходящий тренд
+                $trend = 'uptrend';
+                // Линейная интерполяция на основе разницы между текущим минимумом и максимумом
+                $trendPrice = $lowestShort + ($currentCandle['c'] - $lowestShort) * (($highestShort - $lowestShort) / ($highestShort - $lowestShort));
+            } elseif ($lowestShort < $lowestLong && $highestShort < $highestLong) {
+                // Нисходящий тренд
+                $trend = 'downtrend';
+                // Линейная интерполяция на основе разницы между текущим максимумом и минимумом
+                $trendPrice = $highestShort - ($highestShort - $currentCandle['c']) * (($highestShort - $lowestShort) / ($highestShort - $lowestShort));
+            } else {
+                // Боковой тренд
+                $trend = 'sideways';
+                // Средняя цена между минимумом и максимумом
+                $trendPrice = ($lowestShort + $highestShort) / 2;
+            }
+
+            // Шаг 4: Сохранение результата
+            $results[] = [
+                'index' => $i,
+                'trend' => $trend,
+                'price' => $trendPrice,
+                'extremes' => [
+                    'lowestShort' => $lowestShort,
+                    'highestShort' => $highestShort,
+                    'lowestLong' => $lowestLong,
+                    'highestLong' => $highestLong,
+                ],
+            ];
+        }
+
+        return $results;
+    }
+
+    //переписанный с C++ метод из библиоеки https://www.php.net/manual/en/function.trader-atr.php
+    public static function calculateATR(array $candles, int $period = 14, float $multiplier = 1.5, float $defaultFlatThreshold = 0.02): array {
+        $atr = $res = [];
+        $trueRanges = [];
+        $prevClose = null;
+
+        $count = count($candles);
+        if ($count < $period) {
+            return [];
+            //throw new \InvalidArgumentException('Количество свечей должно быть не меньше заданного периода.');
+        }
+
+        // Вычисляем True Range (TR) для каждой свечи
+        for ($i = 0; $i < $count; $i++) {
+            $currentHigh = $candles[$i]['h'];
+            $currentLow  = $candles[$i]['l'];
+            $currentClose = $candles[$i]['c'];
+
+            if ($prevClose === null) {
+                $trueRange = $currentHigh - $currentLow;
+            } else {
+                $tr1 = $currentHigh - $currentLow;
+                $tr2 = abs($currentHigh - $prevClose);
+                $tr3 = abs($currentLow - $prevClose);
+                $trueRange = max($tr1, $tr2, $tr3);
+            }
+            $trueRanges[] = $trueRange;
+            $prevClose = $currentClose;
+        }
+
+        // Вычисляем ATR по методу Вайлдера
+        for ($i = 0; $i < $count; $i++) {
+            if ($i < $period) {
+                $atr[$i] = null; // недостаточно свечей для первого ATR
+            } elseif ($i == $period) {
+                $atr[$i] = array_sum(array_slice($trueRanges, 0, $period)) / $period;
+            } else {
+                $atr[$i] = (($atr[$i - 1] * ($period - 1)) + $trueRanges[$i]) / $period;
+            }
+        }
+
+        // --- Вычисляем адаптивный flatThreshold ---
+        // Собираем все значения относительного ATR (ATR/Close) для свечей, где ATR вычислен
+        $ratios = [];
+        for ($i = $period; $i < $count; $i++) {
+            $close = $candles[$i]['c'] ?? 0;
+            if ($close > 0 && $atr[$i] !== null) {
+                $ratios[] = $atr[$i] / $close;
+            }
+        }
+        if (empty($ratios)) {
+            $adaptiveThreshold = $defaultFlatThreshold;
+        } else {
+            sort($ratios);
+            // Вычисляем 25-й процентиль
+            $nRatios = count($ratios);
+            $index = ($nRatios - 1) * 0.25;
+            $lower = floor($index);
+            $upper = ceil($index);
+            if ($lower == $upper) {
+                $adaptiveThreshold = $ratios[$lower];
+            } else {
+                $fraction = $index - $lower;
+                $adaptiveThreshold = $ratios[$lower] + $fraction * ($ratios[$upper] - $ratios[$lower]);
+            }
+        }
+        // --- Конец вычисления адаптивного flatThreshold ---
+
+        // Теперь определяем, находится ли рынок во флёте, используя среднее относительное ATR за последние N свечей
+        $N = 5; // количество свечей для усреднения
+        for ($i = 0; $i < $count; $i++) {
+            $currentClose = $candles[$i]['c'] ?? null;
+            if ($atr[$i] === null || $currentClose === null) {
+                $isFlat = false;
+            } else {
+                if ($i < $N - 1) {
+                    $avgRelativeATR = $atr[$i] / $currentClose;
+                } else {
+                    $sumRelativeATR = 0;
+                    for ($j = $i - $N + 1; $j <= $i; $j++) {
+                        $sumRelativeATR += $atr[$j] / $candles[$j]['c'];
+                    }
+                    $avgRelativeATR = $sumRelativeATR / $N;
+                }
+                // Если среднее относительное ATR меньше адаптивного порога, рынок считается флэтовым
+                $isFlat = $avgRelativeATR < $adaptiveThreshold;
+            }
+
+            // Для вычисления уровней TP используем предыдущую свечу, если она есть
+            $prevCloseForTP = ($i > 0) ? $candles[$i - 1]['c'] : null;
+            $prevAtr = ($i > 0) ? $atr[$i - 1] : null;
+
+            $res[] = [
+                'atr' => $atr[$i],
+                'longTP' => ($prevCloseForTP !== null && $prevAtr !== null) ? $prevCloseForTP + ($prevAtr * $multiplier) : null,
+                'shortTP' => ($prevCloseForTP !== null && $prevAtr !== null) ? $prevCloseForTP - ($prevAtr * $multiplier) : null,
+                'isFlat' => $isFlat,
+                'adaptiveFlatThreshold' => $adaptiveThreshold, // можно добавить для отладки
+            ];
+        }
+
+        return $res;
+    }
+
+    // $flatThreshold :
+    public static function calculateVolumeMA(
+        $candles,
+        $maLength = 10,
+        $smaLength = 3,
+        $flatLength = 85,
+        $flatThreshold = 55,
+        $lookback = 6
+    ) {
+        $volumeMA = [];    // Массив для хранения MA объема
+        $smoothedMA = [];  // Массив для хранения сглаженной MA
+        $result = [];      // Итоговый массив с данными
+
+        // Рассчитываем MA объема для каждой свечи
+        foreach ($candles as $index => $candle) {
+            if ($index >= $maLength - 1) {
+                // Берем объемы последних $maLength свечей
+                $volumes = array_column(array_slice($candles, $index - $maLength + 1, $maLength), 'v');
+                $volumeMA[$index] = array_sum($volumes) / $maLength; // Рассчитываем MA
+            } else {
+                $volumeMA[$index] = null;
+            }
+        }
+
+        // Сглаживаем MA с помощью SMA
+        foreach ($volumeMA as $index => $ma) {
+            if ($index >= $maLength + $smaLength - 2) {
+                // Берем последние $smaLength значений MA
+                $maValues = array_slice($volumeMA, $index - $smaLength + 1, $smaLength);
+                $smoothedMA[$index] = array_sum($maValues) / $smaLength; // Рассчитываем SMA
+            } else {
+                $smoothedMA[$index] = null;
+            }
+        }
+
+        $isUptrend = false;
+        $changePercent = 0;
+        $flatFlags = [];
+
+        // Определяем тренд и проверяем на флэт для каждой свечи
+        foreach ($smoothedMA as $index => $sma) {
+            // Определяем тренд на основе сравнения со значением на n свечи назад
+            if ($index > $maLength + $smaLength - 2) {
+                $maxChangePercent = 0;
+                $start = max(0, $index - 4);
+                // Проходим по всем парам от $start до текущей свечи (то есть, по индексам $i и $i+1)
+                for ($i = $start; $i < $index; $i++) {
+                    if (isset($smoothedMA[$i], $smoothedMA[$i + 1]) && $smoothedMA[$i] != 0) {
+                        // Вычисляем процентное изменение от свечи с индексом $i к следующей
+                        $currentChange = round((($smoothedMA[$i + 1] - $smoothedMA[$i]) / $smoothedMA[$i]) * 100, 2);
+                        // Если свеча выросла (т.е. изменение положительное) и это изменение больше найденного ранее, обновляем значение
+                        if ($currentChange > $maxChangePercent) {
+                            $maxChangePercent = $currentChange;
+                        }
+                    }
+                }
+                $changePercent = $maxChangePercent;
+
+                $prevPrevSMA = $smoothedMA[$index - 2];
+                $prevSMA = $smoothedMA[$index - 1];
+
+                if ($prevSMA > $prevPrevSMA) {
+                    $trend = 'up';   // Тренд вверх
+                    $isUptrend = true;
+                } elseif ($prevSMA < $prevPrevSMA) {
+                    $trend = 'down'; // Тренд вниз
+                    $isUptrend = false;
+                } else {
+                    $isUptrend = false;
+                    $trend = 'sideways'; // Без изменений
+                }
+            } else {
+                $trend = null; // Для первых свечей тренд не определяем
+            }
+
+            // --- Проверка на флэт через стандартное отклонение объёма ---
+            // Для определения флэта рассматриваем окно из последних $maLength значений объёма (volumeMA)
+            $isFlat = false;
+            //$flatLength = 36;
+            if ($index >= $flatLength - 1) { // убеждаемся, что достаточно данных для окна
+                $volumeWindow = array_slice($volumeMA, $index - $flatLength + 1, $flatLength);
+                // Если в окне нет невычисленных значений
+                if (!in_array(null, $volumeWindow, true)) {
+                    // Вычисляем среднее значение объёма в окне
+                    $meanVolume = array_sum($volumeWindow) / count($volumeWindow);
+                    // Вычисляем дисперсию
+                    $variance = 0;
+                    foreach ($volumeWindow as $vol) {
+                        $variance += pow($vol - $meanVolume, 2);
+                    }
+                    $variance /= count($volumeWindow);
+                    // Стандартное отклонение
+                    $stdDev = sqrt($variance);
+                    $relativeStdDev = ($stdDev / $meanVolume) * 100;
+
+                    // Если стандартное отклонение меньше порогового значения – считаем, что объём флэтовый.
+                    if ($relativeStdDev < $flatThreshold) {
+                        $isFlat = true;
+                    }
+                }
+            }
+            // -----------------------------------------------------------
+
+            // Сохраняем результат флет-проверки для текущей свечи
+            $flatFlags[$index] = $isFlat;
+
+            // --- Дополнительный анализ: вычисление flatDistance ---
+            // Если текущая свеча flat, flatDistance = 0.
+            // Если не flat, то ищем среди предыдущих 10 свечей ближайшую, где isFlat == true.
+            //$lookback = 8;
+            $flatDistance = false;
+            if ($isFlat) {
+                $flatDistance = 0;
+            } else {
+                $flatDistance = false; // по умолчанию — flat-свеча не найдена
+                // Идем по предыдущим свечам в обратном порядке (от текущей - 1 до текущей - $lookback)
+                for ($j = $index - 1; $j >= max(0, $index - $lookback); $j--) {
+                    if (isset($flatFlags[$j]) && $flatFlags[$j] === true) {
+                        $flatDistance = $index - $j;
+                        break;
+                    }
+                }
+            }
+            // -----------------------------------------------------------
+
+            //timestamp
+            $milliseconds = $candles[$index]['t'];
+            $seconds = $milliseconds / 1000;
+            $microseconds = ($milliseconds % 1000) * 1000;
+
+            $date = \DateTime::createFromFormat('U.u', sprintf('%.6F', $seconds));
+            $date->modify("+$microseconds microseconds");
+            $timestamp =  $date->format("H:i m.d");
+
+            // Добавляем данные в итоговый массив
+            $result[] = [
+                'candle'      => $candles[$index],
+                'timestamp'      => $timestamp,
+                'volume_ma'   => $volumeMA[$index],
+                'smoothed_ma' => $smoothedMA[$index],
+                'trend'       => $trend,
+                'isUptrend'   => $isUptrend,
+                'isFlat'      => $isFlat, // Признак флэта
+                'flatDistance' => $flatDistance,
+                'relativeStdDev' => $relativeStdDev,
+                'changePercent'  => $changePercent,
+            ];
+        }
+
+        return $result;
+    }
+
+    public static function detectFlat(
+        array $candles,
+        int   $flatLength = 100,
+        float $flatThreshold = 2.1,
+        int   $lookback = 6
+    ): array
+    {
+        $results = [];
+        $flatFlags = []; // Будем хранить флаг "isFlat" для каждой свечи
+
+        $count = count($candles);
+        for ($i = 0; $i < $count; $i++) {
+            $stdDev = null;
+            $relativeStdDev = null;
+            $isFlat = false;
+
+            // Проверяем, что достаточно данных для окна в $flatLength свечей
+            if ($i >= $flatLength - 1) {
+                // Берём срез последних $flatLength свечей (по индексам)
+                $slice = array_slice($candles, $i - $flatLength + 1, $flatLength);
+
+                // Извлекаем нужную метрику - например, цену закрытия (Close).
+                // Если хотите считать по объёму, замените 'c' на 'v'.
+                $values = array_column($slice, 'c');
+
+                // Считаем среднее
+                $mean = array_sum($values) / count($values);
+
+                // Вычисляем дисперсию
+                $variance = 0;
+                foreach ($values as $val) {
+                    $variance += pow($val - $mean, 2);
+                }
+                $variance /= count($values);
+
+                // Стандартное отклонение
+                $stdDev = sqrt($variance);
+
+                // Относительное отклонение (в %)
+                if ($mean != 0) {
+                    $relativeStdDev = ($stdDev / $mean) * 100;
+                } else {
+                    $relativeStdDev = 0;
+                }
+
+                // Если относительное отклонение меньше порогового значения – считаем, что рынок флэтовый.
+                if ($relativeStdDev < $flatThreshold) {
+                    $isFlat = true;
+                }
+            }
+
+            // Сохраняем флаг, чтобы потом искать flatDistance
+            $flatFlags[$i] = $isFlat;
+
+            // Вычисляем flatDistance
+            // Если текущая свеча flat, flatDistance = 0.
+            // Если не flat, смотрим в предыдущих $lookback свечах.
+            $flatDistance = false;
+            if ($isFlat) {
+                $flatDistance = 0;
+            } else {
+                // Идём в обратном порядке (от текущей - 1 до текущей - $lookback)
+                for ($j = $i - 1; $j >= max(0, $i - $lookback); $j--) {
+                    if ($flatFlags[$j] === true) {
+                        $flatDistance = $i - $j;
+                        break;
+                    }
+                }
+            }
+
+            //timestamp
+            $milliseconds = $candles[$i]['t'];
+            $seconds = $milliseconds / 1000;
+            $microseconds = ($milliseconds % 1000) * 1000;
+            $date = \DateTime::createFromFormat('U.u', sprintf('%.6F', $seconds));
+            $date->modify("+$microseconds microseconds");
+            $timestamp =  $date->format("H:i m.d");
+
+            $results[] = [
+                'candle' => $candles[$i],
+                'timestamp' => $timestamp,
+                'stdDev' => $stdDev,
+                'relativeStdDev' => $relativeStdDev,
+                'isFlat' => $isFlat,
+                'flatDistance' => $flatDistance,
+            ];
+        }
+
+        return $results;
+    }
+
+    //volume delta (cvd)
+    public static function calculateDelta(array $intervals): array {
+        $result = [];
+        $cumulative = 0;
+        $intervals = array_reverse($intervals);
+
+        foreach ($intervals as $interval) {
+            $buyVolume = isset($interval['buyVolume']) ? floatval($interval['buyVolume']) : 0;
+            $sellVolume = isset($interval['sellVolume']) ? floatval($interval['sellVolume']) : 0;
+            $delta = $buyVolume - $sellVolume;
+            $cumulative += $delta;
+            $interval['delta'] = $delta;
+            $interval['cvd'] = $cumulative;
+            $result[] = $interval;
+        }
+
+        $result = array_reverse($result);
+        return $result;
+    }
+
+    public static function analyzeVolumeSignal(array $volumes, int $n = 3, float $volumeGrowthThreshold = 1.5, float $dominanceThreshold = 0.7): array {
+        $totalIntervals = count($volumes);
+
+        $isLong = $isShort = false;
+        // Если данных недостаточно для анализа (нужно как минимум 2*n интервалов)
+        if ($totalIntervals < 2 * $n) {
+            return [
+                'signal' => 'neutral',
+                'reason' => 'Not enough data',
+                'isLong' => $isLong,
+                'isShort' => $isShort
+            ];
+        }
+
+        // Последние N интервалов (свежие данные)
+        $recent = array_slice($volumes, -$n, $n);
+        // Предыдущие N интервалов
+        $past = array_slice($volumes, -2 * $n, $n);
+
+        // Среднее суммарное значение за последние N интервалов
+        $sumRecent = 0;
+        foreach ($recent as $interval) {
+            $sumRecent += $interval['sumVolume'];
+        }
+        $avgRecent = $sumRecent / $n;
+
+        // Среднее суммарное значение за предыдущие N интервалов
+        $sumPast = 0;
+        foreach ($past as $interval) {
+            $sumPast += $interval['sumVolume'];
+        }
+        $avgPast = $sumPast / $n;
+
+        // Если прошлый средний объем равен нулю (не должно быть, но на всякий случай)
+        if ($avgPast == 0) {
+            return [
+                'signal' => 'neutral',
+                'reason' => 'avgPast is zero',
+                'avgRecent' => $avgRecent,
+                'avgPast' => $avgPast,
+                'isLong' => $isLong,
+                'isShort' => $isShort
+            ];
+        }
+
+        $growth = round($avgRecent / $avgPast, 3);
+
+        // Если рост объема недостаточный – сигнал нейтральный
+        if ($growth < $volumeGrowthThreshold) {
+            return [
+                'signal' => 'neutral',
+                'reason' => 'Insufficient volume growth',
+                'avgRecent' => $avgRecent,
+                'avgPast' => $avgPast,
+                'growth' => $growth,
+                'isLong' => $isLong,
+                'isShort' => $isShort
+            ];
+        }
+
+        // Суммируем объемы покупок и продаж за последние N интервалов
+        $totalBuy = 0;
+        $totalSell = 0;
+        foreach ($recent as $interval) {
+            $totalBuy += $interval['buyVolume'];
+            $totalSell += $interval['sellVolume'];
+        }
+        $totalRecentVolume = $totalBuy + $totalSell;
+        if ($totalRecentVolume == 0) {
+            return [
+                'signal' => 'neutral',
+                'reason' => 'No recent volume',
+                'totalBuy' => $totalBuy,
+                'totalSell' => $totalSell,
+                'isLong' => $isLong,
+                'isShort' => $isShort
+            ];
+        }
+
+        $buyRatio = round($totalBuy / $totalRecentVolume, 3);
+        $sellRatio = round($totalSell / $totalRecentVolume, 3);
+
+        $signal = "neutral";
+        if ($buyRatio >= $dominanceThreshold) {
+            $signal = "long";
+            $isLong = true;
+        } elseif ($sellRatio >= $dominanceThreshold) {
+            $signal = "short";
+            $isShort = true;
+        }
+
+        return [
+            'isLong' => $isLong,
+            'isShort' => $isShort,
+            'signal' => $signal,
+            'avgRecent' => $avgRecent,
+            'avgPast' => $avgPast,
+            'growth' => $growth,
+            'totalBuy' => $totalBuy,
+            'totalSell' => $totalSell,
+            'buyRatio' => $buyRatio,
+            'sellRatio' => $sellRatio,
+            'volumeGrowthThreshold' => $volumeGrowthThreshold,
+            'dominanceThreshold' => $dominanceThreshold
+        ];
+    }
 
     /**
-    30m	1.5% - 2%	5 - 10
-    1h	2% - 3%	5 - 8
-    4h	3% - 5%	4 - 6
-    1d	4% - 6%	3 - 5
-    */
-    public static function detectOrderBlocks(array $candles, float $flatRangePercent = 2.5, int $minCandleCount = 5): array {
-        $zones = [];
-        $currentZone = null;
-
-        for ($i = 0; $i < count($candles); $i++) {
-            $candle = $candles[$i];
-            $candleRange = $candle['h'] - $candle['l'];
-
-            if (!$currentZone) {
-                $currentZone = [
-                    'start' => $i,
-                    'end' => $i,
-                    'low' => $candle['l'],
-                    'high' => $candle['h'],
-                    'volume' => $candle['v']
-                ];
-                continue;
+     * Рассчитывает боковой объем (Volume Profile) по входному массиву свечей.
+     *
+     * @param array $candles Массив свечей, каждый элемент содержит:
+     *                       't' => timestamp,
+     *                       'o' => open,
+     *                       'h' => high,
+     *                       'l' => low,
+     *                       'c' => close,
+     *                       'v' => volume.
+     * @param int $bins Количество ценовых бинов для разбиения диапазона (по умолчанию 50)
+     * @return array Ассоциативный массив с рассчитанной информацией:
+     *               - 'peakPrice' => средняя цена бина с максимальным объемом,
+     *               - 'priceRange' => [binMin, binMax] для бина с максимальным объемом,
+     *               - 'accumulatedVolume' => объем в этом бине,
+     *               - 'totalVolume' => суммарный объем по всем свечам,
+     *               - 'volumePercentage' => процент объема этого бина от общего объема,
+     *               - 'bins' => массив объемов по каждому бину,
+     *               - 'binSize' => размер одного ценового бина,
+     *               - 'globalPriceRange' => [minPrice, maxPrice] по всем свечам.
+     */
+    public static function calculateSideVolumes(array $candles, int $bins = 50): array {
+        // Определяем глобальный ценовой диапазон
+        $minPrice = INF;
+        $maxPrice = -INF;
+        $totalVolume = 0;
+        foreach ($candles as $candle) {
+            $low = floatval($candle['l']);
+            $high = floatval($candle['h']);
+            $vol = floatval($candle['v']);
+            if ($low < $minPrice) {
+                $minPrice = $low;
             }
+            if ($high > $maxPrice) {
+                $maxPrice = $high;
+            }
+            $totalVolume += $vol;
+        }
 
-            // Фиксация флэта при малом изменении цены
-            if (($candleRange / $currentZone['low']) * 100 <= $flatRangePercent) {
-                $currentZone['end'] = $i;
-                $currentZone['volume'] += $candle['v'];
-                $currentZone['low'] = min($currentZone['low'], $candle['l']);
-                $currentZone['high'] = max($currentZone['high'], $candle['h']);
+        // Вычисляем размер одного ценового бина
+        $range = $maxPrice - $minPrice;
+        if ($range <= 0) {
+            $range = 1; // защитное значение
+        }
+        $binSize = $range / $bins;
+
+        // Инициализируем массив для объемов по бинам
+        $volumeBins = array_fill(0, $bins, 0);
+
+        // Для каждой свечи добавляем объем в соответствующий бин.
+        // Используем типичную цену: (high + low) / 2.
+        foreach ($candles as $candle) {
+            $typicalPrice = (floatval($candle['h']) + floatval($candle['l'])) / 2;
+            $vol = floatval($candle['v']);
+            $binIndex = (int)(($typicalPrice - $minPrice) / $binSize);
+            if ($binIndex >= $bins) {
+                $binIndex = $bins - 1;
+            }
+            $volumeBins[$binIndex] += $vol;
+        }
+
+        // Находим бин с максимальным объемом
+        $maxBinVolume = max($volumeBins);
+        $maxBinIndex = array_search($maxBinVolume, $volumeBins);
+        $binMin = $minPrice + $maxBinIndex * $binSize;
+        $binMax = $binMin + $binSize;
+        $peakPrice = ($binMin + $binMax) / 2;
+        $volumePercentage = ($totalVolume > 0) ? ($maxBinVolume / $totalVolume) * 100 : 0;
+
+        return [
+            'peakPrice' => $peakPrice,
+            'priceRange' => [$binMin, $binMax],
+            'accumulatedVolume' => $maxBinVolume,
+            'totalVolume' => $totalVolume,
+            'volumePercentage' => $volumePercentage,
+            'bins' => $volumeBins,
+            'binSize' => $binSize,
+            'globalPriceRange' => [$minPrice, $maxPrice]
+        ];
+    }
+
+    /**
+     * Рассчитывает стоп‑лосс и 4 уровня тейк‑профитов для сделки, используя ATR и предыдущий экстремум.
+     *
+     * @param float $atr           Текущее значение ATR (рассчитанное по 15-минутным свечам)
+     * @param float $entryPrice    Цена входа в сделку.
+     * @param float $lastExtreme   Предыдущий экстремум (например, swing low для лонга или swing high для шорта)
+     * @param string $direction    "long" или "short"
+     * @param float $offsetPercent Отступ от экстремума в процентах (например, 0.5 означает 0.5%)
+     * @param array $tpMultipliers Массив множителей для расчёта тейк‑профитов (по умолчанию [1,2,3,4])
+     *
+     * @return array Ассоциативный массив с ключами:
+     *               'atr' => $atr,
+     *               'stopLoss' => рассчитанный уровень стоп‑лосса,
+     *               'risk' => абсолютное расстояние между entry и stopLoss,
+     *               'takeProfits' => массив из 4 уровней тейк‑профита.
+     */
+    public static function calculateRiskTargetsATR(
+        float $atr,
+        float $entryPrice,
+        float $lastExtreme,
+        string $direction,
+        float $offsetPercent = 0.5,
+        array $tpMultipliers = [0.5, 1, 2, 3, 4]
+    ): array {
+        // Расчет базового стоп-лосса по экстремуму с отступом
+        if (strtolower($direction) === "long") {
+            $baseStopLoss = $lastExtreme * (1 - $offsetPercent / 100);
+            $riskDistance = $entryPrice - $baseStopLoss;
+            // Если риск меньше ATR, устанавливаем минимальный риск равный ATR
+            if ($riskDistance < $atr) {
+                $stopLoss = $entryPrice - $atr;
+                $riskDistance = $atr;
             } else {
-                if (($currentZone['end'] - $currentZone['start'] + 1) >= $minCandleCount) {
-                    $zones[] = $currentZone;
+                $stopLoss = $baseStopLoss;
+            }
+        } elseif (strtolower($direction) === "short") {
+            $baseStopLoss = $lastExtreme * (1 + $offsetPercent / 100);
+            $riskDistance = $baseStopLoss - $entryPrice;
+            if ($riskDistance < $atr) {
+                $stopLoss = $entryPrice + $atr;
+                $riskDistance = $atr;
+            } else {
+                $stopLoss = $baseStopLoss;
+            }
+        } else {
+            return [];
+            //throw new \InvalidArgumentException("Direction must be either 'long' or 'short'");
+        }
+
+        // Рассчитываем 4 уровня тейк-профитов на основе фиксированного риск-рэйта.
+        $takeProfits = [];
+        foreach ($tpMultipliers as $multiplier) {
+            if (strtolower($direction) === "long") {
+                $takeProfits[] = $entryPrice + $multiplier * $riskDistance;
+            } else {
+                $takeProfits[] = $entryPrice - $multiplier * $riskDistance;
+            }
+        }
+
+        return [
+            'atr' => $atr,
+            'stopLoss' => $stopLoss,
+            'risk' => $riskDistance,
+            'takeProfits' => $takeProfits,
+        ];
+    }
+
+    /**
+     * Рассчитывает стоп‑лосс и 4 уровня тейк‑профита с использованием ATR.
+     *
+     * Входные параметры:
+     * - $atr: текущее значение ATR (рассчитанное по 15-минутным свечам)
+     * - $entryPrice: цена входа в сделку
+     * - $lastExtreme: последний экстремум (swing low для long, swing high для short)
+     * - $direction: "long" или "short"
+     * - $offsetPercent: отступ от экстремума для стоп‑лосса в процентах (например, 0.5)
+     * - $tpMultipliers: массив множителей для тейк‑профитов (по умолчанию [1, 2, 3, 4])
+     *
+     * @return array Ассоциативный массив с ключами:
+     *               'atr' => $atr,
+     *               'stopLoss' => рассчитанный уровень стоп‑лосса,
+     *               'risk' => риск (расстояние между entry и stop‑лоссом),
+     *               'takeProfits' => массив из n уровней тейк‑профита,
+     *               'tpMultipliers' => использованные множители,
+     *               'offsetPercent' => переданный отступ.
+     */
+    public static function calculateRiskTargetsWithATR(
+        float $atr,
+        float $entryPrice,
+        float $lastExtreme,
+        string $direction,
+        int $scale = 6,
+        float $offsetPercent = 0.5,
+        ?array $tpMultipliers = null
+    ): array {
+        if ($tpMultipliers === null) {
+            $tpMultipliers = [1.5, 3, 6, 9, 12];
+        }
+
+        $direction = strtolower($direction);
+        if ($direction !== "long" && $direction !== "short") {
+            return [];
+            //throw new \InvalidArgumentException("Direction must be either 'long' or 'short'");
+        }
+
+        if ($direction === "long") {
+            // Расчет базового стоп-лосса по экстремуму с отступом для long
+            $baseStopLoss = $lastExtreme * (1 - $offsetPercent / 100);
+            $risk = $entryPrice - $baseStopLoss;
+            // Если риск меньше ATR, используем ATR
+            if ($risk < $atr * 1.1) {
+                $risk = $atr * 1.1;
+                $stopLoss = $entryPrice - $atr * 1.1;
+            } else {
+                $stopLoss = $baseStopLoss;
+            }
+            // Тейк-профиты для long: entry + multiplier * ATR
+            $takeProfits = [];
+            foreach ($tpMultipliers as $multiplier) {
+                $takeProfits[] = round(($entryPrice + $multiplier * $atr), $scale);
+            }
+        } else { // short
+            // Расчет базового стоп-лосса для short: lastExtreme с отступом вверх
+            $baseStopLoss = $lastExtreme * (1 + $offsetPercent / 100);
+            $risk = $baseStopLoss - $entryPrice;
+            if ($risk < $atr * 1.1) {
+                $risk = $atr * 1.1;
+                $stopLoss = $entryPrice + $atr * 1.1;
+            } else {
+                $stopLoss = $baseStopLoss;
+            }
+            // Тейк-профиты для short: entry - multiplier * ATR
+            $takeProfits = [];
+            foreach ($tpMultipliers as $multiplier) {
+                $takeProfits[] = round(($entryPrice - $multiplier * $atr), $scale);
+            }
+        }
+
+        // Расчет риска в процентах от стоп-лосса:
+        // Абсолютное отклонение между точкой входа и стоп-лоссом делится на цену входа и умножается на 100
+        $riskPercent = round((abs($entryPrice - $stopLoss) / $entryPrice) * 100, 2);
+
+        return [
+            'atr' => $atr,
+            'stopLoss' => round($stopLoss, $scale),
+            'risk' => $risk,
+            'riskPercent' => $riskPercent,
+            'takeProfits' => $takeProfits,
+            'tpMultipliers' => $tpMultipliers,
+            'offsetPercent' => $offsetPercent
+        ];
+    }
+
+    /**
+     * Рассчитывает стоп‑лосс и уровни тейк‑профита по фиксированным процентам.
+     *
+     * Для лонга:
+     *   stopLoss = lastExtreme * (1 - offsetPercent/100)
+     *   TP = entryPrice + (entryPrice * targetPercent/100)
+     *
+     * Для шорта:
+     *   stopLoss = lastExtreme * (1 + offsetPercent/100)
+     *   TP = entryPrice - (entryPrice * targetPercent/100)
+     *
+     * @param float $entryPrice    Цена входа.
+     * @param float $lastExtreme   Последний экстремум (swing low для long, swing high для short).
+     * @param string $direction    "long" или "short".
+     * @param float $offsetPercent Процент отступа для стоп‑лосса (например, 0.5).
+     * @param array|null $tpPercents Массив целевых процентов для тейк‑профитов (по умолчанию [1.5, 3, 6, 12, 24]).
+     *
+     * @return array Ассоциативный массив с ключами:
+     *               'stopLoss' => уровень стоп‑лосса,
+     *               'takeProfits' => массив уровней тейк‑профита,
+     *               'tpPercents' => использованные процентные значения.
+     */
+    public static function calculateFixedRiskTargets(
+        float $entryPrice,
+        float $lastExtreme,
+        string $direction,
+        float $offsetPercent = 0.5,
+        ?array $tpPercents = null
+    ): array {
+        if ($tpPercents === null) {
+            $tpPercents = [1.5, 3, 6, 12, 24];
+        }
+
+        $direction = strtolower($direction);
+        if ($direction !== "long" && $direction !== "short") {
+            throw new \InvalidArgumentException("Direction must be 'long' or 'short'");
+        }
+
+        if ($direction === "long") {
+            // Для лонга стоп-лосс рассчитывается как swing low с отступом вниз.
+            $stopLoss = $lastExtreme * (1 - $offsetPercent / 100);
+            // Тейк-профиты рассчитываются как entry + (entry * targetPercent/100)
+            $takeProfits = [];
+            foreach ($tpPercents as $percent) {
+                $takeProfits[] = $entryPrice + ($entryPrice * $percent / 100);
+            }
+        } else { // short
+            // Для шорта стоп-лосс рассчитывается как swing high с отступом вверх.
+            $stopLoss = $lastExtreme * (1 + $offsetPercent / 100);
+            // Тейк-профиты рассчитываются как entry - (entry * targetPercent/100)
+            $takeProfits = [];
+            foreach ($tpPercents as $percent) {
+                $takeProfits[] = $entryPrice - ($entryPrice * $percent / 100);
+            }
+        }
+
+        return [
+            'stopLoss' => $stopLoss,
+            'takeProfits' => $takeProfits,
+            'tpPercents' => $tpPercents
+        ];
+    }
+
+    /**
+     * Анализирует последние свечи и определяет точку входа с учетом ATR.
+     *
+     * Для long (покупка):
+     *   - swingExtreme: минимум (low) среди последних $lookback свечей (swing low).
+     *   - recommendedEntry: swingLow + (atrMultiplier * ATR).
+     *   - Нижняя граница overextension: swingLow - (overextensionThreshold * ATR).
+     *     Если цена ниже этой границы, вход считается не оптимальным (слишком перепродан).
+     *   - Если текущая цена находится между нижней границей и recommendedEntry,
+     *     то точка входа считается хорошей.
+     *
+     * Для short (продажа):
+     *   - swingExtreme: максимум (high) среди последних $lookback свечей (swing high).
+     *   - recommendedEntry: swingHigh - (atrMultiplier * ATR).
+     *   - Верхняя граница overextension: swingHigh + (overextensionThreshold * ATR).
+     *     Если цена выше этой границы, вход считается не оптимальным (слишком перекуплен).
+     *   - Если текущая цена находится между recommendedEntry и верхней границей,
+     *     то точка входа считается хорошей.
+     *
+     * @param float  $atr                     Значение ATR.
+     * @param array  $candles                 Массив свечей, каждая свеча должна содержать ключи 'h', 'l', 'c' и т.п.
+     * @param string $direction               "long" или "short".
+     * @param int    $lookback                Количество свечей для расчёта swing extreme (например, 5).
+     * @param float  $overextensionThreshold  Порог для определения зоны overextension (например, 1.0).
+     * @param float  $atrMultiplier           Множитель для расчёта рекомендуемой точки входа (например, 1.0).
+     *
+     * @return array Ассоциативный массив с рассчитанными значениями:
+     *               - 'atr': переданное значение ATR.
+     *               - 'currentPrice': цена закрытия последней свечи.
+     *               - 'swingExtreme': swing low (для long) или swing high (для short).
+     *               - 'recommendedEntry': оптимальная точка входа.
+     *               - 'overextensionLevel': граница, определяющая зону overextension.
+     *               - 'isEntryPointGood': true, если текущая цена находится в зоне оптимального входа.
+     */
+    public static function determineEntryPoint(
+        float $atr,
+        array $candles,
+        string $direction = "long",
+        int $lookback = 2,
+        float $overextensionThreshold = 1.1,
+        float $atrMultiplier = 0.4
+    ): array {
+        // Извлекаем последнюю свечу и получаем цену закрытия.
+        $lastCandle = end($candles);
+        $currentPrice = floatval($lastCandle['c']);
+
+        $direction = strtolower($direction);
+        if ($direction === "long") {
+            // Для long: ищем swing low среди последних $lookback свечей.
+            $recentCandles = array_slice($candles, -$lookback);
+            $swingExtreme = min(array_map(function($c) {
+                return floatval($c['l']);
+            }, $recentCandles));
+
+            // Рекомендуемая точка входа: swingLow + (atrMultiplier * ATR).
+            $recommendedEntry = $swingExtreme + ($atrMultiplier * $atr);
+
+            // Нижняя граница overextension: если цена слишком ниже swingLow.
+            $overextensionLevel = $swingExtreme - ($overextensionThreshold * $atr);
+
+            // Точка входа считается хорошей, если цена не ушла слишком далеко вниз,
+            // то есть находится между нижней границей и рекомендуемой точкой входа.
+            $isEntryPointGood = ($currentPrice >= $overextensionLevel && $currentPrice <= $recommendedEntry);
+        } elseif ($direction === "short") {
+            // Для short: ищем swing high среди последних $lookback свечей.
+            $recentCandles = array_slice($candles, -$lookback);
+            $swingExtreme = max(array_map(function($c) {
+                return floatval($c['h']);
+            }, $recentCandles));
+
+            // Рекомендуемая точка входа: swingHigh - (atrMultiplier * ATR).
+            $recommendedEntry = $swingExtreme - ($atrMultiplier * $atr);
+
+            // Верхняя граница overextension: если цена слишком выше swingHigh.
+            $overextensionLevel = $swingExtreme + ($overextensionThreshold * $atr);
+
+            // Точка входа считается хорошей, если цена не ушла слишком далеко вверх,
+            // то есть находится между рекомендуемой точкой входа и верхней границей.
+            $isEntryPointGood = ($currentPrice >= $recommendedEntry && $currentPrice <= $overextensionLevel);
+        } else {
+            return [];
+            //throw new \InvalidArgumentException("Direction must be 'long' or 'short'");
+        }
+
+        return [
+            'atr' => $atr,
+            'currentPrice' => $currentPrice,
+            'swingExtreme' => $swingExtreme,
+            'recommendedEntry' => $recommendedEntry,
+            'overextensionLevel' => $overextensionLevel,
+            'isEntryPointGood' => $isEntryPointGood,
+        ];
+    }
+
+    /**
+     * Анализирует стакан заявок и даёт рекомендацию по направлению входа.
+     *
+     * @param array $orderBook  Результат вызова Bybit API orderBookV5 (см. Bybit Docs)
+     * @param float $depthPct  Глубина в процентах для фильтрации релевантных уровней (например, 0.005 = 0.5%)
+     * @param float $thresholdRatio  Порог коэффициента дисбаланса для открытия позиции (по умолчанию 1.2)
+     * @return array  [
+     *   'sizeAsk' => float,     // общий объём асков
+     *   'sizeBid' => float,     // общий объём бидов
+     *   'nearAsks' => float,    // объём асков в пределах depthPct от цены
+     *   'nearBids' => float,    // объём бидов в пределах depthPct от цены
+     *   'imbalance' => float,   // простой ratio = nearBids / max(nearAsks,1)
+     *   'imbalanceNorm' => float, // нормализованный дисбаланс
+     *   'isLong' => bool,       // true — лонг допустим
+     *   'isShort' => bool       // true — шорт допустим
+     * ]
+     */
+    public static function analyzeOrderBook(
+        array $orderBook,
+        float $thresholdRatio = 1.2,
+        float $depthPct = 0.02,
+    ): array {
+        // Инициализируем суммарные объёмы
+        $sizeAsk = 0.0;
+        $sizeBid = 0.0;
+        // Объёмы в пределах depthPct от текущей цены
+        $nearAsks = 0.0;
+        $nearBids = 0.0;
+
+        // Проверяем, что API вернул результат
+        if (isset($orderBook['result']['a'], $orderBook['result']['b'])) {
+            $currentPrice = $orderBook['result']['a'][0][0] ?? $orderBook['result']['b'][0][0];
+
+            // Проходим по всем аскам (продажа)
+            foreach ($orderBook['result']['a'] as [$price, $qty]) {
+                $price = (float)$price;
+                $qty   = (float)$qty;
+                // Суммарный объём
+                $sizeAsk += $price * $qty;
+                // Фокус на близкой ликвидности (<= +depthPct от цены) :contentReference[oaicite:1]{index=1}
+                if ($price <= $currentPrice * (1 + $depthPct)) {
+                    $nearAsks += $price * $qty;
                 }
-                $currentZone = null;
+            }
+            // Проходим по всем бидам (покупка)
+            foreach ($orderBook['result']['b'] as [$price, $qty]) {
+                $price = (float)$price;
+                $qty   = (float)$qty;
+                $sizeBid += $price * $qty;
+                // Фокус на близкой ликвидности (>= –depthPct от цены) :contentReference[oaicite:2]{index=2}
+                if ($price >= $currentPrice * (1 - $depthPct)) {
+                    $nearBids += $price * $qty;
+                }
             }
         }
 
-        if ($currentZone && ($currentZone['end'] - $currentZone['start'] + 1) >= $minCandleCount) {
-            $zones[] = $currentZone;
-        }
+        // Простой коэффициент дисбаланса (bid/ask) :contentReference[oaicite:3]{index=3}
+        $imbalanceLong = $nearAsks > 0
+            ? $nearBids / $nearAsks
+            : 0;
 
-        return self::mergeAndSortZones($zones);
+        // Нормализованная версия: (B-A)/(B+A) :contentReference[oaicite:4]{index=4}
+        $sum = $nearBids + $nearAsks;
+        $imbalanceNorm = $sum > 0
+            ? ($nearBids - $nearAsks) / $sum
+            : 0.0;
+
+        // Решение по лонгу: допускаем, если объёмы спроса существенно превышают предложение
+        $isLong  = $imbalanceLong >= $thresholdRatio;  // порог можно оптимизировать :contentReference[oaicite:5]{index=5}
+
+        // Аналогично для шорта: считаем обратный коэффициент
+        $imbalanceShort = $nearAsks > 0
+            ? $nearAsks / ($nearBids ?: 1)
+            : 0;
+        $isShort = $imbalanceShort >= $thresholdRatio;
+
+        return [
+            'sizeAsk'        => $sizeAsk,
+            'sizeBid'        => $sizeBid,
+            'nearAsks'       => $nearAsks,
+            'nearBids'       => $nearBids,
+            'imbalanceLong'      => $imbalanceLong,
+            'imbalanceShort'      => $imbalanceShort,
+            'imbalanceNorm'  => $imbalanceNorm,
+            'isLong'         => $isLong,
+            'isShort'        => $isShort,
+        ];
     }
 
-    private static function mergeAndSortZones(array $zones): array {
-        usort($zones, fn($a, $b) => $a['low'] <=> $b['low']);
-        $mergedZones = [];
-        $prevZone = null;
-
-        foreach ($zones as $zone) {
-            if (!$prevZone) {
-                $prevZone = $zone;
-                continue;
-            }
-
-            if ($zone['low'] <= $prevZone['high'] && ($zone['high'] - $prevZone['low']) <= 0.02 * $prevZone['low']) {
-                $prevZone['high'] = max($prevZone['high'], $zone['high']);
-                $prevZone['volume'] += $zone['volume'];
-            } else {
-                $mergedZones[] = $prevZone;
-                $prevZone = $zone;
-            }
+    /**
+     * Рассчитывает ADX для заданных свечей.
+     *
+     * @param array<int,array{h:float,l:float,c:float}> $candles  Массив свечей с ключами 'h','l','c'.
+     * @param int $period  Период сглаживания (Wilder), по умолчанию 14.
+     * @return float[]  Массив ADX, начиная с индекса (period*2 - 1).
+     */
+    public static function calculateADX(array $candles, int $period = 14): array {
+        $n = count($candles);
+        if ($n <= $period) {
+            return [];
         }
 
-        if ($prevZone) {
-            $mergedZones[] = $prevZone;
+        // Шаг 1: выстроим массивы high, low, close
+        $highs = array_column($candles, 'h');
+        $lows  = array_column($candles, 'l');
+        $closes= array_column($candles, 'c');
+
+        // Инициализация массивов TR, +DM, -DM
+        $tr   = $plusDM = $minusDM = array_fill(0, $n, 0.0);
+
+        for ($i = 1; $i < $n; $i++) {
+            // True Range
+            $rawTR = max(
+                $highs[$i] - $lows[$i],
+                abs($highs[$i] - $closes[$i-1]),
+                abs($lows[$i]  - $closes[$i-1])
+            );
+            $tr[$i] = $rawTR;  // TR_i
+
+            // Directional Movements
+            $deltaUp   = $highs[$i] - $highs[$i-1];
+            $deltaDown = $lows[$i-1]  - $lows[$i];
+            $plusDM[$i]  = ($deltaUp   > $deltaDown && $deltaUp   > 0) ? $deltaUp   : 0;
+            $minusDM[$i] = ($deltaDown > $deltaUp   && $deltaDown > 0) ? $deltaDown : 0;
         }
 
-        return $mergedZones;
+        // Шаг 2: первичная сумма для Wilder-сглаживания
+        $sumTR = array_sum(array_slice($tr, 1, $period));
+        $sumP = array_sum(array_slice($plusDM, 1, $period));
+        $sumM = array_sum(array_slice($minusDM,1, $period));
+
+        // Инициализируем сглаженные массивы
+        $smTR = $smP = $smM = [];
+        $smTR[$period] = $sumTR;
+        $smP[$period]  = $sumP;
+        $smM[$period]  = $sumM;
+
+        // Шаг 3: Wilder‑сглаживание
+        for ($i = $period+1; $i < $n; $i++) {
+            $smTR[$i] = $smTR[$i-1] - ($smTR[$i-1] / $period) + $tr[$i];
+            $smP[$i]  = $smP[$i-1]  - ($smP[$i-1]  / $period) + $plusDM[$i];
+            $smM[$i]  = $smM[$i-1]  - ($smM[$i-1]  / $period) + $minusDM[$i];
+        }
+
+        // Шаг 4: DI и DX
+        $diPlus = $diMinus = $dx = [];
+        for ($i = $period; $i < $n; $i++) {
+            $diPlus[$i]  = 100 * ($smP[$i]  / $smTR[$i]);
+            $diMinus[$i] = 100 * ($smM[$i]  / $smTR[$i]);
+            $sumDI = $diPlus[$i] + $diMinus[$i];
+            $dx[$i] = ($sumDI == 0) ? 0 : (100 * abs($diPlus[$i] - $diMinus[$i]) / $sumDI);
+        }
+
+        // Шаг 5: расчет ADX
+        $adx = [];
+        // первое значение ADX — простое среднее DX за первый период
+        $firstSum = array_sum(array_slice($dx, $period, $period));
+        $adx[$period*2 - 1] = $firstSum / $period;
+
+        // затем Wilder‑сглаживание ADX
+        for ($i = $period*2; $i < $n; $i++) {
+            $adx[$i] = (($adx[$i-1] * ($period - 1)) + $dx[$i]) / $period;
+        }
+
+        return $adx;
     }
-
-
 
 }

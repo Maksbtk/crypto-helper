@@ -47,9 +47,11 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-profile.css");?>
                 "maksv:signal.trading.strategy.builder",
                 '',
                 array(
+                    "MAIN_CODE" => 'master',
                     "CACHE_TIME" => 36000,
                     "MARKET_CODE" => 'bybit',
-                    "PROFIT_FILTER" => 'N'
+                    "PROFIT_FILTER" => 'N',
+                    "PAGE_COUNT" => '5',
                 )
             );
             ?>

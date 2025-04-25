@@ -139,9 +139,8 @@ $bybitApiOb->closeConnection();*/
         </ul>
     </section>
 
+<?/*
     <section style="margin: 0px 15px;display: flex;flex-direction: column;justify-content: center;align-items: center;">
-
-
 
         <div class="h1">Bybit BTCUSDT, ETHUSDT</div>
         <br>
@@ -163,14 +162,14 @@ $bybitApiOb->closeConnection();*/
                             <tr>
                                 <td>Price / OI</td>
                                 <?foreach ($tfMap as $tf):?>
-                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
+                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
                                     <td><?=$actualSymbolsAr[$coin]['lastPriceChange']?> / <?=$actualSymbolsAr[$coin]['lastOpenInterest']?></td>
                                 <?endforeach;?>
                             </tr>
                             <tr>
                                 <td>Supertrand</td>
                                 <?foreach ($tfMap as $tf):?>
-                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
+                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
                                     <td>
                                         <?=$actualSymbolsAr[$coin]['lastSupertrend']['trend']?>
                                         <?if ($actualSymbolsAr[$coin]['lastSupertrend']['is_reversal']):?>
@@ -182,7 +181,7 @@ $bybitApiOb->closeConnection();*/
                             <tr>
                                 <td>SAR</td>
                                 <?foreach ($tfMap as $tf):?>
-                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'V5Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
+                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
                                     <td>
                                         <?=$actualSymbolsAr[$coin]['lastSAR']['trend']?>
                                         <?if ($actualSymbolsAr[$coin]['lastSAR']['is_reversal']):?>
@@ -196,43 +195,145 @@ $bybitApiOb->closeConnection();*/
             </div>
             <br>
         <?endforeach;?>
-    </section>
+    </section> <?*/?>
+
+    <?
+    $cmcExchenge = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/CoinMarketCupExchange/btcd/res.json'), true)) ?? [];
+    $cmcExchangeRes = $cmcExchenge['RESPONSE_EXCHENGE'] ?? [];
+    $cmcExchengeTimemark = $cmcExchsnge['TIMEMARK'] ?? [];
+    ?>
+
+    <?if ($cmcExchangeRes):?>
+        <section style="margin: 0px 15px;display: flex;flex-direction: column;justify-content: center;align-items: center;">
+            <div class="h1">BTC DOMINATION / OTHERS</div>
+            <br>
+            <div class="mobile-table">
+                <table class="iksweb js-open_interests_table">
+                    <thead>
+                    <tr>
+                        <th>period</th>
+                        <th><?=$cmcExchengeTimemark?></th>
+                        <th>BTC D</th>
+                        <th>BTC </th>
+                        <th>OTHERS</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?foreach ($cmcExchangeRes as $th => $resItem):?>
+                        <tr>
+                            <td><?=$th?></td>
+                            <td><?=$resItem['timemark']?></td>
+                            <td><?=$resItem['btcD']?></td>
+                            <td><?=$resItem['btc']?></td>
+                            <td><?=$resItem['others']?></td>
+                        </tr>
+                    <?endforeach;?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    <?endif;?>
+
     <br><br>
     <h1 class="main-title">Инструмент для торговли на бирже - Crypto helper</h1>
-
-
-
+<?global $USER;?>
+<?if ($USER->IsAdmin()):?>
+    <div>
+        <?=htmlentities(\Maksv\Bybit\Exchange::checkBtcImpulsInfo()['infoText'])?>
+    </div>
+    <br><br>
+<?endif;?>
 <?php
-/*try {
-    $bybitApiOb = new \Maksv\Bybit();
-    $bybitApiOb->openConnection();
-    $kline = $bybitApiOb->klineV5("linear", 'STORJUSDT', '1w' , 2);
-    if ($kline['result'] && $kline['result']['list']) {
-        $klineList = array_reverse($kline['result']['list']);
+//получаем контракты, которые будем анализировать
+$exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+$exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+$binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
+$bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
 
-        $prevKline = $klineList[array_key_last($klineList) - 1] ?? false; //(смотрим на предыдущую свечу так как последняя - это еще не закрытая)
-        if ($prevKline) {
-            $priceChange = round(($prevKline[4] / ($prevKline[1] / 100)) - 100, 2);
-            $lastClosePrice = $prevKline[4];
-        }
+$bybitApiOb = new \Maksv\Bybit\Bybit();
+$bybitApiOb->openConnection();
+/*$binanceApiOb = new \Maksv\Binance\BinanceFutures();
+$binanceApiOb->openConnection();
+$summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterest('BTCUSDT', $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, '15m');
 
-        //MA x EMA
-        foreach ($klineList as $klineItem)
-            $klineHistory['klineСlosePriceList'][] = $klineItem[4];
 
-        $crossMA = \Maksv\StrategyBuilder::checkMACross($klineHistory['klineСlosePriceList']) ?? false;
-        echo '<pre>'; var_dump($crossMA); echo '</pre>';
+$binanceApiOb->openConnection();
+$binanceApiOb->closeConnection();*/
 
+$dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/summaryVolumeExchange.json';
+$existingDataSparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
+$volumesData = $existingDataSparateVolume ?? [];
+$volumes = [];
+foreach ($volumesData as $symbol => $volume)
+    $volumes[$symbol] = $volume['resBybit'];
+
+
+$startTime = date("H:i:s");
+$signals = ['long' => [], 'short' => []];
+$volumesBTC = [];
+foreach ($volumes as $symbol => $volume) {
+
+    $volume = array_reverse($volume);
+
+    if ($symbol == 'BTCUSDT') {
+        $volumesBTC = $volume;
     }
 
-    $bybitApiOb->closeConnection();
-} catch (Exception $e) {
-    echo '<pre>'; var_dump($e->getMessage()); echo '</pre>';
+    //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 1, 0.9, 0.59);
+    $analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
+    //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.64, 0.64);
+    $analyzeVolumeSignalRes['symbol'] = $symbol;
 
-}*/
+    if ($analyzeVolumeSignalRes['isLong'])
+        $signals['long'][$symbol] = $analyzeVolumeSignalRes;
+    else if ($analyzeVolumeSignalRes['isShort'])
+        $signals['short'][$symbol] = $analyzeVolumeSignalRes;
+    else if (!$analyzeVolumeSignalRes['isLong'] && !$analyzeVolumeSignalRes['isShort'])
+        $signals['neutral'][$symbol] = $analyzeVolumeSignalRes;
 
+}
+uasort($signals['long'], function($a, $b) {
+    return $b['growth'] <=> $a['growth'];
+});
+uasort($signals['short'], function($a, $b) {
+    return $b['growth'] <=> $a['growth'];
+});
+$endTime = date("H:i:s");
 
+global $USER;
+if ($USER->IsAdmin()) {
+   // echo 'long<br><br>';
+    foreach ($signals['long'] as $item) {
+       // echo($item['symbol'] . ' - ' .$item['growth'] . '<br>');
+    }
+    //echo '<pre>';var_dump(array_keys($signals['long']));echo '</pre>';
+    //echo '<br>';
+    //echo 'short<br><br>';
+    foreach ($signals['short'] as $item) {
+       // echo($item['symbol'] . ' - ' .$item['growth'] . '<br>');
+    }
+}
 
+?>
+<script>
+    var devRes = {
+        startTime: <?=CUtil::PhpToJSObject($startTime, false, false, true)?>,
+        long: <?=CUtil::PhpToJSObject($signals['long'], false, false, true)?>,
+        short: <?=CUtil::PhpToJSObject($signals['short'], false, false, true)?>,
+        endTime: <?=CUtil::PhpToJSObject($endTime, false, false, true)?>,
+        volumesBTC: <?=CUtil::PhpToJSObject($volumesBTC, false, false, true)?>,
+    }
+    console.log('devRes', devRes);
+</script>
+<?php
+
+/*$coinmarketcapOb = new \Maksv\Coinmarketcap();
+$res = $coinmarketcapOb->fearGreedLatest('bitcoin');*/
+
+/*$btcQuote = $res['data'][1]['quote']['USDT'];
+$btcDQuote = $res['data']['bitcoin-dominance']['quote']['USD'];*/
+
+//echo '<pre>'; var_dump($res); echo '</pre>';
 
 ?>
 <?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>
