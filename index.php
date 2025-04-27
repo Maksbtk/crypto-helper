@@ -244,21 +244,7 @@ $bybitApiOb->closeConnection();*/
     <br><br>
 <?endif;?>
 <?php
-//получаем контракты, которые будем анализировать
-$exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
-$exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
-$binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
-$bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
 
-$bybitApiOb = new \Maksv\Bybit\Bybit();
-$bybitApiOb->openConnection();
-/*$binanceApiOb = new \Maksv\Binance\BinanceFutures();
-$binanceApiOb->openConnection();
-$summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterest('BTCUSDT', $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, '15m');
-
-
-$binanceApiOb->openConnection();
-$binanceApiOb->closeConnection();*/
 
 $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/summaryVolumeExchange.json';
 $existingDataSparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
@@ -301,18 +287,6 @@ uasort($signals['short'], function($a, $b) {
 $endTime = date("H:i:s");
 
 global $USER;
-if ($USER->IsAdmin()) {
-   // echo 'long<br><br>';
-    foreach ($signals['long'] as $item) {
-       // echo($item['symbol'] . ' - ' .$item['growth'] . '<br>');
-    }
-    //echo '<pre>';var_dump(array_keys($signals['long']));echo '</pre>';
-    //echo '<br>';
-    //echo 'short<br><br>';
-    foreach ($signals['short'] as $item) {
-       // echo($item['symbol'] . ' - ' .$item['growth'] . '<br>');
-    }
-}
 
 ?>
 <script>
