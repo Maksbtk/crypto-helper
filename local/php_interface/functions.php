@@ -26,10 +26,12 @@ function agentBybitRespDev()
 {
     //\Maksv\Bybit\Exchange::bybitExchange('15m', 0.1, true);
     //bybitExch15m();
-    \Maksv\Bybit\Exchange::screener('15m', 0.9, true);
+    //\Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49, true);
     //\Maksv\Bybit\Exchange::bybitSummaryVolumeExchange(true);
-    //\Maksv\Bybit\Exchange::bybitExchange('15m', 0.1, true);
+    //\Maksv\Bybit\Exchange::bybitExchange('1d', 0.99, -0.99, true);
     //\Maksv\Bybit\Exchange::sendBtcCharts();
+    //\Maksv\Bybit\Exchange::btcDOthersExchange();
+    \Maksv\Bybit\Exchange::oiBorderExchange('15m', 720, 1, 16, 2,5, -2.5, true);
 
     return "agentBybitRespDev();";
 }
@@ -40,7 +42,7 @@ function bybitExch15m()
     $minute = (int)date('i');
 
     if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-        \Maksv\Bybit\Exchange::bybitExchange('15m', 0.89);
+        \Maksv\Bybit\Exchange::bybitExchange('15m', 0.99, -0.99);
 
     return "bybitExch15m();";
 }
@@ -51,7 +53,7 @@ function bybitExch5m()
     $minute = (int)date('i');
 
     //if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-        //\Maksv\Bybit\Exchange::bybitExchange('5m', 1.19);
+        //\Maksv\Bybit\Exchange::bybitExchange('5m',0.99, -0.99);
 
     return "bybitExch5m();";
 }
@@ -62,7 +64,7 @@ function bybitExch30m()
     $minute = (int)date('i');
 
     if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-        \Maksv\Bybit\Exchange::bybitExchange('30m', 1.19);
+        \Maksv\Bybit\Exchange::bybitExchange('30m', 0.99, -0.99);
 
     return "bybitExch30m();";
 }
@@ -72,8 +74,13 @@ function bybitExhc1d()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($hour, [3]) && in_array($minute, [3, 4]))
-        \Maksv\Bybit\Exchange::bybitExchange('1d', 33);
+    if (in_array($hour, [3]) && in_array($minute, [3, 4])) {
+        //собираем инфу о монетках
+        \Maksv\Bybit\Exchange::bybitExchange('1d', 33, -33);
+        //собираем инфу об oi
+        \Maksv\Bybit\Exchange::oiBorderExchange('15m', 240, 1, 16, 2,5, -2.5, true);
+        //\Maksv\Bybit\Exchange::oiBorderExchange('5m', 720, 3, 48, 2.5, -2.5);
+    }
 
     return "bybitExhc1d();";
 }
@@ -84,7 +91,7 @@ function bybitScreenerExch15m()
     $minute = (int)date('i');
 
     if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-        \Maksv\Bybit\Exchange::screener('15m', 1.89);
+        \Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49);
 
     return "bybitScreenerExch15m();";
 }
@@ -95,7 +102,7 @@ function bybitScreenerExch5m()
     $minute = (int)date('i');
 
     //if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-      //  \Maksv\Bybit\Exchange::screener('5m', 1.89);
+      //  \Maksv\Bybit\Exchange::screener('5m', 1.49, -1.49);
 
     return "bybitScreenerExch5m();";
 }
@@ -106,7 +113,7 @@ function bybitScreenerExch30m()
     $hour = (int)date('H');
 
     if (in_array($minute,  [0, 1, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51]))
-        \Maksv\Bybit\Exchange::screener('30m', 1.89);
+        \Maksv\Bybit\Exchange::screener('30m', 1.49, -1.49);
 
     return "bybitScreenerExch30m();";
 }

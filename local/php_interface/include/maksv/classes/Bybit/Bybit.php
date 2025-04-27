@@ -110,11 +110,11 @@ class Bybit
         return json_decode($this->httpReq($endpoint, $method, $params, "symbols"),true);
     }
 
-    public function getSymbolsV5($category = 'spot', $symbol = '')
+    public function getSymbolsV5($category = 'spot', $symbol = '', $cursor = '')
     {
         $endpoint = "/v5/market/instruments-info";
         $method = "GET";
-        $params="category=$category&symbol=$symbol";
+        $params="category=$category&symbol=$symbol&cursor=$cursor";
         return json_decode($this->httpReq($endpoint, $method, $params, "symbols"),true);
     }
 
@@ -260,7 +260,7 @@ class Bybit
         return json_decode($this->httpReq($endpoint, $method, $params, "$symbol derivatives Info"), true);
     }
 
-    public function openInterest($symbol, $category = 'linear', $timeFrame = '30m', $limit = '2', $useCache = false, $cacheTime = 60)
+    public function openInterest($symbol, $category = 'linear', $timeFrame = '30m', $limit = '2', $cursor = 1, $useCache = false, $cacheTime = 60)
     {
 
         $endpoint="/v5/market/open-interest";
@@ -273,7 +273,7 @@ class Bybit
         else if ($timeFrame == '5m')
             $timeFrame = '5min';
 
-        $params= "symbol=$symbol&category=$category&intervalTime=$timeFrame&limit=$limit";
+        $params= "symbol=$symbol&category=$category&intervalTime=$timeFrame&limit=$limit&cursor=$cursor";
         $res = json_decode($this->httpReq($endpoint, $method, $params, "$symbol Open Interest", true, $cacheTime), true);
 
         return $res;
