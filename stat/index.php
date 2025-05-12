@@ -36,23 +36,34 @@ if ($tpCountGeneral <= $shiftSL)
 $riskFilter = isset($_GET['riskFilter']) ? round(floatval($_GET['riskFilter']), 1) : 7;
 $leverege = isset($_GET['leverege']) ? intval($_GET['leverege']) : 1;  // плечо котое используется вв сделке  ()
 
+$defaultTpSrearAr = [1.9, 2.6, 3.4, 5.6, 6.9];
 $tpStrategyAr = [
     0 => ['NAME' => 'default' , 'VALUE' => false],
     1 => ['NAME' => '1.1, 2.2, 3.6, 6, 8.4' , 'VALUE' => [1.1, 2.2, 3.6, 6, 8.4]],
-    2 => ['NAME' => '1.3, 2.6, 5.2, 7.8, 10.4' , 'VALUE' => [1.3, 2.6, 5.2, 7.8, 10.4]],
     3 => ['NAME' => '1.4, 2.6, 3.4, 5.6, 6.9' , 'VALUE' => [1.4, 2.6, 3.4, 5.6, 6.9]],
-    4 => ['NAME' => '1.4, 2.8, 3.4, 5.6, 6.9' , 'VALUE' => [1.4, 2.8, 3.4, 5.6, 6.9]],
-    5 => ['NAME' => '1.9, 2.8, 3.4, 5.6, 6.9' , 'VALUE' => [1.9, 2.8, 3.4, 5.6, 6.9]],
-    6 => ['NAME' => '1.5, 2.8, 6, 9, 12' , 'VALUE' => [1.5, 2.8, 6, 9, 12]],
-    7 => ['NAME' => '1.7, 2.6, 5.5, 7.4, 9.9' , 'VALUE' => [1.7, 2.6, 5.5, 7.4, 9.9]],
-    8 => ['NAME' => '2.4, 3.3, 5.5, 7.4, 9.9' , 'VALUE' => [2.4, 3.3, 5.5, 7.4, 9.9]],
-    9 => ['NAME' => '2.5, 3.4, 5.5, 7.4, 9.9' , 'VALUE' => [2.5, 3.4, 5.5, 7.4, 9.9]],
-    10 => ['NAME' => '2.6, 3.4, 4.3, 7.4, 9.9' , 'VALUE' => [2.6, 3.4, 4.3, 7.4, 9.9]],
+    4 => ['NAME' => '1.8, 2.6, 3.4, 5.6, 6.9' , 'VALUE' => [1.8, 2.6, 3.4, 5.6, 6.9]],
+    5 => ['NAME' => '1.9, 2.6, 3.4, 5.6, 6.9' , 'VALUE' => [1.9, 2.6, 3.4, 5.6, 6.9]],
+    6 => ['NAME' => '1.9, 2.7, 3.4, 5.6, 6.9' , 'VALUE' => [1.9, 2.7, 3.4, 5.6, 6.9]],
+    7 => ['NAME' => '1.9, 2.9, 3.9, 5.9, 6.9' , 'VALUE' => [1.9, 2.9, 3.9, 5.9, 6.9]],
+    8 => ['NAME' => '2.3, 2.9, 3.3, 5.6, 6.9' , 'VALUE' => [2.3, 2.9, 3.3, 5.6, 6.9]],
+    9 => ['NAME' => '2.2, 3.4, 4.9, 5.6, 6.9' , 'VALUE' => [2.2, 3.4, 4.9, 5.6, 6.9]],
+    10 => ['NAME' => '2.5, 3.4, 5.5, 7.4, 9.9' , 'VALUE' => [2.5, 3.4, 5.5, 7.4, 9.9]],
+    11 => ['NAME' => '3.5, 4.3, 5.2, 6.3, 7.2' , 'VALUE' => [3.5, 4.3, 5.2, 6.3, 7.2]],
+    12 => ['NAME' => '2.6, 3.0, 3.5, 4.3, 5.2' , 'VALUE' => [2.6, 3.0, 3.5, 4.3, 5.2]],
+    13 => ['NAME' => '2.6, 3.4, 4.3, 7.4, 9.9' , 'VALUE' => [2.6, 3.4, 4.3, 7.4, 9.9]],
+    14 => ['NAME' => '2.6, 3.5, 4.3, 7.4, 9.9' , 'VALUE' => [2.6, 3.5, 4.3, 7.4, 9.9]],
+    15 => ['NAME' => '2.6, 3.6, 4.3, 7.4, 9.9' , 'VALUE' => [2.6, 3.6, 4.3, 7.4, 9.9]],
+    16 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9' , 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
+    17 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9' , 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
+    18 => ['NAME' => '3.4, 4.3, 5.3, 6.4, 7.3' , 'VALUE' => [3.4, 4.3, 5.3, 6.4, 7.3]],
 ];
 
 $tpFilter = isset($_GET['tpFilter']) ? intval($_GET['tpFilter']) : 0;
 $selectedTpStrategy = $tpStrategyAr[$tpFilter];
 $tpFilterAr = ['SELECTED_TP_STRATEGY' => $selectedTpStrategy, 'TP_FILTER' => $tpFilter];
+if (!$selectedTpStrategy['VALUE'])
+    $selectedTpStrategy['VALUE'] = $defaultTpSrearAr;
+
 //echo '<pre>'; var_dump($tpFilterAr['TP_FILTER']); echo '</pre>';
 
 $directionFilter = isset($_GET['directionFilter']) ? $_GET['directionFilter'] : false;
@@ -312,9 +323,13 @@ if(!empty($_GET)) {
                             $profit_percent = $rpch;
                         }
 
-
                         // Вычисляем абсолютную прибыль по депозиту: profit = deposit * (profit_percent / 100)
                         $profit = round($deposit * ($profit_percent / 100), 2);
+
+                        unset($strategy['maAr']);
+                        unset($strategy['priceChange']);
+                        unset($strategy['latestScreener']);
+                        unset($strategy['actualMacdDivergence']['extremes']);
 
                         // Формируем результирующий элемент массива
                         $finalResults[] = [
@@ -330,8 +345,8 @@ if(!empty($_GET)) {
                             "profit_percent" => $profit_percent,
                             "profit" => $profit,
                             "entry_touched" => $priceAnalysis['entry_touched'],
-                            'candles' => $priceAnalysis['candles'],
-                            'candlesUpdated' => $candlesUpdated
+                            'candlesUpdated' => $candlesUpdated,
+                            'allInfo' => $strategy
                         ];
                     }
                 };
@@ -522,6 +537,30 @@ if(!empty($_GET)) {
         }
         .filter-footer {
             grid-template-columns: 1fr;
+        }
+    }
+
+    /* Стили для блока ИИ-анализа — отступы совпадают с .stat-wrapper */
+    .ai-analyze-wrapper {
+        margin: 0px 10px 20px 10px;
+    }
+    #aiAnalyzeResult textarea {
+        box-sizing: border-box; /* чтобы width:100% не выходил за границы */
+    }
+
+    .btnAiAnalyzeBtn {
+        padding:8px 16px; border:none; border-radius:4px;
+        background:var(--bg-color-main,#007BFF); color:#fff;
+        cursor:pointer;
+    }
+
+    /* На мобильных экранах */
+    @media (max-width: 767px) {
+        .ai-analyze-wrapper {
+            margin: 0px 10px 20px 10px;
+        }
+        #aiAnalyzeResult textarea {
+            font-size: 14px;
         }
     }
 </style>
@@ -747,14 +786,89 @@ if(!empty($_GET)) {
     <? endif; ?>
 </div>
 
+<?if ($USER->IsAdmin()):?>
+    <div class="ai-analyze-wrapper">
+        <button class="btnAiAnalyzeBtn" id="btnAiAnalyze">Анализ ИИ</button>
+        <button class="btnAiAnalyzeBtn" id="btnAiAnalyzeLosses" style="margin-left:10px;">Анализ убыточных</button>
+        <div id="aiAnalyzeResult"></div>
+    </div>
+<?endif;?>
 <script>
     $(document).ready(function(){
-
         var finalResults = {
             res: <?=CUtil::PhpToJSObject($finalResults, false, false, true)?>,
+            selectedTpStrategy: <?=CUtil::PhpToJSObject($selectedTpStrategy, false, false, true)?>,
         }
         console.log('finalResults', finalResults);
 
+        function sendAIAnalysis(filterFunc, promptIntro) {
+            var trades = finalResults.res.filter(filterFunc);
+            if (!trades.length) {
+                alert('Нет сделок для анализа');
+                return;
+            }
+            var payload = {
+                filters: {
+                    start_date: $('#start_date').val(),
+                    end_date: $('#end_date').val(),
+                    riskFilter: $('#riskFilter').val(),
+                    tpCountGeneral: $('#tpCountGeneral').val(),
+                    tpFilter: finalResults.selectedTpStrategy,
+                    direction: $('#directionFilter').val(),
+                    amountInTrade: $('#deposit').val(),
+                    tf: $('#tfFilter').val(),
+                    entry: $('#entryFilter').val(),
+                    strategy: $('#strategyFilter').val() || null,
+                    moveeSLafterReachingTP: $('#shiftSL').val() || 'не сдвигать SL',
+                },
+                trades: trades,
+                promptIntro: promptIntro
+            };
+
+            $('#aiAnalyzeResult').html('<em>Идёт запрос к ИИ…</em>');
+            $.ajax({
+                url: '/ajax/aiStatAnalyze.php',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function(resp) {
+                    console.log('trades:', trades);
+                    console.log('Prompt:', resp.messages[1].content);
+
+                    if (resp.error) {
+                        $('#aiAnalyzeResult').html('<span style="color:red;">Ошибка: ' + resp.error + '</span>');
+                    } else {
+                        $('#aiAnalyzeResult').html(
+                            '<textarea readonly style="width:100%;height:300px;padding:10px;border:1px solid #ccc;border-radius:4px;">'
+                            + "\n" + resp.analysis
+                            + '</textarea>'
+                        );
+                    }
+                },
+                error: function() {
+                    $('#aiAnalyzeResult').html('<span style="color:red;">Серверная ошибка</span>');
+                }
+            });
+        }
+
+        $('#btnAiAnalyze').on('click', function(){
+            sendAIAnalysis(
+                function(trade) {
+                    return trade.profit !== 0;
+                },
+                'Анализ всех сделок:'
+            );
+        });
+
+        $('#btnAiAnalyzeLosses').on('click', function(){
+            sendAIAnalysis(
+                function(trade) {
+                    /*console.log('trade.profit', trade.profit < 0)*/
+                    return trade.profit < 0;
+                },
+                'Анализ убыточных сделок на основе технического анализа allInfo:'
+            );
+        });
 
         // Если потребуется ajax-подгрузка формы, можно сделать так:
         $("#statsFilterForm").on("submit", function(e){

@@ -1,4 +1,15 @@
 <?php
+
+//прячем ключик
+/*AddEventHandler("main", "OnBeforeProlog", "ChangeHeaders");
+function ChangeHeaders() {
+    header("X-Powered-CMS: " . base64_encode('haha'), true);
+}*/
+AddEventHandler("main", "OnEpilog", "ChangeHeaders");
+function ChangeHeaders() {
+    header("X-Powered-CMS: " . base64_encode('haha'), true);
+}
+
 //require_once ($_SERVER['DOCUMENT_ROOT'].'/local/php_interface/include/belleyou/autoload.php');
 use Bitrix\Main\Loader;
 use \Bitrix\Main,

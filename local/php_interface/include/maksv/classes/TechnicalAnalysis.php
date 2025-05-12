@@ -1779,7 +1779,7 @@ class TechnicalAnalysis
         return [$price1, $price2, $macd1, $macd2];
     }
 
-    private static function findLocalExtremes(array $values, string $type, int $range): array
+    public static function findLocalExtremes(array $values, string $type, int $range): array
     {
         $extremes = [];
         $count = count($values);
@@ -1811,7 +1811,163 @@ class TechnicalAnalysis
     }
 
     //https://www.tradingview.com/script/qt6xLfLi-Impulse-MACD-LazyBear/
+    /**
+     * Анализ Impulse MACD с определением тренда (strong/weak up/down).
+     *
+     * @param array $candles    Массив свечей с ключами 'h', 'l', 'c', 't'
+     * @param int   $lengthMA   Период MA (по умолчанию 34)
+     * @param int   $lengthSignal  Период сигнальной линии (по умолчанию 9)
+     *
+     * @return array Массив результатов с полями:
+     *   - timestamp
+     *   - close
+     *   - impulse_macd
+     *   - signal_line
+     *   - histogram
+     *   - trend       // 2: strong_up, 1: weak_up, -1: weak_down, -2: strong_down
+     *
+     * @throws \Exception Если недостаточно данных
+     */
     public static function analyzeImpulseMACD(array $candles, int $lengthMA = 34, int $lengthSignal = 9): array
+    {
+        $count = count($candles);
+        if ($count < $lengthMA + $lengthSignal) {
+            return [];
+            //throw new \Exception("Недостаточно данных для расчета Impulse MACD.");
+        }
+
+        // HLC3: (High + Low + Close) / 3
+        $hlc3   = array_map(fn($c) => ($c['h'] + $c['l'] + $c['c']) / 3, $candles);
+        $highs  = array_column($candles, 'h');
+        $lows   = array_column($candles, 'l');
+
+        // SMMA (Wilders)
+        $calculateSMMA = function(array $data, int $len): array {
+            $smma = [];
+            $prev = null;
+            foreach ($data as $i => $val) {
+                if ($i < $len - 1) {
+                    $smma[] = null;
+                } elseif ($i === $len - 1) {
+                    $sma    = array_sum(array_slice($data, 0, $len)) / $len;
+                    $smma[] = $sma;
+                    $prev   = $sma;
+                } else {
+                    $cur    = ($prev * ($len - 1) + $val) / $len;
+                    $smma[] = $cur;
+                    $prev   = $cur;
+                }
+            }
+            return $smma;
+        };
+
+        // SMA
+        $calculateSMA = function(array $data, int $len): array {
+            $sma = [];
+            foreach ($data as $i => $val) {
+                if ($i < $len - 1) {
+                    $sma[] = null;
+                } else {
+                    $slice  = array_slice($data, $i - $len + 1, $len);
+                    $sma[]  = array_sum($slice) / $len;
+                }
+            }
+            return $sma;
+        };
+
+        // ZLEMA
+        $calculateZLEMA = function(array $data, int $len): array {
+            $zlema      = [];
+            $multiplier = 2 / ($len + 1);
+            $ema1 = $ema2 = null;
+
+            foreach ($data as $i => $val) {
+                if ($i < $len - 1) {
+                    $zlema[] = null;
+                } elseif ($i === $len - 1) {
+                    $sum     = array_sum(array_slice($data, 0, $len));
+                    $ema1    = $sum / $len;
+                    $ema2    = $ema1;
+                    $zlema[] = $ema1;
+                } else {
+                    $ema1    = (($val - $ema1) * $multiplier) + $ema1;
+                    $ema2    = (($ema1 - $ema2) * $multiplier) + $ema2;
+                    $zlema[] = $ema1 + ($ema1 - $ema2);
+                }
+            }
+            return $zlema;
+        };
+
+        // Основные линии
+        $hi = $calculateSMMA($highs, $lengthMA);
+        $lo = $calculateSMMA($lows,  $lengthMA);
+        $mi = $calculateZLEMA($hlc3,  $lengthMA);
+
+        // Impulse MACD и сигнальная линия
+        $md       = [];
+        foreach ($mi as $i => $m) {
+            if (isset($m, $hi[$i], $lo[$i])) {
+                $md[] = $m > $hi[$i]
+                    ? $m - $hi[$i]
+                    : ($m < $lo[$i]
+                        ? $m - $lo[$i]
+                        : 0
+                    );
+            } else {
+                $md[] = null;
+            }
+        }
+        $signal    = $calculateSMA($md, $lengthSignal);
+
+        // Гистограмма
+        $histogram = array_map(fn($m, $s) => isset($m, $s) ? $m - $s : null, $md, $signal);
+
+        // Формируем результат с определением тренда
+        $result = [];
+        foreach ($candles as $i => $c) {
+            // Временная метка
+            $ts = $c['t'] / 1000;
+            $dt = \DateTime::createFromFormat('U.u', sprintf('%.6F', $ts));
+            $dt->modify('+3 hours');
+
+
+            // Определение тренда по HLC3 vs Mid/High/Low
+            $trend = null;
+            $longDirection = false;
+            $shortDirection = false;
+            $trendText = '';
+            if (isset($mi[$i], $hi[$i], $lo[$i])) {
+                $price = $hlc3[$i];
+                if ($price > $mi[$i]) {
+                    $trend = $price > $hi[$i] ? 2 : 1;
+                    $longDirection = true;
+                    $trendText = 'up';
+                } else {
+                    $trend = $price < $lo[$i] ? -2 : -1;
+                    $shortDirection = true;
+                    $trendText = 'down';
+                }
+            }
+
+            $result[] = [
+                'timestamp'    => $dt->format('H:i d.m'),
+                'close'        => $c['c'],
+                'impulse_macd' => $md[$i]        ?? null,
+                'signal_line'  => $signal[$i]    ?? null,
+                'histogram'    => $histogram[$i] ?? null,
+                'trend'        => [
+                    'longDirection' => $longDirection,
+                    'shortDirection' => $shortDirection,
+                    'trendVal' => $trend,
+                    'trendText' => $trendText,
+                ],
+            ];
+        }
+
+        return $result;
+    }
+
+/*    public static function analyzeImpulseMACD(array $candles, int $lengthMA = 34, int $lengthSignal = 9): array
     {
         $count = count($candles);
         if ($count < $lengthMA + $lengthSignal) {
@@ -1929,7 +2085,7 @@ class TechnicalAnalysis
         }
 
         return $result;
-    }
+    }*/
 
     public static function simpleTrendLine(array $candles, int $shortPeriod = 30, int $longPeriod = 100): array
     {
@@ -2951,62 +3107,64 @@ class TechnicalAnalysis
     }
 
     /**
-     * Рассчитывает ADX для заданных свечей.
+     * Рассчитывает ADX и связанные параметры для заданных свечей.
      *
-     * @param array<int,array{h:float,l:float,c:float}> $candles  Массив свечей с ключами 'h','l','c'.
-     * @param int $period  Период сглаживания (Wilder), по умолчанию 14.
-     * @return float[]  Массив ADX, начиная с индекса (period*2 - 1).
+     * @param array<int, array{h: float, l: float, c: float}> $candles   Массив свечей с ключами 'h','l','c'.
+     * @param int $period   Период сглаживания (Wilder), по умолчанию 14.
+     * @return array<int, array<string, float|string>>  Массив, где ключ — индекс свечи, а значение — массив параметров:
+     *      - diPlus: float,  DI+
+     *      - diMinus: float, DI-
+     *      - dx: float,     DX
+     *      - adx: float,    ADX
+     *      - adxDirection: string ('up','down','flat')
+     *      - trendDirection: string ('up','down','flat') (DI-пересечение)
      */
     public static function calculateADX(array $candles, int $period = 14): array {
         $n = count($candles);
-        if ($n <= $period) {
+        if ($n <= $period * 2) {
             return [];
         }
 
-        // Шаг 1: выстроим массивы high, low, close
+        // Подготовка массивов
+        $timastamps = array_column($candles, 't');
         $highs = array_column($candles, 'h');
         $lows  = array_column($candles, 'l');
         $closes= array_column($candles, 'c');
 
-        // Инициализация массивов TR, +DM, -DM
-        $tr   = $plusDM = $minusDM = array_fill(0, $n, 0.0);
-
+        // Инициализация TR, +DM, -DM
+        $tr = $plusDM = $minusDM = array_fill(0, $n, 0.0);
         for ($i = 1; $i < $n; $i++) {
-            // True Range
-            $rawTR = max(
+            $tr[$i] = max(
                 $highs[$i] - $lows[$i],
                 abs($highs[$i] - $closes[$i-1]),
                 abs($lows[$i]  - $closes[$i-1])
             );
-            $tr[$i] = $rawTR;  // TR_i
 
-            // Directional Movements
             $deltaUp   = $highs[$i] - $highs[$i-1];
             $deltaDown = $lows[$i-1]  - $lows[$i];
-            $plusDM[$i]  = ($deltaUp   > $deltaDown && $deltaUp   > 0) ? $deltaUp   : 0;
-            $minusDM[$i] = ($deltaDown > $deltaUp   && $deltaDown > 0) ? $deltaDown : 0;
+            $plusDM[$i]  = ($deltaUp > $deltaDown && $deltaUp > 0) ? $deltaUp : 0;
+            $minusDM[$i] = ($deltaDown > $deltaUp && $deltaDown > 0) ? $deltaDown : 0;
         }
 
-        // Шаг 2: первичная сумма для Wilder-сглаживания
+        // Первичные суммы для Wilder
         $sumTR = array_sum(array_slice($tr, 1, $period));
-        $sumP = array_sum(array_slice($plusDM, 1, $period));
-        $sumM = array_sum(array_slice($minusDM,1, $period));
+        $sumP  = array_sum(array_slice($plusDM, 1, $period));
+        $sumM  = array_sum(array_slice($minusDM,1, $period));
 
-        // Инициализируем сглаженные массивы
-        $smTR = $smP = $smM = [];
-        $smTR[$period] = $sumTR;
-        $smP[$period]  = $sumP;
-        $smM[$period]  = $sumM;
-
-        // Шаг 3: Wilder‑сглаживание
-        for ($i = $period+1; $i < $n; $i++) {
+        // Сглаженные значения
+        $smTR = [$period => $sumTR];
+        $smP  = [$period => $sumP];
+        $smM  = [$period => $sumM];
+        for ($i = $period + 1; $i < $n; $i++) {
             $smTR[$i] = $smTR[$i-1] - ($smTR[$i-1] / $period) + $tr[$i];
             $smP[$i]  = $smP[$i-1]  - ($smP[$i-1]  / $period) + $plusDM[$i];
             $smM[$i]  = $smM[$i-1]  - ($smM[$i-1]  / $period) + $minusDM[$i];
         }
 
-        // Шаг 4: DI и DX
-        $diPlus = $diMinus = $dx = [];
+        // DI и DX
+        $diPlus  = [];
+        $diMinus = [];
+        $dx      = [];
         for ($i = $period; $i < $n; $i++) {
             $diPlus[$i]  = 100 * ($smP[$i]  / $smTR[$i]);
             $diMinus[$i] = 100 * ($smM[$i]  / $smTR[$i]);
@@ -3014,18 +3172,70 @@ class TechnicalAnalysis
             $dx[$i] = ($sumDI == 0) ? 0 : (100 * abs($diPlus[$i] - $diMinus[$i]) / $sumDI);
         }
 
-        // Шаг 5: расчет ADX
+        // ADX
         $adx = [];
-        // первое значение ADX — простое среднее DX за первый период
-        $firstSum = array_sum(array_slice($dx, $period, $period));
-        $adx[$period*2 - 1] = $firstSum / $period;
-
-        // затем Wilder‑сглаживание ADX
-        for ($i = $period*2; $i < $n; $i++) {
+        $firstDXs = array_slice($dx, $period, $period);
+        $adxFirst = array_sum($firstDXs) / $period;
+        $adx[$period * 2 - 1] = $adxFirst;
+        for ($i = $period * 2; $i < $n; $i++) {
             $adx[$i] = (($adx[$i-1] * ($period - 1)) + $dx[$i]) / $period;
         }
 
-        return $adx;
-    }
+        // Сборка результата
+        $result = [];
+        for ($i = $period * 2 - 1; $i < $n; $i++) {
+            // направление ADX
 
+            $isUpDir = false;
+            $isDownDir = false;
+            $prevAdx = $adx[$i-1] ?? $adx[$i];
+            if ($adx[$i] > $prevAdx) {
+                $isUpDir = true;
+                $adxDir = 'up';
+            } elseif ($adx[$i] < $prevAdx) {
+                $isDownDir = true;
+                $adxDir = 'down';
+            } else {
+                $adxDir = 'flat';
+            }
+
+            $isUpTrend = false;
+            $isDownTrend = false;
+            // направление тренда по DI
+            if ($diPlus[$i] > $diMinus[$i]) {
+                $isUpTrend = true;
+                $trendDir = 'up';
+            } elseif ($diMinus[$i] > $diPlus[$i]) {
+                $isDownTrend = true;
+                $trendDir = 'down';
+            } else {
+                $trendDir = 'flat';
+            }
+
+            //timestamp
+            $milliseconds = $timastamps[$i];
+            $seconds = $milliseconds / 1000;
+            $timestamp = date("H:i d.m", $seconds);
+
+            $result[$i] = [
+                $timestamp        => $timestamp,
+                'diPlus'        => $diPlus[$i],
+                'diMinus'       => $diMinus[$i],
+                'dx'            => $dx[$i],
+                'adx'           => $adx[$i],
+                'adxDirection'  => [
+                    'adxDir' => $adxDir,
+                    'isUpDir' => $isUpDir,
+                    'isDownDir' => $isDownDir
+                ],
+                'trendDirection' => [
+                    'trendDir' => $trendDir,
+                    'isUpTrend' => $isUpTrend,
+                    'isDownTrend' => $isDownTrend,
+                ],
+            ];
+        }
+
+        return $result;
+    }
 }

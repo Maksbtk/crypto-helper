@@ -53,7 +53,9 @@ global $APPLICATION, $USER;
         $APPLICATION->ShowCSS();
         $APPLICATION->ShowHeadStrings();
         $APPLICATION->ShowHeadScripts();?>
-        
+
+        <?//header_remove('X-Powered-CMS');?>
+
         <?$checkpage = $APPLICATION->GetCurPage();?>
 
         <?

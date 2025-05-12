@@ -1,0 +1,87 @@
+# File: requestOthers.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os
+# Ограничиваем количество потоков для OpenBLAS
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS']      = '1'
+
+import json
+from datetime import datetime
+from tvDatafeed import TvDatafeed, Interval
+import pandas as pd
+
+# === Параметры ===
+SYMBOL      = 'OTHERS'  # Total Market Cap Excluding Top 10 на TradingView
+EXCHANGE    = 'CRYPTOCAP'
+NUM_BARS    = 200
+INTERVALS   = {
+    '15m': Interval.in_15_minute,
+    '5m':  Interval.in_5_minute
+}
+
+# Пути
+OUTPUT_JSON = '/home/c/cz06737izol/crypto/public_html/upload/traydingviewExchange/total_ex_top10.json'
+LOG_DIR     = '/home/c/cz06737izol/crypto/public_html/devlogs/traydingview'
+
+# Создаем директории, если их нет
+os.makedirs(os.path.dirname(OUTPUT_JSON), exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Файл лога вида YYYYMM.txt
+log_file = os.path.join(LOG_DIR, datetime.now().strftime('%Y%m') + '.txt')
+
+def log(message: str):
+    """
+    Записывает строку message в лог-файл с текущим временем.
+    """
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    with open(log_file, 'a') as lf:
+        lf.write(f"[{ts}] {message}\n")
+
+# Получаем свечи с TradingView
+
+def fetch_data(interval):
+    tv = TvDatafeed()
+    df = tv.get_hist(
+        symbol=SYMBOL,
+        exchange=EXCHANGE,
+        interval=interval,
+        n_bars=NUM_BARS
+    )
+    df = df.reset_index()
+    df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    return df.to_dict(orient='records')
+
+# Главная функция
+
+def main():
+    try:
+        log('Process started')
+        now = datetime.now()
+        timestamp = int(now.timestamp())
+        server_time = now.strftime('%Y-%m-%d %H:%M:%S')
+        result = {
+            'timestamp': timestamp,
+            'server_time': server_time,
+            'data': {}
+        }
+
+        for tf_name, tf_interval in INTERVALS.items():
+            candles = fetch_data(tf_interval)
+            result['data'][tf_name] = candles
+
+        # Записываем JSON
+        with open(OUTPUT_JSON, 'w') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+
+        #log('JSON written to ' + OUTPUT_JSON)
+        log('Process completed successfully_________________________')
+        print('OK')
+    except Exception as e:
+        log('Error: ' + str(e))
+        print('ERROR: ' + str(e))
+        exit(1)
+
+if __name__ == '__main__':
+    main()

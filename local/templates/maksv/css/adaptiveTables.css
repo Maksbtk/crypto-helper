@@ -111,3 +111,72 @@ table.iksweb td,table.iksweb th
 table.iksweb tr:hover{background-color:#e6e6e6}
 table.iksweb tr:hover td{color:#000000;cursor:pointer;}
 .mobile-table{width: 100%; max-width: 100%; overflow-x: auto;}
+
+//btc info
+.btc-info-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-left: 8px;
+}
+.info-icon {
+  display: inline-block;
+  cursor: pointer;
+  width: 1em;
+  height: 1em;
+  padding: 8px;
+  box-sizing: content-box;
+  fill: #666;
+  transition: fill .2s;
+}
+.info-icon:hover { fill: #333; }
+
+.btc-info-block {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90vw;
+  max-width: 400px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 15px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1001;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btc-info-wrapper:hover .btc-info-block { display: block; }
+}
+@media (max-width: 768px) {
+  .btc-info-wrapper.active .btc-info-block { display: block; }
+}
+
+.btc-info-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+}
+
+.btc-info-wrapper .btc-info-block {
+  /* Ставим фиксированное позиционирование */
+  position: fixed !important;
+  /* Сбрасываем «bottom» */
+  bottom: auto !important;
+  /* Центрируем по горизонтали и вертикали */
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+
+  /* Размеры остаются удобными */
+  width: 90vw !important;
+  max-width: 400px !important;
+  max-height: 60vh;
+  overflow-y: auto;
+}

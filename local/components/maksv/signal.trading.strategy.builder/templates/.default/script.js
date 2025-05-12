@@ -121,9 +121,9 @@ $(function() {
         }).then(function(response) {
 
             console.log('updateOITableResp', response)
-            console.log('summaryVolume', response.data.summaryVolume)
-            console.log('accountRatioList', response.data.accountRatioList)
-            console.log('calculateSideVolumesRes', response.data.calculateSideVolumesRes)
+            console.log('detectHeadAndShouldersRes', response.data.detectHeadAndShouldersRes)
+            //console.log('accountRatioList', response.data.accountRatioList)
+            //console.log('calculateSideVolumesRes', response.data.calculateSideVolumesRes)
             //console.log('crossMA', response.data.crossMA)
             //console.log('crossHistoryMA', response.data.crossHistoryMA)
             //console.log('detectFlat', response.data.detectFlat)
@@ -344,64 +344,44 @@ $(function() {
         window.history.pushState({}, '', url); // Обновляем URL без перезагрузки страницы
     }
 
-    /*const $input = $('#oi-symbol');
-    const $suggestionsBox = $('#suggestions-box');
-    let debounceTimer;
 
-    // Функция для отправки запроса и отображения подсказок
-    function fetchSuggestions(query) {
-        $.ajax({
-            url: '/path/to/suggestions/endpoint', // Путь к обработчику на сервере
-            type: 'GET',
-            data: { search: query },
-            success: function (data) {
-                $suggestionsBox.empty();
-                if (data && data.length > 0) {
-                    data.slice(0, 3).forEach(function (item) { // Показываем до 3 подсказок
-                        $suggestionsBox.append(`
-                            <div class="suggestion-item">${item}</div>
-                        `);
-                    });
-                    $suggestionsBox.show();
-                } else {
-                    $suggestionsBox.hide();
-                }
-            },
-            error: function () {
-                console.error('Ошибка загрузки подсказок');
-            }
-        });
+    // btcinfo
+    // Функция закрытия везде
+    function closeAll() {
+        $('.btc-info-overlay').remove();
+        $('.btc-info-wrapper').removeClass('active');
     }
 
-    // Обработчик ввода с debounce
-    $input.on('input', function () {
-        const query = $(this).val().trim();
+    // Открытие: добавляем overlay и active
+    function openWrapper($w) {
+        $w.addClass('active');
+        const $ov = $('<div class="btc-info-overlay"></div>');
+        $('body').append($ov);
+        $ov.on('click', closeAll);
+    }
 
-        clearTimeout(debounceTimer); // Сбрасываем таймер
-        if (query.length >= 2) { // Начинаем поиск после ввода 2 символов
-            debounceTimer = setTimeout(() => {
-                fetchSuggestions(query);
-            }, 500); // Задержка 0.5 секунд
-        } else {
-            $suggestionsBox.hide();
+    // Нажатие
+    $(document).on('click', '.info-icon', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            const $w = $(this).closest('.btc-info-wrapper');
+            if ($w.hasClass('active')) {
+                closeAll();
+            } else {
+                closeAll();
+                openWrapper($w);
+            }
         }
     });
 
-    // Обработчик клика по подсказке
-    $suggestionsBox.on('click', '.suggestion-item', function () {
-        const selectedText = $(this).text();
-        $input.val(selectedText);
-        $suggestionsBox.hide();
-
-        // Вызываем поиск
-        symbolAnalysis(selectedText);
+    // Закрытие кликом вне wrapper
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.btc-info-wrapper').length) {
+            closeAll();
+        }
     });
 
-    // Закрытие подсказок при клике вне формы
-    $(document).on('click', function (e) {
-        if (!$(e.target).closest('.js-oi-symbol_form').length) {
-            $suggestionsBox.hide();
-        }
-    });*/
-
+    // Закрытие на скролле или тач-движении
+    $(window).on('scroll touchmove', closeAll);
 });
