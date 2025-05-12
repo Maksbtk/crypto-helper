@@ -1,54 +1,133 @@
 <?php
 namespace Maksv\Coinmarketcap;
 
-use Bitrix\Main\Loader,
-    Bitrix\Main\Data\Cache;
-
+use Bitrix\Main\Data\Cache;
 
 class Request
 {
-
     protected string $api_key;
-    protected string $url;
+    protected string $url = 'https://pro-api.coinmarketcap.com';
 
-    public function __construct($apiKey = false, $secretKey = false)
+    public function __construct(string $apiKey = '')
     {
-        $this->api_key = \Maksv\Keys::COINMARKETCUP_API_KEY;
+        // Используем API-ключ из настроек, если не передан
+        $this->api_key = $apiKey ?: \Maksv\Keys::COINMARKETCUP_API_KEY;
     }
 
-    public function httpReq($endpoint, $parameters, $useCache = false, $cacheTime = 120)
+    /**
+     * Выполняет HTTP-запрос к CoinMarketCap API
+     * @param string $endpoint
+     * @param array  $parameters
+     * @param bool   $useCache
+     * @param int    $cacheTime (секунд)
+     * @return string JSON-строка ответа
+     */
+    protected function httpReq(string $endpoint, array $parameters = [], bool $useCache = false, int $cacheTime = 120): string
     {
-        $cache = \Bitrix\Main\Data\Cache::createInstance();
-        $cacheID = md5('httpReq|' . $endpoint . implode('|', $parameters));
-        $res = [];
-        if ($useCache && $cache->initCache($cacheTime, $cacheID)){
-            $res = $cache->getVars();
-        } elseif ($cache->startDataCache()) {
+        $cache    = Cache::createInstance();
+        $cacheID  = md5('cmc|' . $endpoint . '|' . implode('|', $parameters));
+        $response = '';
 
-            $url = 'https://pro-api.coinmarketcap.com' . $endpoint;
+        if ($useCache && $cache->initCache($cacheTime, $cacheID)) {
+            $response = $cache->getVars();
+            echo '<pre>'; var_dump('cache y'); echo '</pre>';
+
+        } elseif ($cache->startDataCache()) {
+            $url     = $this->url . $endpoint . '?' . http_build_query($parameters);
             $headers = [
                 'Accepts: application/json',
-                'X-CMC_PRO_API_KEY: ' . $this->api_key
+                'X-CMC_PRO_API_KEY: ' . $this->api_key,
             ];
 
-            $qs = http_build_query($parameters); // query string encode the parameters
-            $request = "{$url}?{$qs}"; // create the request URL
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_HTTPHEADER     => $headers,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+            ]);
 
-            $curl = curl_init(); // Get cURL resource
-            // Set cURL options
-            curl_setopt_array($curl, array(
-                CURLOPT_URL => $request,            // set the request URL
-                CURLOPT_HTTPHEADER => $headers,     // set the headers
-                CURLOPT_RETURNTRANSFER => 1         // ask for raw response instead of bool
-            ));
+            $response = curl_exec($ch);
+            curl_close($ch);
 
-            $response = curl_exec($curl); // Send the request, save the response
-            curl_close($curl); // Close request
-
-            $res = $response;
-            $cache->endDataCache($res);
+            $cache->endDataCache($response);
         }
-        return $res; // print json decoded response
+
+        return $response;
+    }
+
+    /**
+     * Универсальный метод для получения исторических OHLCV данных через CMC
+     * @param string      $symbol     Символ (например, 'TOTAL' или 'TOTAL2')
+     * @param string      $interval   Интервал: '5m', '15m', 'hourly', 'daily'
+     * @param int         $count      Количество точек (до 1000)
+     * @param string|null $timeStart  ISO8601 или Unix timestamp
+     * @param string|null $timeEnd    ISO8601 или Unix timestamp
+     * @param string      $convert    Валюта конвертации ('USD' по умолчанию)
+     * @param bool        $useCache   Использовать кэш?
+     * @param int         $cacheTime  Время жизни кэша в секундах
+     * @return array      Распарсенный ответ
+     */
+    public function ohlcvHistorical(
+        string $symbol,
+        string $interval,
+        int $count = 200,
+        ?string $timeStart = null,
+        ?string $timeEnd = null,
+        string $convert = 'USD',
+        bool $useCache = true,
+        int $cacheTime = 120
+    ): array {
+        $endpoint   = '/v1/cryptocurrency/ohlcv/historical';
+        $params     = [
+            'symbol'   => $symbol,
+            'interval' => $interval,
+            'count'    => $count,
+            'convert'  => $convert,
+        ];
+        if ($timeStart) $params['time_start'] = $timeStart;
+        if ($timeEnd)   $params['time_end']   = $timeEnd;
+
+        $json = $this->httpReq($endpoint, $params, $useCache, $cacheTime);
+        $data = json_decode($json, true);
+
+        // Проверка на ошибки
+        if (empty($data['data']['quotes']) || !is_array($data['data']['quotes'])) {
+            throw new \RuntimeException('CMC ohlcv error: ' . ($data['status']['error_message'] ?? 'no data'));
+        }
+
+        // Преобразуем массив quotes в плоский список свечей
+        $candles = array_map(function($quote) {
+            return [
+                't' => $quote['time_open'],
+                'o'     => $quote['quote']['USD']['open'],
+                'h'     => $quote['quote']['USD']['high'],
+                'l'      => $quote['quote']['USD']['low'],
+                'c'    => $quote['quote']['USD']['close'],
+                'v'   => $quote['quote']['USD']['volume'],
+            ];
+        }, $data['data']['quotes']);
+
+        return $candles;
+    }
+
+    /**
+     * Получить массив последних 5-минутных свечей для Total Market Cap Excluding Top10
+     * @param int  $count
+     * @return array
+     */
+    public function getTotalExTop10_5m(int $count = 200, ): array
+    {
+        return $this->ohlcvHistorical('OTHERS', '5m', $count);
+    }
+
+    /**
+     * Получить массив последних 15-минутных свечей для Total Market Cap Excluding Top10
+     * @param int  $count
+     * @return array
+     */
+    public function getTotalExTop10_15m(int $count = 200): array
+    {
+        return $this->ohlcvHistorical('TOTAL3', '15m', $count);
     }
 
     public function cryptocurrencyQuotesLatest($slug) {
@@ -63,46 +142,6 @@ class Request
     public function fearGreedLatest() {
         $endpoint = '/v3/fear-and-greed/latest';
         return json_decode($this->httpReq($endpoint, []),true);
-    }
-
-    /**
-     * Универсальный метод для исторических OHLCV-данных
-     *
-     * @param string      $symbol     Символ (например, 'OTHERS' для Crypto Total Market Cap Excluding Top 10)
-     * @param string      $interval   Интервал: '5m', '15m', 'hourly', 'daily' и т.д.
-     * @param int         $count      Количество последних точек (например, 400)
-     * @param string|null $timeStart  Начало периода в формате ISO 8601 или Unix-timestamp (опционально)
-     * @param string|null $timeEnd    Конец периода в формате ISO 8601 или Unix-timestamp (опционально)
-     * @param string      $convert    Валюта конвертации (по умолчанию 'USD')
-     *
-     * @return array      Распарсенный JSON-ответ с массивом свечей
-     *
-     * @see https://pro-api.coinmarketcap.com/v1/cryptocurrency/ohlcv/historical :contentReference[oaicite:0]{index=0}
-     */
-    public function ohlcvHistorical(
-        string $symbol,
-        string $interval,
-        int $count,
-        ?string $timeStart = null,
-        ?string $timeEnd = null,
-        string $convert = 'USDT',
-        bool $useCache = false,
-        int $cacheTime = 120,
-    ): array {
-        $endpoint = '/v1/cryptocurrency/ohlcv/historical';
-        $parameters = [
-            'symbol'   => $symbol,
-            'interval' => $interval,
-            'count'    => $count,
-            'convert'  => $convert,
-        ];
-        if ($timeStart) {
-            $parameters['time_start'] = $timeStart;
-        }
-        if ($timeEnd) {
-            $parameters['time_end'] = $timeEnd;
-        }
-        return json_decode($this->httpReq($endpoint, $parameters, $useCache, $cacheTime), true);
     }
 
 }

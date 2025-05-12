@@ -265,9 +265,8 @@ foreach ($volumes as $symbol => $volume) {
         $volumesBTC = $volume;
     }
 
-    //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 1, 0.9, 0.59);
-    $analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
-    //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.64, 0.64);
+    $analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 6, 0.2, 0.3);
+    //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
     $analyzeVolumeSignalRes['symbol'] = $symbol;
 
     if ($analyzeVolumeSignalRes['isLong'])
@@ -287,6 +286,11 @@ uasort($signals['short'], function($a, $b) {
 $endTime = date("H:i:s");
 
 global $USER;
+
+
+
+/*$coinmarketcapOb = new \Maksv\Coinmarketcap\Request();
+$others15m = $coinmarketcapOb->getTotalExTop10_5m(200);*/
 
 ?>
 <script>

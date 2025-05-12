@@ -5,7 +5,7 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 <?php
 global $USER;
 
-Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", true);
+Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2", true);
 ?>
 <div class="h2">Master сигналы</div>
 
@@ -187,9 +187,16 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", 
                 <span class="js-timeMark-actuality">
                     <?=$strtagyItem['FORMATTED_NAME']?>
                 </span>
-                <?if ($strtagyItem['INFO']['BTC_INFO']['infoText']):?>
-                    <br><?=($strtagyItem['INFO']['BTC_INFO']['infoText']);?>
-                <?endif;?>
+
+                <?php if ($strtagyItem['INFO']['BTC_INFO']['infoText']): ?>
+                    <div class="btc-info-wrapper">
+                        <a class="info-icon">BTC</a>
+
+                        <div class="btc-info-block">
+                            <?= nl2br(htmlspecialchars($strtagyItem['INFO']['BTC_INFO']['infoText'])); ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -216,8 +223,15 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", 
                             <td data-name="symbolName">
                                 <?=$item['symbolName']?>
                                 <br><?=$item['strategy']?>
+
+                                <?if ($item['oiLimits']['longOiLimit']):?>
+                                    <br>oi limit: <?=round($item['oiLimits']['longOiLimit'], 2)?>
+                                <?endif;?>
                                 <?if ($item['actualAdx']):?>
-                                    <br>adx: <?=round($item['actualAdx'], 2)?>
+                                    <br>adx: dir <?=$item['actualAdx']['adxDirection']['adxDir']?> / trend <?=$item['actualAdx']['trendDirection']['trendDir']?> (<?= round($item['actualAdx']['adx'], 1)?>)
+                                <?endif;?>
+                                <?if ($item['calculateRiskTargetsWithATR']['tpMultipliers']):?>
+                                    <br>atr m: <?=implode(', ',$item['calculateRiskTargetsWithATR']['tpMultipliers'])?>
                                 <?endif;?>
                             </td>
                             <td data-name="targets">
@@ -227,6 +241,10 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", 
                                 <?if ($item['recommendedEntry']):?>
                                     (Recommended entry <?=$item['recommendedEntry']?>)<br>
                                 <?endif;?>
+                                <?if ($item['tpCount']['longTpCount']):?>
+                                    (Recommended tp count <?=$item['tpCount']['longTpCount']?>)<br>
+                                <?endif;?>
+
 
                                 <?if ($item['TP']):?>
                                     <br>Profit Targets:<br>
@@ -280,8 +298,14 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", 
                             <td data-name="symbolName">
                                 <?=$item['symbolName']?>
                                 <br><?=$item['strategy']?>
+                                <?if ($item['oiLimits']['shortOiLimit']):?>
+                                    <br>oi limit: <?=round($item['oiLimits']['shortOiLimit'], 2)?>
+                                <?endif;?>
                                 <?if ($item['actualAdx']):?>
-                                    <br>adx: <?=round($item['actualAdx'], 2)?>
+                                    <br>adx: dir <?=$item['actualAdx']['adxDirection']['adxDir']?> / trend <?=$item['actualAdx']['trendDirection']['trendDir']?> (<?= round($item['actualAdx']['adx'], 1)?>)
+                                <?endif;?>
+                                <?if ($item['calculateRiskTargetsWithATR']['tpMultipliers']):?>
+                                    <br>atr m: <?=implode(', ',$item['calculateRiskTargetsWithATR']['tpMultipliers'])?>
                                 <?endif;?>
                             </td>
                             <td data-name="targets">
@@ -290,6 +314,9 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", 
                                 <?endif;?>
                                 <?if ($item['recommendedEntry']):?>
                                     (Recommended entry <?=$item['recommendedEntry']?>)<br>
+                                <?endif;?>
+                                <?if ($item['tpCount']['shortTpCount']):?>
+                                    (Recommended tp count <?=$item['tpCount']['shortTpCount']?>)<br>
                                 <?endif;?>
 
                                 <?if ($item['TP']):?>

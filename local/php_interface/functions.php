@@ -26,12 +26,12 @@ function agentBybitRespDev()
 {
     //\Maksv\Bybit\Exchange::bybitExchange('15m', 0.1, true);
     //bybitExch15m();
-    //\Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49, true);
+    \Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49, true);
     //\Maksv\Bybit\Exchange::bybitSummaryVolumeExchange(true);
     //\Maksv\Bybit\Exchange::bybitExchange('1d', 0.99, -0.99, true);
     //\Maksv\Bybit\Exchange::sendBtcCharts();
     //\Maksv\Bybit\Exchange::btcDOthersExchange();
-    \Maksv\Bybit\Exchange::oiBorderExchange('15m', 720, 1, 16, 2,5, -2.5, true);
+    //\Maksv\Bybit\Exchange::oiBorderExchange('15m', 720, 1, 16, 2,5, -2.5, true);
 
     return "agentBybitRespDev();";
 }
@@ -78,7 +78,7 @@ function bybitExhc1d()
         //собираем инфу о монетках
         \Maksv\Bybit\Exchange::bybitExchange('1d', 33, -33);
         //собираем инфу об oi
-        \Maksv\Bybit\Exchange::oiBorderExchange('15m', 240, 1, 16, 2,5, -2.5, true);
+        \Maksv\Bybit\Exchange::oiBorderExchange('15m', 240, 1, 16, 2,5, -2.5);
         //\Maksv\Bybit\Exchange::oiBorderExchange('5m', 720, 3, 48, 2.5, -2.5);
     }
 
@@ -265,4 +265,42 @@ function convertExponentialToDecimal($number) {
     $decimal = rtrim($decimal, '0');
     $decimal = rtrim($decimal, '.');
     return $decimal;
+}
+
+
+function formatBigNumber($number) {
+    // запомним знак
+    $sign = $number < 0 ? '-' : '';
+    $abs = abs($number);
+
+    if ($abs >= 1e9) {
+        // миллиарды с двумя десятичными (triming)
+        $value = $abs / 1e9;
+        $formatted = number_format($value, 2, ',', '');
+        $formatted = rtrim(rtrim($formatted, '0'), ',');
+        return $sign . $formatted . 'B';
+    } elseif ($abs >= 1e6) {
+        // миллионы
+        $value = $abs / 1e6;
+        if ($value >= 100) {
+            $formatted = floor($value);
+        } else {
+            $formatted = number_format($value, 1, ',', '');
+            $formatted = rtrim(rtrim($formatted, '0'), ',');
+        }
+        return $sign . $formatted . 'M';
+    } elseif ($abs >= 1e3) {
+        // тысячи, округление до целого
+        $value = round($abs / 1e3);
+        return $sign . $value . 'K';
+    } else {
+        // меньше тысячи — оставляем как есть, с одним десятичным, если нужно
+        if (floor($abs) != $abs) {
+            $formatted = number_format($abs, 1, ',', '');
+            $formatted = rtrim(rtrim($formatted, '0'), ',');
+        } else {
+            $formatted = (string)$abs;
+        }
+        return $sign . $formatted;
+    }
 }

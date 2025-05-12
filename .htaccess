@@ -8,6 +8,11 @@ php_value max_input_vars 10000
 #AuthUserFile /home/c/cz06737izol/crypto/.htpasswd
 #Require valid-user
 
+#<IfModule mod_headers.c>
+    # Убираем заголовок X-Powered-CMS из всех ответов
+    #Header always unset X-Powered-CMS
+#</IfModule>
+
 <IfModule mod_rewrite.c>
   Options +FollowSymLinks
   RewriteEngine On

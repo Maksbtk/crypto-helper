@@ -95,7 +95,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
 
             $zoneCandles = [];
             $lastClosePrice = 0;
-            $countCandles = 252;
+            $countCandles = 500;
 
             if ($_REQUEST['onlyZones'] == 'false') {
 
@@ -104,44 +104,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                     $res['summaryOpenInterestOb'][$timeframeKeyMap[$timeframe]] = $summaryOpenInterestOb ?? [];
                     $res['OI'][$timeframeKeyMap[$timeframe]] = $summaryOpenInterestOb['summaryOI'] ?? 0;
 
-                    if ($timeframe == '15m') {
-
-                        $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/summaryVolumeExchange.json';
-                        $existingDataSparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
-                        $separateVolume = array_reverse($existingDataSparateVolume[$symbol]['resBybit']) ?? [];
-
-                        $chartGen = new \Maksv\Charts\CvdChartGenerator();
-                        $chartsDir = $_SERVER["DOCUMENT_ROOT"] . '/upload/charts/cvd/';
-                        if (!is_dir($chartsDir))
-                            mkdir($chartsDir);
-
-                        $tempChartPath = $chartsDir . time() . '_' . $timeframe .  '.png';
-                        //$chartGen->generateChart($separateVolume, $symbol, $timeframe, $tempChartPath);
-
-                        /*$summaryVolume = \Maksv\Bybit\Exchange::getSummaryVolume($symbol, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList);
-                        $res['summaryVolume'] = $summaryVolume ?? [];*/
-
-                    }
-
-                    //$res['OI'][$timeframeKeyMap[$timeframe]] = $summaryOpenInterestOb['summaryOI'] ?? 0;
-
-                    /*$openInterest = 0;
-                    $openInterestResp = $bybitApiOb->openInterest($symbol, 'linear', $timeframe, '2', true, 120);
-                    if ($openInterestResp['result']['list'] && is_array($openInterestResp['result']['list']) && count($openInterestResp['result']['list']) >= 2) {
-                        $lastInterest = $openInterestResp['result']['list'][0]['openInterest'];
-                        $prevInterest = $openInterestResp['result']['list'][1]['openInterest'];
-                        $openInterest = round(($lastInterest / ($prevInterest / 100)) - 100, 2);
-
-                        $res['timestapOI'][$timeframeKeyMap[$timeframe]] = date("d.m H:i", $openInterestResp['result']['list'][1]['timestamp'] / 1000) . ' - ' . date("d.m H:i", $openInterestResp['result']['list'][0]['timestamp'] / 1000);
-                        //$res['OIList'][$timeframeKeyMap[$timeframe]] = $openInterestResp['result']['list'];
-                        $res['OI'][$timeframeKeyMap[$timeframe]] = $openInterest;
-                    } else {
-                        $err = 'Не удалось получить OI для ' . $symbol;
-                        break;
-                    }*/
-
-                    if ($timeframe == $zonesTf)
-                        $countCandles = 362;
+                    if ($timeframe == $zonesTf || $timeframe == '15m' || $timeframe == '5m')
+                        $countCandles = 462;
 
                     $kline = $bybitApiOb->klineV5("linear", $symbol, $timeframe, $countCandles, true, 60);
                     $crossMA = $sarData = false;
@@ -206,15 +170,15 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
 
                             );
 
-                            $last20 = array_slice($candles, -30);
+                            /*$last20 = array_slice($candles, -30);
                             $candlesDev = array_slice($last20, 0, -13);
-                            $res['$candlesDev'][$timeframeKeyMap[$timeframe]] = $candlesDev;
+                            $res['$candlesDev'][$timeframeKeyMap[$timeframe]] = $candlesDev;*/
 
-                            $determineEntryPoint = \Maksv\TechnicalAnalysis::determineEntryPoint(0.015, $candlesDev, 'long');
-                            $res['determineEntryPoint'][$timeframeKeyMap[$timeframe]] = $determineEntryPoint;
+                            /*$determineEntryPoint = \Maksv\TechnicalAnalysis::determineEntryPoint(0.015, $candlesDev, 'long');
+                            $res['determineEntryPoint'][$timeframeKeyMap[$timeframe]] = $determineEntryPoint;*/
 
-                            $calculateRiskTargetsWithATR = \Maksv\TechnicalAnalysis::calculateRiskTargetsWithATR(0.01342399669999999948,    0.879, 0.957, 'short');
-                            $res['calculateRiskTargetsWithATR'][$timeframeKeyMap[$timeframe]] = $calculateRiskTargetsWithATR;
+                            /*$calculateRiskTargetsWithATR = \Maksv\TechnicalAnalysis::calculateRiskTargetsWithATR(0.01342399669999999948,    0.879, 0.957, 'short');
+                            $res['calculateRiskTargetsWithATR'][$timeframeKeyMap[$timeframe]] = $calculateRiskTargetsWithATR;*/
 
                             $ADXData = \Maksv\TechnicalAnalysis::calculateADX($candles);
                             $res['ADXData'][$timeframeKeyMap[$timeframe]] = $ADXData;
@@ -241,6 +205,10 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
 
                             /*$detectFlat = \Maksv\TechnicalAnalysis::detectFlat($candles);
                             $res['detectFlat'][$timeframeKeyMap[$timeframe]] = $detectFlat;*/
+
+                            $detectHeadAndShouldersRes = \Maksv\PatternDetector::detectHeadAndShoulders($candles, 3, 2.0, 0.5);
+                            $res['detectHeadAndShouldersRes'][$timeframeKeyMap[$timeframe]] = $detectHeadAndShouldersRes;
+
 
                         } catch (Exception $e) {
                             $res['err'][$timeframeKeyMap[$timeframe]][] = $e->getMessage();
