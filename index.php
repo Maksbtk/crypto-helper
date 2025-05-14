@@ -238,10 +238,13 @@ $bybitApiOb->closeConnection();*/
     <h1 class="main-title">Инструмент для торговли на бирже - Crypto helper</h1>
 <?global $USER;?>
 <?if ($USER->IsAdmin()):?>
-    <div>
-        <?=htmlentities(\Maksv\Bybit\Exchange::checkBtcImpulsInfo()['infoText'])?>
+    <div style="display: flex;justify-content: center;">
+        <?=nl2br(\Maksv\Bybit\Exchange::checkBtcImpulsInfo()['infoText'])?>
     </div>
     <br><br>
+    <div style="display: flex;justify-content: center;">
+        <?=nl2br(\Maksv\Bybit\Exchange::checkMarketImpulsInfo()['infoText'])?>
+    </div>
 <?endif;?>
 <?php
 

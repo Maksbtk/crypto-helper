@@ -193,3 +193,26 @@ class CHOrderHandlers
         }
 }
 
+\Bitrix\Main\EventManager::getInstance()->addEventHandler(
+    'main',
+    'OnEpilog',
+    'ProjectSettings::changeHeaders'
+);
+
+class ProjectSettings{
+    // спрятать cmc демо ключ
+    public static function changeHeaders() {
+        header("X-Powered-CMS: " . base64_encode('haha'), true);
+
+    }
+}
+//прячем ключик
+/*AddEventHandler("main", "OnBeforeProlog", "ChangeHeaders");
+function ChangeHeaders() {
+    header("X-Powered-CMS: " . base64_encode('haha'), true);
+}*/
+/*AddEventHandler("main", "OnEpilog", "ChangeHeaders");
+function ChangeHeaders() {
+    header("X-Powered-CMS: " . base64_encode('haha'), true);
+}*/
+

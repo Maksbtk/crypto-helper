@@ -20,8 +20,6 @@ class DataOperation
         $message .= "ℹ info " . $timeFrame . " ⏰" . DataOperation::actualDateFormatted() . "\n\n";
 
         if ($btcInfo['infoText']) {
-
-            $message .= 'btc info:' . "\n";
             $message .= $btcInfo['infoText'];
         }
 
