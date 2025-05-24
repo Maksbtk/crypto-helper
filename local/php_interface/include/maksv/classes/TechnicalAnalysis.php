@@ -219,32 +219,85 @@ class TechnicalAnalysis
     }
 
     /**
-     * Отдельный метод для расчета полос Боллинджера.
-     * Этот метод не зависит от checkMACross и может вызываться отдельно.
+     * Рассчет полос Боллинджера и ширины в процентах
      *
-     * @param array $prices Массив цен (обычно последние $length значений)
-     * @return array Ассоциативный массив с ключами:
-     *               'middle_band', 'upper_band', 'lower_band'
+     * @param array $candles Массив свечей, каждая свеча содержит ключи 't','o','h','l','c','v'
+     * @param int   $length  Период скользящей средней (по умолчанию 20)
+     * @param int   $factor  Коэффициент стандартного отклонения (по умолчанию 2)
+     *
+     * @return array Возвращает ассоциативный массив с ключами:
+     *               - 'middle_band' (float) — скользящая средняя
+     *               - 'upper_band'  (float) — верхняя полоса
+     *               - 'lower_band'  (float) — нижняя полоса
+     *               - 'bandwidth_pct' (float) — ширина полосы в процентах от средней
+     *               - 'error'       (string) — сообщение об ошибке (при недостатке данных)
      */
-    protected static function calculateBollingerBands(array $prices): array {
-        $length = 20;
-        $factor = 2;
-        if (count($prices) < $length) {
-            throw new \InvalidArgumentException("Not enough prices to calculate Bollinger Bands");
+    public static function calculateBollingerBands(array $candles, int $length = 20, int $factor = 2): array {
+        $total = count($candles);
+        $results = [];
+
+        if ($total < $length) {
+            return ['error' => "Недостаточно данных: требуется {$length} свечей, передано {$total}"];
         }
-        $sma = array_sum($prices) / $length;
-        $variance = 0;
-        foreach ($prices as $price) {
-            $variance += pow($price - $sma, 2);
+
+        // Проходим по каждой свече, начиная с индекса length-1
+        for ($i = $length - 1; $i < $total; $i++) {
+            // Берём окно последних $length свечей до текущей (включительно)
+            $window = array_slice($candles, $i - $length + 1, $length);
+            $closes = array_column($window, 'c');
+
+            // Скользящая средняя
+            $sma = array_sum($closes) / $length;
+
+            // Стандартное отклонение
+            $variance = 0.0;
+            foreach ($closes as $price) {
+                $variance += ($price - $sma) ** 2;
+            }
+            $variance /= $length;
+            $stdDev = sqrt($variance);
+
+            // Полосы
+            $upper = $sma + $factor * $stdDev;
+            $lower = $sma - $factor * $stdDev;
+
+            // Текущая цена закрытия
+            $currentPrice = $candles[$i]['c'];
+            $oscillatorPrice = $currentPrice - $sma;
+
+            // Ширина полос в % от SMA
+            $bandwidthPct = ($upper - $lower) / $sma * 100;
+
+            // %B осциллятор
+            $percentB = ($upper !== $lower)
+                ? ($currentPrice - $lower) / ($upper - $lower) * 100
+                : 0.0;
+
+
+
+            //timestamp;
+            $milliseconds = $candles[$i]['t'];
+            $seconds = $milliseconds / 1000;
+            $timestamp = date("H:i d.m", $seconds);
+            // Сохраняем результат
+            $results[] = [
+                't'             => $timestamp,
+                'price'         => [
+                    'middle_band' => $sma,
+                    'upper_band'  => $upper,
+                    'lower_band'  => $lower,
+                    'oscillator'  => $oscillatorPrice,
+                ],
+                'percent'       => [
+                    'oscillator'  => $percentB,
+                ],
+                'bandwidth_pct' => $bandwidthPct,
+            ];
         }
-        $variance /= $length;
-        $stdDev = sqrt($variance);
-        return [
-            'middle_band' => $sma,
-            'upper_band' => $sma + ($factor * $stdDev),
-            'lower_band' => $sma - ($factor * $stdDev)
-        ];
+
+        return $results;
     }
+
 
     public static function checkMACrossDev(array $prices, int $shortPeriod = 9, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
     {
@@ -752,95 +805,6 @@ class TechnicalAnalysis
         return $result;
     }
 
-/*    public static function calculateStochasticRSI(array $candles, int $rsiPeriod = 14, int $stochPeriod = 14, int $smoothK = 3, int $smoothD = 3, $stepK = 3, $stepKD = 8): array
-    {
-        $closingPrices = array_column($candles, 'c');
-
-        // Проверка на наличие достаточного количества данных
-        $minRequired = $rsiPeriod + $stochPeriod + max($smoothK, $smoothD) - 1;
-        if (count($candles) < $minRequired) {
-            return [];
-        }
-
-        // 1. Расчёт RSI
-        $rsi = [];
-        $gains = [];
-        $losses = [];
-        for ($i = 1; $i < count($closingPrices); $i++) {
-            $change = $closingPrices[$i] - $closingPrices[$i - 1];
-            $gains[] = max($change, 0);
-            $losses[] = max(-$change, 0);
-        }
-
-        $avgGain = array_sum(array_slice($gains, 0, $rsiPeriod)) / $rsiPeriod;
-        $avgLoss = array_sum(array_slice($losses, 0, $rsiPeriod)) / $rsiPeriod;
-
-        for ($i = $rsiPeriod; $i < count($gains); $i++) {
-            $avgGain = (($avgGain * ($rsiPeriod - 1)) + $gains[$i]) / $rsiPeriod;
-            $avgLoss = (($avgLoss * ($rsiPeriod - 1)) + $losses[$i]) / $rsiPeriod;
-
-            $rs = $avgLoss == 0 ? 100 : $avgGain / $avgLoss;
-            $rsi[] = $avgLoss == 0 ? 100 : 100 - (100 / (1 + $rs));
-        }
-
-        // 2. Расчёт Stochastic RSI
-        $stochRSI = [];
-        for ($i = $stochPeriod - 1; $i < count($rsi); $i++) {
-            $minRSI = min(array_slice($rsi, $i - $stochPeriod + 1, $stochPeriod));
-            $maxRSI = max(array_slice($rsi, $i - $stochPeriod + 1, $stochPeriod));
-            $stochRSI[] = ($maxRSI - $minRSI == 0) ? 0 : ($rsi[$i] - $minRSI) / ($maxRSI - $minRSI) * 100;
-        }
-
-        // 3. Сглаживание %K
-        $smoothedK = [];
-        for ($i = $smoothK - 1; $i < count($stochRSI); $i++) {
-            $smoothedK[] = array_sum(array_slice($stochRSI, $i - $smoothK + 1, $smoothK)) / $smoothK;
-        }
-
-        // 4. Сглаживание %D
-        $smoothedD = [];
-        for ($i = $smoothD - 1; $i < count($smoothedK); $i++) {
-            $smoothedD[] = array_sum(array_slice($smoothedK, $i - $smoothD + 1, $smoothD)) / $smoothD;
-        }
-
-        // 5. Формирование результата
-        $result = [];
-        for ($i = max($rsiPeriod + $stochPeriod + $smoothK - 1, $rsiPeriod + $stochPeriod + $smoothD - 1); $i < count($candles); $i++) {
-            $indexK = $i - ($rsiPeriod + $stochPeriod + $smoothK - 1);
-            $indexD = $i - ($rsiPeriod + $stochPeriod + $smoothD - 1);
-
-            $smoothedKVal = $smoothedK[$indexK] ?? null;
-            $smoothedDVal = $smoothedD[$indexD - ($smoothK - 1)] ?? null;
-
-            $previewSmoothedKVal = $smoothedK[$indexK - 1] ?? null;
-            $previewSmoothedDVal = $smoothedD[$indexD - $smoothK] ?? null;
-
-
-            $isKLong = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal > $previewSmoothedDVal && $smoothedKVal > $smoothedDVal && $smoothedKVal > $previewSmoothedKVal && (($smoothedKVal - $previewSmoothedKVal) >= $stepK) && $smoothedKVal <= 70;
-            $isKDLong = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < $previewSmoothedDVal && $smoothedKVal > $smoothedDVal && (($smoothedKVal - $previewSmoothedKVal) >= $stepK) && $smoothedKVal <= 70;
-            $isHalfLong = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal > $previewSmoothedDVal && $smoothedKVal > $previewSmoothedKVal && $smoothedKVal > $smoothedDVal && $previewSmoothedKVal < 50 && $smoothedKVal > 50 && (($smoothedKVal - $previewSmoothedKVal) >= $stepK);
-            $isKBorderLong = false;//isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < 20 && $smoothedKVal >= 20 && $smoothedKVal > $smoothedDVal;
-
-            $isKShort = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < $previewSmoothedDVal && $smoothedKVal < $smoothedDVal && $smoothedKVal < $previewSmoothedKVal && (($previewSmoothedKVal - $smoothedKVal) >= $stepK) && $smoothedKVal >= 30;
-            $isKDShort = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal > $previewSmoothedDVal && $smoothedKVal < $smoothedDVal && (($previewSmoothedKVal- $smoothedKVal) >= $stepK) && $smoothedKVal >= 30;
-            $isHalfShort = isset($previewSmoothedDVal, $previewSmoothedKVal, $smoothedKVal, $smoothedDVal) && $previewSmoothedKVal < $previewSmoothedDVal && $smoothedKVal < $previewSmoothedKVal && $smoothedKVal < $smoothedDVal && $previewSmoothedKVal > 50 && $smoothedKVal < 50  && (($previewSmoothedKVal - $smoothedKVal) >= $stepK);
-            $isKBorderShort = false;//isset($previewSmoothedKVal) && $previewSmoothedKVal > 80 && $smoothedKVal <= 80 && $smoothedKVal < $smoothedDVal;
-
-            $result[] = [
-                'close' => $candles[$i]['c'],
-                '%K' => $smoothedKVal,
-                '%D' => $smoothedDVal,
-                'isLong' => $isKDLong || $isKBorderLong || $isKLong || $isHalfLong,
-                'longStep' => round($smoothedKVal - $previewSmoothedKVal, 1),
-                'shortStep' => round($previewSmoothedKVal - $smoothedKVal, 1),
-                'longTypeAr' => ['isKDLong' => $isKDLong, 'isKBorderLong' => $isKBorderLong, 'isKLong' => $isKLong, 'isHalfLong' => $isHalfLong],
-                'isShort' => $isKDShort || $isKBorderShort || $isKShort || $isHalfShort,
-                'shortTypeAr' => ['isKDShort' => $isKDShort, 'isKBorderShort' => $isKBorderShort, 'isKShort' => $isKShort, 'isHalfShort' => $isHalfShort],
-            ];
-        }
-
-        return $result;
-    }*/
     public static function calculateStochasticRSI(
         array $candles,
         int $rsiPeriod = 14,
@@ -1828,7 +1792,7 @@ class TechnicalAnalysis
      *
      * @throws \Exception Если недостаточно данных
      */
-    public static function analyzeImpulseMACD(array $candles, int $lengthMA = 34, int $lengthSignal = 9): array
+    public static function analyzeImpulseMACD(array $candles, int $lengthMA = 34, int $lengthSignal = 9, $rangeSignals = 3): array
     {
         $count = count($candles);
         if ($count < $lengthMA + $lengthSignal) {
@@ -1922,6 +1886,32 @@ class TechnicalAnalysis
         // Гистограмма
         $histogram = array_map(fn($m, $s) => isset($m, $s) ? $m - $s : null, $md, $signal);
 
+
+        // Рассчитываем серии подряд идущих положительных/отрицательных гистограмм
+        $longStreaks = [];
+        $shortStreaks = [];
+        $currentLong = 0;
+        $currentShort = 0;
+        foreach ($histogram as $h) {
+            if ($h !== null) {
+                if ($h > 0) {
+                    $currentLong++;
+                    $currentShort = 0;
+                } elseif ($h < 0) {
+                    $currentShort++;
+                    $currentLong = 0;
+                } else {
+                    $currentLong = 0;
+                    $currentShort = 0;
+                }
+            } else {
+                $currentLong = 0;
+                $currentShort = 0;
+            }
+            $longStreaks[] = $currentLong;
+            $shortStreaks[] = $currentShort;
+        }
+
         // Формируем результат с определением тренда
         $result = [];
         foreach ($candles as $i => $c) {
@@ -1949,12 +1939,44 @@ class TechnicalAnalysis
                 }
             }
 
+            // Определяем isLong и isShort по 2 барам гистограммы
+            $isLong = false;
+            $isShort = false;
+
+            // текущая и предыдущая гистограммы
+            $h0 = $histogram[$i]   ?? null;
+            $h1 = $histogram[$i-1] ?? null;
+
+            // Получаем текущие длины серий
+            $currentLongStreak = $longStreaks[$i] ?? 0;
+            $currentShortStreak = $shortStreaks[$i] ?? 0;
+
+            if ($longDirection && $h0 > 0 && isset($h1) && $currentLongStreak <= $rangeSignals) {
+                if (
+                    ($h1 === 0 && $h0 > 0) // Вариант 1: предыдущая = 0, текущая > 0
+                    || ($h1 > 0 && $h0 > $h1) // Вариант 2: оба >0 и текущая > предыдущей
+                ) {
+                    $isLong = true;
+                }
+            }
+            elseif ($shortDirection && $h0 < 0 && isset($h1) && $currentShortStreak <= $rangeSignals) {
+                if (
+                    ($h1 === 0 && $h0 < 0) // Вариант 1: предыдущая = 0, текущая < 0
+                    || ($h1 < 0 && $h0 < $h1) // Вариант 2: оба <0 и текущая < предыдущей
+                ) {
+                    $isShort = true;
+                }
+            }
+
             $result[] = [
                 'timestamp'    => $dt->format('H:i d.m'),
+                'isLong'        => $isLong,
+                'isShort'        => $isShort,
                 'close'        => $c['c'],
                 'impulse_macd' => $md[$i]        ?? null,
                 'signal_line'  => $signal[$i]    ?? null,
                 'histogram'    => $histogram[$i] ?? null,
+                'histogram_ar_3'    => [$h0, $h1],
                 'trend'        => [
                     'longDirection' => $longDirection,
                     'shortDirection' => $shortDirection,
@@ -2697,9 +2719,9 @@ class TechnicalAnalysis
             $baseStopLoss = $lastExtreme * (1 - $offsetPercent / 100);
             $risk = $entryPrice - $baseStopLoss;
             // Если риск меньше ATR, используем ATR
-            if ($risk < $atr * 1.1) {
-                $risk = $atr * 1.1;
-                $stopLoss = $entryPrice - $atr * 1.1;
+            if ($risk < $atr * 2) {
+                $risk = $atr * 2;
+                $stopLoss = $entryPrice - $atr * 2;
             } else {
                 $stopLoss = $baseStopLoss;
             }
@@ -2712,9 +2734,9 @@ class TechnicalAnalysis
             // Расчет базового стоп-лосса для short: lastExtreme с отступом вверх
             $baseStopLoss = $lastExtreme * (1 + $offsetPercent / 100);
             $risk = $baseStopLoss - $entryPrice;
-            if ($risk < $atr * 1.1) {
-                $risk = $atr * 1.1;
-                $stopLoss = $entryPrice + $atr * 1.1;
+            if ($risk < $atr * 2) {
+                $risk = $atr * 2;
+                $stopLoss = $entryPrice + $atr * 2;
             } else {
                 $stopLoss = $baseStopLoss;
             }
@@ -3117,5 +3139,127 @@ class TechnicalAnalysis
         }
 
         return $result;
+    }
+
+    /**
+     * https://www.tradingview.com/script/OxJJqZiN-Pivot-Points-High-Low-Missed-Reversal-Levels-LuxAlgo/
+     * Анализ пивотов и “пропущенных” разворотов по массиву свечей.
+     *
+     * @param array $candles Массив свечей с полями ['t','o','h','l','c','v'].
+     * @param int   $len     «Pivot Length» (количество баров слева и справа для пивота).
+     * @return array Массив того же размера, где для каждой свечи индекс i есть:
+     *   - 'time'             => исходный миллисекундный timestamp,
+     *   - 'time_str'         => "YYYY-MM-DD HH:MM:SS",
+     *   - 'formatted_time'   => "HH:MM",
+     *   - 'is_pivot'         => bool, является ли эта свеча пивотом,
+     *   - 'pivot_type'       => 'high'|'low'|null,
+     *   - 'distance'         => кол-во баров от последнего пивота до i,
+     *   - 'trend_dir'        => 'up'|'down'|null  (после пивота),
+     *   - 'is_missed'        => bool, признак пропущенного разворота,
+     *   - 'last_pivot_price' => цена последнего пивота (high или low),
+     *   - 'last_pivot_idx'   => индекс последнего пивота
+     */
+    /**
+     * Анализ пивотов и «пропущенных» разворотов (упрощённая, но надёжная версия).
+     *
+     * @param array $candles Массив свечей с полями ['t','o','h','l','c','v'].
+     * @param int   $len     Pivot Length (кол‑во баров слева и справа для определения пивота).
+     * @return array Массив того же размера, где для каждой свечи i:
+     *   - time              : исходный миллисекундный timestamp
+     *   - time_str          : «YYYY-MM-DD HH:MM:SS»
+     *   - formatted_time    : «HH:MM»
+     *   - is_pivot          : bool, является ли текущая свеча пивотом
+     *   - pivot_type        : 'high'|'low'|null
+     *   - is_missed         : bool, признак «пропущенного» разворота (повторная смена того же типа)
+     *   - missed_price      : float|null, цена предыдущего пивота (уровень поддержки/сопротивления)
+     *   - last_pivot_idx    : int|null, индекс последней свечи‑пивота
+     *   - last_pivot_price  : float|null, цена последнего пивота
+     *   - trend_dir         : 'up'|'down'|null, направление текущего тренда после пивота
+     *   - distance          : int|null, бары с момента последнего пивота (0 на самом пивоте)
+     */
+    public static function analyzePivotsSimple(array $candles, int $length = 50): array {
+        $n = count($candles);
+        // Результат
+        $res = array_fill(0, $n, [
+            'time'=>null,
+            'pivotHigh'=>false,
+            'pivotLow'=>false,
+            'missedHigh'=>false,
+            'missedLow'=>false,
+            'trend'=>null,
+            'distance'=>null,
+            'levelPrice'=>null,
+        ]);
+
+        // Распакуем для скорости
+        $highs = array_column($candles, 'h');
+        $lows  = array_column($candles, 'l');
+        $times = array_column($candles, 't');
+
+        // 1) Предвычислим pivotHigh/pivotLow по окну length
+        $pivotHigh = array_fill(0, $n, false);
+        $pivotLow  = array_fill(0, $n, false);
+        for ($i = $length; $i < $n - $length; $i++) {
+            $h = $highs[$i];
+            $l = $lows[$i];
+            $isH = true; $isL = true;
+            for ($j = $i - $length; $j <= $i + $length; $j++) {
+                if ($j === $i) continue;
+                if ($highs[$j] >= $h) $isH = false;
+                if ($lows[$j]  <= $l) $isL = false;
+                if (!($isH || $isL)) break;
+            }
+            if ($isH) $pivotHigh[$i] = true;
+            if ($isL) $pivotLow[$i]  = true;
+        }
+
+        // 2) Проходим по свечам и расставляем pivots и missed
+        $os = null;             // 1 = последний pivotHigh, 0 = последний pivotLow
+        $lastIdx  = null;       // индекс последнего pivot (или missed)
+        $lastPrice= null;       // цена последнего уровня
+        for ($i = 0; $i < $n; $i++) {
+            // время в HH:MM
+            $t = $times[$i];
+            $ts = is_numeric($t) && strlen((string)$t)>10 ? intval($t/1000) : intval($t);
+            $res[$i]['time'] = date('H:i', $ts);
+
+            // обычный pivotHigh
+            if ($pivotHigh[$i]) {
+                // если os был 1 — подряд два high → missedLow на предыдущем уровне
+                if ($os === 1 && $lastIdx !== null) {
+                    $res[$lastIdx]['missedLow'] = true;
+                    // заодно обновляем lastIdx/lastPrice
+                    $lastIdx = $lastIdx;
+                    $lastPrice = $lows[$lastIdx];
+                }
+                // ставим pivotHigh здесь
+                $res[$i]['pivotHigh'] = true;
+                $os = 1;
+                $lastIdx = $i;
+                $lastPrice = $highs[$i];
+            }
+
+            // обычный pivotLow
+            if ($pivotLow[$i]) {
+                if ($os === 0 && $lastIdx !== null) {
+                    $res[$lastIdx]['missedHigh'] = true;
+                    $lastIdx = $lastIdx;
+                    $lastPrice = $highs[$lastIdx];
+                }
+                $res[$i]['pivotLow'] = true;
+                $os = 0;
+                $lastIdx = $i;
+                $lastPrice = $lows[$i];
+            }
+
+            // 3) Заполняем trend/distance/levelPrice
+            if ($lastIdx !== null) {
+                $res[$i]['trend'] = $os === 1 ? 'up' : 'down';
+                $res[$i]['distance'] = $i - $lastIdx;
+                $res[$i]['levelPrice'] = $lastPrice;
+            }
+        }
+
+        return $res;
     }
 }

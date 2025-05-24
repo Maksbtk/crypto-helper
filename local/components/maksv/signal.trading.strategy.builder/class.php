@@ -43,6 +43,13 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         if(!($arParams["MARKET_CODE"]))
             $arParams["MARKET_CODE"] = 'bybit';
 
+        $iblockIdMap = [
+            'bybit' => 3,
+            'binance' => 7,
+        ];
+
+        $arParams["IBLOCK_ID"] = $iblockIdMap[$arParams["MARKET_CODE"]];
+
         if(!($arParams["MAIN_CODE"]))
             $arParams["MAIN_CODE"] = 'master';
 
@@ -52,6 +59,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
             $arParams["PROFIT_FILTER"] = false;
 
         $arParams["OI_TIMEFRAMES"] = ['5m', '15m', '30m', '1h', '4h', '1d'];
+
 
         return $arParams;
     }
@@ -206,6 +214,12 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                             /*$detectFlat = \Maksv\TechnicalAnalysis::detectFlat($candles);
                             $res['detectFlat'][$timeframeKeyMap[$timeframe]] = $detectFlat;*/
 
+                            $analyzePivots = \Maksv\TechnicalAnalysis::analyzePivotsSimple($candles);
+                            $res['analyzePivots'][$timeframeKeyMap[$timeframe]] = $analyzePivots;
+
+                            $analyzeBol = \Maksv\TechnicalAnalysis::calculateBollingerBands($candles);
+                            $res['analyzeBol'][$timeframeKeyMap[$timeframe]] = $analyzeBol;
+
                             $detectHeadAndShouldersRes = \Maksv\PatternDetector::detectHeadAndShoulders($candles, 3, 2.0, 0.5);
                             $res['detectHeadAndShouldersRes'][$timeframeKeyMap[$timeframe]] = $detectHeadAndShouldersRes;
 
@@ -338,8 +352,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
             ->setPageSize($this->arParams['PAGE_COUNT'])
             ->initFromUri();
 
-        $propertyStrategiesFileId = $this->getPropertyIdByCode(3, 'STRATEGIES_FILE');
-        $propertyTimeframeId = $this->getPropertyIdByCode(3, 'TIMEFRAME');
+        $propertyStrategiesFileId = $this->getPropertyIdByCode($this->arParams["IBLOCK_ID"], 'STRATEGIES_FILE');
+        $propertyTimeframeId = $this->getPropertyIdByCode($this->arParams["IBLOCK_ID"], 'TIMEFRAME');
 
         if (!$propertyStrategiesFileId || !$propertyTimeframeId) {
             throw new \Exception('Не удалось найти ID свойств STRATEGIES_FILE или TIMEFRAME');
@@ -352,7 +366,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
 
 
         $filter = [
-            'IBLOCK_ID' => 3,
+            'IBLOCK_ID' => $this->arParams["IBLOCK_ID"],
             'ACTIVE' => 'Y',
             'SECTION.CODE' => $SECTION_CODE,
         ];
@@ -441,6 +455,9 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
 
         $bybitApiOb = new \Maksv\Bybit\Bybit();
         $bybitApiOb->openConnection();
+        $binanceApiOb = new \Maksv\Binance\BinanceFutures();
+        $binanceApiOb->openConnection();
+
         // Проверяем только masterPump и masterDump $this->arParams['MAIN_CODE']
         foreach ([$this->arParams['MAIN_CODE'] . 'Pump', $this->arParams['MAIN_CODE'] . 'Dump'] as $type) {
             if (!isset($strategies[$type]) || !is_array($strategies[$type])) {
@@ -494,14 +511,41 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 } else {
                     $cacheTtl = 90 * 24 * 3600; // n месяц
                 }
+                /*$bybitApiOb,
+                $binanceApiOb,
+                $symbolName,
+                $startTime,
+                $endTime,
+                $type,
+                $actualClosePrice = false,
+                $sl = false,
+                $tp = false,
+                $shiftSL = false,
+                $cacheTime = 0,
+                $candles = [],
+                $market = 'bybit'*/
 
-                $analysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange($bybitApiOb, $symbolName, $startTime, $endTime, $direct, $signal['actualClosePrice'] , $signal['SL'],  $signal['TP'], false, $cacheTtl);
+                $analysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
+                    $bybitApiOb,
+                    $binanceApiOb,
+                    $symbolName,
+                    $startTime,
+                    $endTime,
+                    $direct,
+                    $signal['actualClosePrice'],
+                    $signal['SL'],
+                    $signal['TP'],
+                    false,
+                    $cacheTtl,
+                    [],
+                    $this->arParams["MARKET_CODE"]);
 
                 // Добавляем результаты анализа в сигнал
                 $signal['priceAnalysis'] = $analysis;
             }
         }
         $bybitApiOb->closeConnection();
+        $binanceApiOb->closeConnection();
     }
     
     protected function checkBybitConnect()

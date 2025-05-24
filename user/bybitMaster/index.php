@@ -5,8 +5,8 @@ use Bitrix\Main\Page\Asset;
 
 define('NEED_AUTH', true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
-$APPLICATION->SetPageProperty("title", "Сигналы с биржи Bybit");
-$APPLICATION->SetTitle("Сигналы с биржи Bybit");
+$APPLICATION->SetPageProperty("title", "bybit master");
+$APPLICATION->SetTitle("bybit master");
 
 global $USER;
 $application = Application::getInstance();

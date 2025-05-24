@@ -259,6 +259,9 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?if ($item['priceAnalysis']['realized_percent_change']):?>
                                     <div class="<?if ($item['priceAnalysis']['realized_percent_change'] > 0):?>green-bg<?elseif($item['priceAnalysis']['realized_percent_change'] < 0):?>red-bg<?endif;?>">Profit <?=$item['priceAnalysis']['realized_percent_change']?>%</div><br>
                                 <?endif;?>
+                                <?if ($item['priceAnalysis']['percent_change']):?>
+                                    <div class="<?if ($item['priceAnalysis']['percent_change'] > 2):?>green-bg<?elseif($item['priceAnalysis']['percent_change'] < -2):?>red-bg<?endif;?>">price change <?=$item['priceAnalysis']['percent_change']?>%</div><br>
+                                <?endif;?>
                             </td>
                             <td data-name="ta">
                                 macd<br>
@@ -331,6 +334,9 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?endif;?>
                                 <?if ($item['priceAnalysis']['realized_percent_change']):?>
                                     <div class="<?if ($item['priceAnalysis']['realized_percent_change'] > 0):?>green-bg<?elseif($item['priceAnalysis']['realized_percent_change'] < 0):?>red-bg<?endif;?>">Profit <?=$item['priceAnalysis']['realized_percent_change']?>%</div><br>
+                                <?endif;?>
+                                <?if ($item['priceAnalysis']['percent_change']):?>
+                                    <div class="<?if ($item['priceAnalysis']['percent_change'] > 2):?>green-bg<?elseif($item['priceAnalysis']['percent_change'] < -2):?>red-bg<?endif;?>">price change <?=$item['priceAnalysis']['percent_change']?>%</div><br>
                                 <?endif;?>
                             </td>
                             <td data-name="ta">
