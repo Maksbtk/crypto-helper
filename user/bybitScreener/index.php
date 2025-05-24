@@ -5,8 +5,8 @@ use Bitrix\Main\Page\Asset;
 
 define('NEED_AUTH', true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
-$APPLICATION->SetPageProperty("title", "Сигналы с биржи Bybit");
-$APPLICATION->SetTitle("Сигналы с биржи Bybit");
+$APPLICATION->SetPageProperty("title", "bybit screener");
+$APPLICATION->SetTitle("bybit screener");
 
 global $USER;
 $application = Application::getInstance();
@@ -19,8 +19,8 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/popup-auth.css");
 //стили страниц личного кабинета
 Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-profile.css");
 
-/*if (!$USER->IsAdmin())
-    LocalRedirect('/', false, '301 Moved permanently');*/
+//if (!$USER->IsAdmin())
+  //  LocalRedirect('/', false, '301 Moved permanently');
 ?>
 
 <script defer src="<?=SITE_TEMPLATE_PATH?>/js/jquery-profile.js?v=12"></script>
@@ -45,19 +45,17 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/page-profile.css");
     ?>
 
     <?if(in_array(6, $USER->GetUserGroupArray())){?>
-    <?//if($USER->IsAdmin()){?>
         <section class="profile-section profile-section-loyalty">
             <?
             $APPLICATION->IncludeComponent(
-                //"maksv:signal.trading.strategy.builder.alerts",
                 "maksv:signal.trading.strategy.builder",
-                '',
+                'screener',
                 array(
-                    "MAIN_CODE" => 'all',
+                    "MAIN_CODE" => 'screener',
                     "CACHE_TIME" => 36000,
                     "MARKET_CODE" => 'bybit',
                     "PROFIT_FILTER" => 'N',
-                    "PAGE_COUNT" => '5',
+                    "PAGE_COUNT" => '10',
                 )
             );
             ?>

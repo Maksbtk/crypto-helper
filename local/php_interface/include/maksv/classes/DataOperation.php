@@ -9,11 +9,11 @@ class DataOperation
 {
     public function __construct(){}
 
-    public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m', $btcInfo = [], $cntInfo = [], $isScreener = false)
+    public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m', $btcInfo = [], $cntInfo = [], $isScreener = false, $market = 'BYBIT')
     {
         $tgBot = new \Maksv\TelegramBot();
-        $message = '';
 
+        $message = $market . ' | ';
         if ($isScreener)
             $message .= 'Screener | ';
 
@@ -258,7 +258,7 @@ class DataOperation
         return $sendRes;
     }
 
-    public static function sendBtcCharts($res, $chatName = '@cryptoHelperAlerts')
+    public static function sendMarketCharts($res, $chatName = '@cryptoHelperAlerts')
     {
         $tgBot = new \Maksv\TelegramBot();
 
@@ -301,10 +301,10 @@ class DataOperation
         return $sendRes;
     }
 
-    public static function sendBtdDivergenceWarning($text, $chatName = '@infoCryptoHelperTrend')
+    public static function sendMarketDivergenceWarning($text, $chatName = '@infoCryptoHelperTrend')
     {
         $tgBot = new \Maksv\TelegramBot();
-        $message = "ℹ BTC MACD Divergence alert" . "\n\n";
+        $message = "ℹ Market MACD Divergence alert" . "\n\n";
 
         $message .=  $text . "\n";
 
@@ -328,12 +328,16 @@ class DataOperation
 
         if ($opportunitiesFileId && \CModule::IncludeModule("iblock")) {
 
-            $iblockMap = ['bybit' => 3];
+            $iblockMap = ['bybit' => 3, 'binance' => 7];
 
             $iblockSectionsMap['bybit'] = [
                 'master' => 5,
                 'alerts' => 6,
                 'screener' => 7,
+            ];
+
+            $iblockSectionsMap['binance'] = [
+                'screener' => 8,
             ];
 
             $elementProperty = [
@@ -397,5 +401,161 @@ class DataOperation
         $formattedTime = $date->format('H:i d.m');
 
         return $formattedTime;
+    }
+
+    public static function getLatestScreener($iblockId = 3, $sectionCode = 'screener')
+    {
+        $res = [];
+        // Рассчитываем время начала интервала
+        $intervalInHours = 8;
+        $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHours} hours");
+
+        $propertyStrategiesFileId = self::getPropertyIdByCode($iblockId, 'STRATEGIES_FILE');
+        $propertyTimeframeId = self::getPropertyIdByCode($iblockId, 'TIMEFRAME');
+
+        $resDB = \Bitrix\Iblock\ElementTable::getList([
+            'order' => ['ID' => 'DESC'],
+            'filter' => [
+                'IBLOCK_ID' => $iblockId,
+                'ACTIVE' => 'Y',
+                'SECTION.CODE' => $sectionCode,
+                '>=DATE_CREATE' => $dateIntervalStart, // Элементы за последние $intervalInHours часов
+            ],
+            'runtime' => [
+                'SECTION' => [
+                    'data_type' => '\Bitrix\Iblock\Section',
+                    'reference' => ['this.IBLOCK_SECTION_ID' => 'ref.ID'],
+                    'join_type' => 'LEFT'
+                ],
+                'PROP_STRATEGIES_FILE' => [
+                    'data_type' => '\Bitrix\Iblock\ElementPropertyTable',
+                    'reference' => [
+                        'this.ID' => 'ref.IBLOCK_ELEMENT_ID',
+                        'ref.IBLOCK_PROPERTY_ID' => new \Bitrix\Main\DB\SqlExpression('?i', $propertyStrategiesFileId) // ID свойства STRATEGIES_FILE
+                    ],
+                    'join_type' => 'LEFT'
+                ],
+                'PROP_TIMEFRAME' => [
+                    'data_type' => '\Bitrix\Iblock\ElementPropertyTable',
+                    'reference' => [
+                        'this.ID' => 'ref.IBLOCK_ELEMENT_ID',
+                        'ref.IBLOCK_PROPERTY_ID' => new \Bitrix\Main\DB\SqlExpression('?i', $propertyTimeframeId) // ID свойства TIMEFRAME
+                    ],
+                    'join_type' => 'LEFT'
+                ],
+            ],
+            'select' => [
+                'NAME',
+                'PROP_STRATEGIES_FILE_VALUE' => 'PROP_STRATEGIES_FILE.VALUE', // Значение STRATEGIES_FILE
+                'PROP_TIMEFRAME_VALUE' => 'PROP_TIMEFRAME.VALUE',           // Значение TIMEFRAME
+                'ID',
+                'DATE_CREATE'
+            ],
+        ]);
+
+        while ($el = $resDB->fetch()) {
+            $jsonPath = \CFile::GetPath($el['PROP_STRATEGIES_FILE_VALUE']);
+            $jsonContent = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . $jsonPath), true)['STRATEGIES'];
+
+            foreach ($jsonContent['screenerPump'] as $symbol) {
+                if (!array_key_exists($symbol['symbolName'], $res))
+                    $res[$symbol['symbolName']] = 1;
+                else
+                    $res[$symbol['symbolName']] += 1;
+            }
+
+            foreach ($jsonContent['screenerDump'] as $symbol) {
+                if (!array_key_exists($symbol['symbolName'], $res))
+                    $res[$symbol['symbolName']] = 1;
+                else
+                    $res[$symbol['symbolName']] += 1;
+            }
+
+        }
+        return $res;
+    }
+
+    public static function getLatestSignals($tf, $codeStrat = 'master')
+    {
+        $res = [];
+        // Рассчитываем время начала интервала
+        $intervalInHoursMap = ['5m' => 8, '15m' => 8, '30m' => 8, '1h' => 8, '4h' => 32, '1d' => 48];
+        $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHoursMap[$tf]} hours");
+
+        $propertyStrategiesFileId = self::getPropertyIdByCode(3, 'STRATEGIES_FILE');
+        $propertyTimeframeId = self::getPropertyIdByCode(3, 'TIMEFRAME');
+
+        $resDB = \Bitrix\Iblock\ElementTable::getList([
+            'order' => ['ID' => 'DESC'],
+            'filter' => [
+                'IBLOCK_ID' => 3,
+                'ACTIVE' => 'Y',
+                'SECTION.CODE' => $codeStrat,
+                '>=DATE_CREATE' => $dateIntervalStart, // Элементы за последние $intervalInHours часов
+                '=PROP_TIMEFRAME.VALUE' => $tf,       // Значение свойства TIMEFRAME равно $tf
+            ],
+            'runtime' => [
+                'SECTION' => [
+                    'data_type' => '\Bitrix\Iblock\Section',
+                    'reference' => ['this.IBLOCK_SECTION_ID' => 'ref.ID'],
+                    'join_type' => 'LEFT'
+                ],
+                'PROP_STRATEGIES_FILE' => [
+                    'data_type' => '\Bitrix\Iblock\ElementPropertyTable',
+                    'reference' => [
+                        'this.ID' => 'ref.IBLOCK_ELEMENT_ID',
+                        'ref.IBLOCK_PROPERTY_ID' => new \Bitrix\Main\DB\SqlExpression('?i', $propertyStrategiesFileId) // ID свойства STRATEGIES_FILE
+                    ],
+                    'join_type' => 'LEFT'
+                ],
+                'PROP_TIMEFRAME' => [
+                    'data_type' => '\Bitrix\Iblock\ElementPropertyTable',
+                    'reference' => [
+                        'this.ID' => 'ref.IBLOCK_ELEMENT_ID',
+                        'ref.IBLOCK_PROPERTY_ID' => new \Bitrix\Main\DB\SqlExpression('?i', $propertyTimeframeId) // ID свойства TIMEFRAME
+                    ],
+                    'join_type' => 'LEFT'
+                ],
+            ],
+            'select' => [
+                'NAME',
+                'PROP_STRATEGIES_FILE_VALUE' => 'PROP_STRATEGIES_FILE.VALUE', // Значение STRATEGIES_FILE
+                'PROP_TIMEFRAME_VALUE' => 'PROP_TIMEFRAME.VALUE',           // Значение TIMEFRAME
+                'ID',
+                'DATE_CREATE'
+            ],
+        ]);
+
+        $masterSymbols = [];
+        while ($el = $resDB->fetch()) {
+            $jsonPath = \CFile::GetPath($el['PROP_STRATEGIES_FILE_VALUE']);
+            $jsonContent = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . $jsonPath), true);
+
+            foreach ($jsonContent['STRATEGIES'][$codeStrat . 'Pump'] as $strategy) {
+                $masterSymbols[] = $strategy['symbolName'];
+            }
+
+            foreach ($jsonContent['STRATEGIES'][$codeStrat . 'Dump'] as $strategy) {
+                $masterSymbols[] = $strategy['symbolName'];
+            }
+        }
+
+        // Подсчитываем количество повторений каждого символа
+        $symbolsCount = array_count_values($masterSymbols);
+
+        $res[$codeStrat . 'Symbols'] = $masterSymbols;
+        $res['repeatSymbols'] = $symbolsCount ?? [];
+
+        return $res;
+    }
+
+    protected static function getPropertyIdByCode($iblockId, $code)
+    {
+        $property = \Bitrix\Iblock\PropertyTable::getList([
+            'filter' => ['IBLOCK_ID' => $iblockId, 'CODE' => $code],
+            'select' => ['ID']
+        ])->fetch();
+
+        return $property ? $property['ID'] : null;
     }
 }

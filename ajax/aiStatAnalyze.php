@@ -20,62 +20,107 @@ if (empty($payload['trades']) || !is_array($payload['trades'])) {
     echo Json::encode(['error'=>'Некорректные данные']);
     exit;
 }
+$aiModel = strtolower(trim($payload['aiModel'] ?? 'deepseek')); // 'gpt' или 'deepseek'
 
-// Определяем тип анализа по intro
-$promptIntro = isset($payload['promptIntro']) ? $payload['promptIntro'] : '';
+// Определяем тип анализа
+$promptIntro = $payload['promptIntro'] ?? '';
 $isLossAnalysis = mb_stripos($promptIntro, 'убыточных') !== false;
 
-// Формируем список сообщений для OpenAI
+// Формируем сообщения
 $messages = [
-    ['role'=>'system', 'content'=>'Ты — эксперт по алгоритмической торговле. Дай подробные рекомендации.'],
+    ['role' => 'system', 'content' => 'Ты — эксперт по алгоритмической торговле. Дай подробные рекомендации.'],
 ];
 
 if ($isLossAnalysis) {
-    $messages[] = ['role'=>'user', 'content'=> buildLossPrompt($payload['trades'], $payload['filters'], $promptIntro)];
+    $messages[] = ['role' => 'user', 'content' => buildLossPrompt($payload['trades'], $payload['filters'], $promptIntro)];
 } else {
-    $messages[] = ['role'=>'user', 'content'=> buildCommonPrompt($payload['trades'], $payload['filters'], $promptIntro)];
+    $messages[] = ['role' => 'user', 'content' => buildCommonPrompt($payload['trades'], $payload['filters'], $promptIntro)];
 }
 
-// Инициализируем Request и выполняем запрос
+// Обработка по модели
 try {
-    $api = new \Maksv\Openapi\Request();
-    // выбираем модель и доп. параметры (можно расширить UI, чтобы выбирать динамически)
-    $body = $api->buildBody('gpt-4', $messages, 0.8);
-    //$body = $api->buildBody('gpt-3.5-turbo', $messages, 0.8);
-    //$body = $api->buildBody('gpt-4-turbo', $messages, 1);
+    if ($aiModel === 'deepseek') {
+        $api = new \Maksv\DeepSeek\Request();
+        $response = $api->chatCompletion($messages);
+        $analysis = trim($response['choices'][0]['message']['content'] ?? '');
+    } else {
+        // GPT по умолчанию
+        $api = new \Maksv\Openapi\Request();
+        $body = $api->buildBody('gpt-4', $messages, 0.8);
+        $data = $api->httpReq($body, true, 518400);
+        $analysis = trim($data['choices'][0]['message']['content'] ?? '');
+    }
 
-    $data = $api->httpReq($body , true, 518400);
-    $analysis = $data['choices'][0]['message']['content'];
-    //$analysis = '';
-    echo Json::encode(['analysis'=>$analysis, 'messages' => $messages]);
-} catch(\Exception $e) {
+    echo Json::encode(['analysis' => $analysis, 'messages' => $messages]);
+} catch (\Exception $e) {
     http_response_code(500);
-    echo Json::encode(['error'=>$e->getMessage()]);
+    echo Json::encode(['error' => $e->getMessage(), 'payload' => $payload]);
     exit;
 }
 
 /**
- * Формирует текст промпта из массива сделок и фильтров.
+ * Формирует текст запроса для общего анализа сделок.
  */
 function buildCommonPrompt(array $trades, array $filters): string {
-    $text = "Отфильтрованные сделки в формате: (контракт|направление|таймфрейм|Количество достигнутых TP|риск%|профит(%/$)\n";
-    foreach($trades as $t){
-        $text .= "({$t['symbolName']}|{$t['direction']}|{$t['tf']}|{$t['tpCount']}|{$t['risk']}%|{$t['profit_percent']}%/{$t['profit']}$)\n";
+    // Разбираем список сделок
+    $lines = [];
+    foreach ($trades as $t) {
+        $lines[] = implode('|', [
+            $t['symbolName'],
+            $t['direction'] ?: 'all',
+            $t['tf'],
+            $t['tpCount'],
+            $t['risk'].'%',
+            $t['profit_percent'].'%/'.$t['profit'].'$'
+        ]);
     }
-    $text .= "\nФильтры: ". Json::encode($filters, JSON_UNESCAPED_UNICODE). "|В tpFilter лежит массив множителей ATR тейк профитов, в tpCountGeneral лежит выбранное количество тейк профитов,выбранных в текущем фильтре, например если tpCountGeneral = 2 то из tpFilter мы берем первые два множителя ATR.direction- это направление long/short, если пустое то значит все. amountInTrade - сумма в сделке,entry = вход в сделку по рынку или по расчитонной рекомендуемой цене (y/n). moveeSLafterReachingTP = значение TP после которого двигаем SL\n";
-    $text .= "Проанализируй эти сделки САМ (НЕ ПРЕДЛАГАЙ МНЕ ПОДХОДЫ ДЛЯ АНАЛИЗА), ДАЙ СТРУКТУРИРОВАННЫЙ ОТВЕТ. дай конкретные рекомендации как улучшить стратегию торговли. В каждой сделке лежит сколько TP сделка достигла (Количество достигнутых TP), на основе этой попробуй выдать рекомендации снижать или увеличивать множители у ATR, снижать или увеличивать общее количество TP (tpCountGeneral, если значение стоит например 2, то 2 тейк профит это конечный тейк профит). также, в каждой сделке лежит риск в процентах, тоже проанализируй и скажи обрезать ли сделки по риску или наоборот можно попробовать увеличить риск. обративнимание что я могу передавать направление сделки (могу отдавть только лонги или только шорты или все), порекомендуй мне брать ли и лонги и шорты, или что то одно будет работать лучше. посмотри на все параметры которые есть, попробуй поискать своими силами что можно улучшить, предложения выдвигай только по существу на основе тех данных которые есть, предложи как поменять фильтры чтобы получить больший профит. если будешь выдвигать предложения по анализу распиши конкретные действия что мне нужно сделать чтобы проверить твою теорию. ответ нужен на русском языке.";
+    $tradesText = "Список сделок (контракт|направление|таймфрейм|TP достигнуто|риск|профит):\n"
+        . implode("\n", array_map(fn($l) => "– {$l}", $lines));
 
-    return $text;
+    // Описываем фильтры
+    $filtersText = "Текущие фильтры: " . Json::encode($filters, JSON_UNESCAPED_UNICODE);
+
+    // Инструкция для модели
+    $instruction ="
+        Ты — эксперт по алгоритмической торговле.  
+        1) Проанализируй каждый пункт из списка сделок,  
+        2) Дай рекомендации по настройкам ATR-множителей (tpFilter и tpCountGeneral),  
+        3) Оцени риск-параметр и предложи, стоит ли его уменьшить или увеличить,  
+        4) Посмотри на направление (long/short) и скажи, что лучше брать: оба направления или только одно,  
+        5) Предложи, как скорректировать фильтры для увеличения профита.  
+        
+        Если предлагаешь вариант тестирования, опиши шаги, чтобы я мог воспроизвести проверку. Ответь структурировано, по пунктам. RU";
+
+    return implode("\n\n", [$tradesText, $filtersText, $instruction]);
 }
 
+/**
+ * Формирует текст запроса для анализа убыточных сделок.
+ */
 function buildLossPrompt(array $trades, array $filters, string $intro): string {
-    $text = $intro . "\nПроанализируй подробно следующие убыточные сделки (все, которые я передал). Для каждой сделки приведи полный анализ: что было неверно в техническом анализе (allInfo), почему не сработали тейк-профиты или сработал стоп-лосс, и что можно улучшить. Структурируй ответ по сделкам. Ответ нужен на русском языке\n";
-    foreach($trades as $t){
-        if (isset($t['profit']) && $t['profit'] < 0) {
-            $allInfo = Json::encode($t['allInfo'], JSON_UNESCAPED_UNICODE);
-            $text .= "Сделка: {$t['symbolName']} | направление: {$t['direction']} | tf: {$t['tf']} | достигнутые TP: {$t['tpCount']} | риск: {$t['risk']}% | профит: {$t['profit_percent']}%/{$t['profit']}$ |\n     allInfo: {$allInfo}\n\n";
+    // Шапка с вводным текстом
+    $header = trim($intro) . "\n\nПроанализируй подробно каждую убыточную сделку:\n";
+
+    // Собираем описания только отрицательных
+    $details = '';
+    foreach ($trades as $t) {
+        if (!isset($t['profit']) || $t['profit'] >= 0) {
+            continue;
         }
+        $allInfo = Json::encode($t['allInfo'], JSON_UNESCAPED_UNICODE);
+        $details .= "• {$t['symbolName']} | {$t['direction']} | {$t['tf']} | TP: {$t['tpCount']} | риск: {$t['risk']}% | профит: {$t['profit_percent']}%/{$t['profit']}$\n"
+            . "  allInfo: {$allInfo}\n\n";
     }
-    return $text;
+
+    // Инструкция
+    $instruction = "
+        Для каждой сделки:
+          а) Опиши, что пошло не так в техническом анализе (на основе allInfo),  
+          б) Объясни, почему не сработали тейк-профиты или сработал стоп-лосс,  
+          в) Дай конкретные рекомендации по исправлению и тестированию.  
+        
+        Структурируй ответ по сделкам. RU";
+
+    return $header . $details . $instruction;
 }
 

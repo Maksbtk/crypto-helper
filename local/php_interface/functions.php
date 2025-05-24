@@ -26,12 +26,15 @@ function agentBybitRespDev()
 {
     //\Maksv\Bybit\Exchange::bybitExchange('15m', 0.1, true);
     //bybitExch15m();
-    \Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49, true);
+    //\Maksv\Binance\Exchange::screener('15m', 1.49, -1.49, true);
     //\Maksv\Bybit\Exchange::bybitSummaryVolumeExchange(true);
     //\Maksv\Bybit\Exchange::bybitExchange('1d', 0.99, -0.99, true);
     //\Maksv\Bybit\Exchange::sendBtcCharts();
+    //\Maksv\Binance\Exchange::binanceSummaryVolumeExchange(true);
     //\Maksv\Bybit\Exchange::btcDOthersExchange();
-    //\Maksv\Bybit\Exchange::oiBorderExchange('15m', 720, 1, 16, 2,5, -2.5, true);
+    \Maksv\Binance\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5, true);
+    //\Maksv\Bybit\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5, true);
+
 
     return "agentBybitRespDev();";
 }
@@ -41,8 +44,9 @@ function bybitExch15m()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56])) {
         \Maksv\Bybit\Exchange::bybitExchange('15m', 0.99, -0.99);
+    }
 
     return "bybitExch15m();";
 }
@@ -52,8 +56,8 @@ function bybitExch5m()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    //if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-        //\Maksv\Bybit\Exchange::bybitExchange('5m',0.99, -0.99);
+    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+        \Maksv\Bybit\Exchange::bybitExchange('5m',0.99, -0.99);
 
     return "bybitExch5m();";
 }
@@ -69,7 +73,7 @@ function bybitExch30m()
     return "bybitExch30m();";
 }
 
-function bybitExhc1d()
+function technicalExhc1d()
 {
     $hour = (int)date('H');
     $minute = (int)date('i');
@@ -77,9 +81,16 @@ function bybitExhc1d()
     if (in_array($hour, [3]) && in_array($minute, [3, 4])) {
         //собираем инфу о монетках
         \Maksv\Bybit\Exchange::bybitExchange('1d', 33, -33);
+    }
+
+    if (in_array($hour, [3]) && in_array($minute, [23, 24])) {
         //собираем инфу об oi
-        \Maksv\Bybit\Exchange::oiBorderExchange('15m', 240, 1, 16, 2,5, -2.5);
-        //\Maksv\Bybit\Exchange::oiBorderExchange('5m', 720, 3, 48, 2.5, -2.5);
+        \Maksv\Bybit\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5);
+    }
+
+    if (in_array($hour, [4]) && in_array($minute, [3, 4])) {
+        //собираем инфу об oi
+        \Maksv\Binance\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5);
     }
 
     return "bybitExhc1d();";
@@ -90,8 +101,10 @@ function bybitScreenerExch15m()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56])) {
         \Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49);
+        \Maksv\Binance\Exchange::screener('15m', 0.99, -0.99);
+    }
 
     return "bybitScreenerExch15m();";
 }
@@ -129,6 +142,16 @@ function bybitSummaryVolumeExchange()
     return "bybitSummaryVolumeExchange();";
 }
 
+//binance
+function binanceSummaryVolumeExchange() {
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+    if (in_array($minute,  [2, 3, 7, 8, 12, 13, 17, 18, 22, 23, 27, 28, 32, 33, 37, 38, 42, 43, 47, 48, 52, 53, 57, 58]))
+        \Maksv\Binance\Exchange::binanceSummaryVolumeExchange();
+
+    return "binanceSummaryVolumeExchange();";
+}
+
 function btcDOthersExchange()
 {
     $hour = (int)date('H');
@@ -146,22 +169,22 @@ function btcDivergenceExchange()
     $minute = (int)date('i');
 
     if (in_array($minute, [0, 15, 30, 45]))
-        \Maksv\Bybit\Exchange::sendBtcCharts();
+        \Maksv\Bybit\Exchange::sendMarketCharts();
 
     if (in_array($minute, [0, 1, 30, 31]))
-        \Maksv\Bybit\Exchange::btcDivergenceCheck('15m');
+        \Maksv\Bybit\Exchange::marketDivergenceCheck('15m');
 
     //if (in_array($minute, [0, 1]))
-       // \Maksv\Bybit\Exchange::btcDivergenceCheck('30m');
+       // \Maksv\Bybit\Exchange::marketDivergenceCheck('30m');
 
     if (in_array($minute, [0, 1]))
-        \Maksv\Bybit\Exchange::btcDivergenceCheck('1h');
+        \Maksv\Bybit\Exchange::marketDivergenceCheck('1h');
 
     if (in_array($hour, [3, 7, 11, 15, 19, 23]) && in_array($minute, [0, 1]))
-        \Maksv\Bybit\Exchange::btcDivergenceCheck('4h');
+        \Maksv\Bybit\Exchange::marketDivergenceCheck('4h');
 
    /* if (in_array($hour, [10, 19]) && in_array($minute, [0, 1]))
-        \Maksv\Bybit\Exchange::btcDivergenceCheck('1d');*/
+        \Maksv\Bybit\Exchange::marketDivergenceCheck('1d');*/
     
     return "btcDivergenceExchange();";
 }

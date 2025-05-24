@@ -249,26 +249,27 @@ $bybitApiOb->closeConnection();*/
 <?php
 
 
-$dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/summaryVolumeExchange.json';
+//$dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/summaryVolumeExchange.json';
+$dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/summaryVolumeExchange.json';
 $existingDataSparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
 $volumesData = $existingDataSparateVolume ?? [];
 $volumes = [];
 foreach ($volumesData as $symbol => $volume)
-    $volumes[$symbol] = $volume['resBybit'];
+    $volumes[$symbol] = $volume['resBinance'];
+    //$volumes[$symbol] = $volume['resBybit'];
 
 
 $startTime = date("H:i:s");
 $signals = ['long' => [], 'short' => []];
 $volumesBTC = [];
 foreach ($volumes as $symbol => $volume) {
-
     $volume = array_reverse($volume);
 
     if ($symbol == 'BTCUSDT') {
         $volumesBTC = $volume;
     }
 
-    $analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 6, 0.2, 0.3);
+    $analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
     //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
     $analyzeVolumeSignalRes['symbol'] = $symbol;
 
@@ -288,21 +289,24 @@ uasort($signals['short'], function($a, $b) {
 });
 $endTime = date("H:i:s");
 
-global $USER;
-
-
-
 /*$coinmarketcapOb = new \Maksv\Coinmarketcap\Request();
 $others15m = $coinmarketcapOb->getTotalExTop10_5m(200);*/
+
+$binanceApiOb = new \Maksv\Binance\BinanceFutures();
+$binanceApiOb->openConnection();
+$oiData = [];
+$kline = $binanceApiOb->kline('ALTUSDT ', '15m', 500, false, false, true, 300);
+
+//$tradesHistoryResp = $binanceApiOb->tradesHistory('XMRUSDT', 1000);
+$binanceApiOb->closeConnection();
+
 
 ?>
 <script>
     var devRes = {
-        startTime: <?=CUtil::PhpToJSObject($startTime, false, false, true)?>,
-        long: <?=CUtil::PhpToJSObject($signals['long'], false, false, true)?>,
-        short: <?=CUtil::PhpToJSObject($signals['short'], false, false, true)?>,
-        endTime: <?=CUtil::PhpToJSObject($endTime, false, false, true)?>,
-        volumesBTC: <?=CUtil::PhpToJSObject($volumesBTC, false, false, true)?>,
+        longV: <?=CUtil::PhpToJSObject($signals['long'], false, false, true)?>,
+        shortV: <?=CUtil::PhpToJSObject($signals['short'], false, false, true)?>,
+        $kline: <?=CUtil::PhpToJSObject($kline, false, false, true)?>,
     }
     console.log('devRes', devRes);
 </script>

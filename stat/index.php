@@ -25,12 +25,17 @@ $defaultEndStr   = $defaultEndDate  ->format('Y-m-d\TH:i');
 
 // Получаем параметры из GET-запроса (если имеются)
 $exchangeIblockID = isset($_GET['exchange']) ? intval($_GET['exchange']) : 3;  // вариант пока только bybit (id инфоблока - 3)
+$marketMap = [
+    3 => 'bybit',
+    7 => 'binance',
+];
+
 $categorySectionID = isset($_GET['category']) ? intval($_GET['category']) : 7;  // по умолчанию  (id=5)
-$tpCountGeneral = isset($_GET['tpCountGeneral']) ? intval($_GET['tpCountGeneral']) : 5;  // сколько всего тейк профитов у сделки  (false)
+$tpCountGeneral = isset($_GET['tpCountGeneral']) ? intval($_GET['tpCountGeneral']) : 0;  // сколько всего тейк профитов у сделки  (false)
 $deposit = isset($_GET['deposit']) ? intval($_GET['deposit']) : 100;  //сумма на которая используется в сделке  ()
 $shiftSL = isset($_GET['shiftSL']) ? intval($_GET['shiftSL']) : false;  // передвигание стопа после достижения какого тейк профита  ()
 
-if ($tpCountGeneral <= $shiftSL)
+if ($tpCountGeneral > 0 && $tpCountGeneral <= $shiftSL)
     $shiftSL = false;
 
 $riskFilter = isset($_GET['riskFilter']) ? round(floatval($_GET['riskFilter']), 1) : 7;
@@ -129,8 +134,11 @@ if(!empty($_GET)) {
 
     $bybitApiOb = new \Maksv\Bybit\Bybit();
     $bybitApiOb->openConnection();
+    $binanceApiOb = new \Maksv\Binance\BinanceFutures();
+    $binanceApiOb->openConnection();
     // Перебор результатов
     while($arItem = $res->GetNext()) {
+
         // Флаг, что в этом проходе добавлялись свечи
         $candlesUpdated = false;
 
@@ -161,7 +169,7 @@ if(!empty($_GET)) {
                 if($categorySectionID == 5){
                     $keyPump = "masterPump";
                     $keyDump = "masterDump";
-                } elseif($categorySectionID == 7){
+                } elseif(in_array($categorySectionID, [7, 8])){
                     $keyPump = "screenerPump";
                     $keyDump = "screenerDump";
                 } else {
@@ -169,8 +177,9 @@ if(!empty($_GET)) {
                     $keyDump = "";
                 }
 
+                $market = $marketMap[$exchangeIblockID];
                 // Функция для обработки стратегии – обрабатывает элементы массива стратегии
-                $processStrategies = function($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $bybitApiOb, $tpCountGeneral, $deposit, $shiftSL, $tpFilterAr,  &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes) {
+                $processStrategies = function($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $market, $bybitApiOb, $binanceApiOb, $tpCountGeneral, $deposit, $shiftSL, $tpFilterAr,  &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes) {
                     // Значение направления: Pump -> long, Dump -> short
                     $direction = (stripos($typeKey, "Pump") !== false) ? "long" : "short";
 
@@ -221,6 +230,20 @@ if(!empty($_GET)) {
                             $tp = $calculateRiskTargetsWithATR['takeProfits'];
                         }
 
+                        if ((!$tpCountGeneral || $tpCountGeneral == 0) && $strategy['tpCount']['longTpCount'] && $strategy['tpCount']['shortTpCount']) {
+                            if ($direction == 'long') {
+                                $tpCountGeneral = $strategy['tpCount']['longTpCount'];
+                            } else {
+                                $tpCountGeneral = $strategy['tpCount']['shortTpCount'];
+                            }
+                        } else if ((!$tpCountGeneral || $tpCountGeneral == 0) && !$strategy['tpCount']['longTpCount']) {
+                            if ($direction == 'long') {
+                                $tpCountGeneral = 2;
+                            } else {
+                                $tpCountGeneral = 1;
+                            }
+                        }
+
                         // если задан фильтр по количеству TP
                         if (isset($tpCountGeneral))
                             $tp = array_slice($tp, 0,  $tpCountGeneral);
@@ -246,7 +269,34 @@ if(!empty($_GET)) {
                         }
                         // Анализ изменения
                         // цены (функция возвращает массив с tp_count и realized_percent_change)
-                        $priceAnalysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange($bybitApiOb, $symbolName, $startTime, $endTime, $direction, $actualClosePrice, $sl, $tp, $shiftSL, $cacheTtl, $candles);
+                        /*$bybitApiOb,
+                           $binanceApiOb,
+                           $symbolName,
+                           $startTime,
+                           $endTime,
+                           $type,
+                           $actualClosePrice = false,
+                           $sl = false,
+                           $tp = false,
+                           $shiftSL = false,
+                           $cacheTime = 0,
+                           $candles = [],
+                           $market = 'bybit'*/
+                        $priceAnalysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
+                            $bybitApiOb,
+                            $binanceApiOb,
+                            $symbolName,
+                            $startTime,
+                            $endTime,
+                            $direction,
+                            $actualClosePrice,
+                            $sl,
+                            $tp,
+                            $shiftSL,
+                            $cacheTtl,
+                            $candles,
+                            $market
+                        );
 
                         /*if (!$priceAnalysis['entry_touched'])
                             continue;*/
@@ -346,7 +396,8 @@ if(!empty($_GET)) {
                             "profit" => $profit,
                             "entry_touched" => $priceAnalysis['entry_touched'],
                             'candlesUpdated' => $candlesUpdated,
-                            'allInfo' => $strategy
+                            'allInfo' => $strategy,
+                            'priceAnalysis' => $priceAnalysis
                         ];
                     }
                 };
@@ -372,6 +423,7 @@ if(!empty($_GET)) {
         }
     }
     $bybitApiOb->closeConnection();
+    $binanceApiOb->closeConnection();
 }
 
 ?>
@@ -572,14 +624,31 @@ if(!empty($_GET)) {
             <div class="form-group">
                 <label for="exchange">Биржа:</label>
                 <select name="exchange" id="exchange">
-                    <option value="3" <?=($exchangeIblockID == 3 ? "selected" : "")?>>bybit</option>
+                    <?foreach ($marketMap as $marketKey => $marketVal):?>
+                        <option value="<?=$marketKey?>" <?=($exchangeIblockID == $marketKey ? "selected" : "")?>><?=$marketVal?></option>
+                    <?endforeach;?>
                 </select>
             </div>
             <div class="form-group">
                 <label for="category">Категория:</label>
                 <select name="category" id="category">
-                    <option value="5" <?=($categorySectionID == 5 ? "selected" : "")?>>master</option>
-                    <option value="7" <?=($categorySectionID == 7 ? "selected" : "")?>>screener</option>
+                    <?
+                    $categoriesMap = [
+                        3 => [
+                            7 => 'screener',
+                            5 => 'master',
+                        ],
+                        7 => [
+                            8 => 'screener',
+                        ],
+                    ];
+                    ?>
+                    <? foreach ($categoriesMap[intval($exchangeIblockID)] as $mapKey => $mapVal):?>
+                        <option value="<?=$mapKey?>" <?=($categorySectionID == $mapKey ? "selected" : "")?>><?=$mapVal?></option>
+                    <?endforeach;?>
+                    <?/*<option value="5" <?=($categorySectionID == 5 ? "selected" : "")?>>master</option>
+                    <option value="7" <?=($categorySectionID == 7 ? "selected" : "")?>>screener bybit</option>
+                    <option value="8" <?=($categorySectionID == 8 ? "selected" : "")?>>screener binance</option>*/?>
                 </select>
             </div>
         </div>
@@ -601,6 +670,7 @@ if(!empty($_GET)) {
                 <label for="tpCountGeneral">Количество TP:</label>
                 <select name="tpCountGeneral" id="tpCountGeneral">
                     <?$tpCountGeneralAr = [1, 2, 3, 4, 5]; ?>
+                    <option value="0" <?=($tpCountGeneral === false ? "selected" : "")?>>default</option>
                     <?foreach ($tpCountGeneralAr as $tpCountGen):?>
                         <option value="<?=$tpCountGen?>" <?=($tpCountGeneral == $tpCountGen ? "selected" : "")?>><?=$tpCountGen?></option>
                     <?endforeach;?>
@@ -822,7 +892,8 @@ if(!empty($_GET)) {
                     moveeSLafterReachingTP: $('#shiftSL').val() || 'не сдвигать SL',
                 },
                 trades: trades,
-                promptIntro: promptIntro
+                aiModel: 'deepseek',//'gpt',
+                promptIntro: promptIntro,
             };
 
             $('#aiAnalyzeResult').html('<em>Идёт запрос к ИИ…</em>');
@@ -872,12 +943,17 @@ if(!empty($_GET)) {
 
         // Если потребуется ajax-подгрузка формы, можно сделать так:
         $("#statsFilterForm").on("submit", function(e){
+            window.siteShowPrelouder();
             // Например, отменяем стандартную отправку формы и делаем ajax-запрос
             // e.preventDefault();
             // var formData = $(this).serialize();
             // $.get(window.location.pathname, formData, function(data){
             //     // Обновляем блок со статистикой (здесь нужно реализовать парсинг и вставку данных)
             // });
+        });
+
+        $('#exchange').change(function() {
+            $("#statsFilterForm").submit();
         });
 
         // Форматируем Date → "YYYY-MM-DDThh:mm"

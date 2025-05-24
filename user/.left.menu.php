@@ -7,23 +7,30 @@ $aMenuLinks = Array(
 		Array(), 
 		"" 
 	),
+    Array(
+        "bybit screener",
+        "/user/bybitScreener/",
+        Array(),
+        Array(),
+        ""
+    ),
 	Array(
-		"Сигналы bybit", 
-		"/user/bybitSignals/", 
+		"bybit master",
+		"/user/bybitMaster/",
 		Array(), 
 		Array(), 
 		"" 
 	),
     Array(
-        "Сигналы bybit dev",
-        "/user/bybitSignalsSecond/",
+        "bybit dev",
+        "/user/bybitDev/",
         Array(),
         Array(),
         ""
     ),
     Array(
-        "screener",
-        "/user/screener/",
+        "binance screener",
+        "/user/binanceScreener/",
         Array(),
         Array(),
         ""

@@ -17,7 +17,8 @@ EXCHANGE    = 'CRYPTOCAP'
 NUM_BARS    = 200
 INTERVALS   = {
     '15m': Interval.in_15_minute,
-    '5m':  Interval.in_5_minute
+    '5m':  Interval.in_5_minute,
+    '1h':  Interval.in_1_hour
 }
 
 # Пути
@@ -39,7 +40,7 @@ def log(message: str):
     with open(log_file, 'a') as lf:
         lf.write(f"[{ts}] {message}\n")
 
-# Получаем свечи с TradingView
+# Функция получения свечей с TradingView
 
 def fetch_data(interval):
     tv = TvDatafeed()
@@ -67,7 +68,9 @@ def main():
             'data': {}
         }
 
+        # Запрашиваем данные для каждого таймфрейма
         for tf_name, tf_interval in INTERVALS.items():
+            log(f'Fetching {tf_name} data')
             candles = fetch_data(tf_interval)
             result['data'][tf_name] = candles
 
@@ -75,8 +78,8 @@ def main():
         with open(OUTPUT_JSON, 'w') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
 
-        #log('JSON written to ' + OUTPUT_JSON)
-        log('Process completed successfully_________________________')
+        log('JSON written to ' + OUTPUT_JSON)
+        log('Process completed successfully')
         print('OK')
     except Exception as e:
         log('Error: ' + str(e))

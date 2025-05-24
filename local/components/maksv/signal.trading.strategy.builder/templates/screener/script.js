@@ -121,8 +121,8 @@ $(function() {
         }).then(function(response) {
 
             console.log('updateOITableResp', response)
-            console.log('adx_', response.data.ADXData)
-            console.log('impulsMacd', response.data.impulsMacd)
+            console.log('analyzeBol', response.data.analyzeBol)
+            console.log('analyzePivots', response.data.analyzePivots)
 
             if (response.data.success == true) {
 

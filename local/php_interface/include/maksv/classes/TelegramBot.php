@@ -121,8 +121,9 @@ class TelegramBot
             case '@infoCryptoHelperDev':
                 $chatName = '-1002236380560';
                 break;
-            case '@cryptoHelperMaster':
+            case '@infoCryptoHelperScreenerBinance':
                 $chatName = '-1002460854583';
+                break;
             case '@cryptoHelperCornixTreadingBot':
                 $chatName = '-1002639839004';
                 break;
