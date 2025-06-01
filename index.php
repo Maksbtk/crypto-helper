@@ -122,8 +122,8 @@ $bybitApiOb->closeConnection();*/
                 <div class="product-banner-item__inner">
                     <img class="product-banner-img" src="/local/templates/maksv/demo-pics/ban2.jpg?v=5" alt="CH">
                     <div class="product-banner-content">
-                        <div class="h2 product-banner-name">Подписки</div>
-                        <a href="/user/subscriptions/" class="product-banner-link">Купить</a>
+                        <div class="h2 product-banner-name">binance screener</div>
+                        <a href="/user/binanceScreener/" class="product-banner-link">Перейти</a>
                     </div>
                 </div>
             </li>
@@ -131,8 +131,8 @@ $bybitApiOb->closeConnection();*/
                 <div class="product-banner-item__inner">
                     <img class="product-banner-img" src="/local/templates/maksv/demo-pics/ban3.jpg?v=5" alt="CH">
                     <div class="product-banner-content">
-                        <div class="h2 product-banner-name">Сигналы</div>
-                        <a href="/user/bybitSignals/" class="product-banner-link">Перейти</a>
+                        <div class="h2 product-banner-name">bybit screener</div>
+                        <a href="/user/bybitScreener/" class="product-banner-link">Перейти</a>
                     </div>
                 </div>
             </li>

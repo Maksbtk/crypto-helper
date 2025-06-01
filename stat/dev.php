@@ -283,19 +283,19 @@ if(!empty($_GET)) {
                            $candles = [],
                            $market = 'bybit'*/
                         $priceAnalysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
-                                $bybitApiOb,
-                                $binanceApiOb,
-                                $symbolName,
-                                $startTime,
-                                $endTime,
-                                $direction,
-                                $actualClosePrice,
-                                $sl,
-                                $tp,
-                                $shiftSL,
-                                $cacheTtl,
-                                $candles,
-                                $market
+                            $bybitApiOb,
+                            $binanceApiOb,
+                            $symbolName,
+                            $startTime,
+                            $endTime,
+                            $direction,
+                            $actualClosePrice,
+                            $sl,
+                            $tp,
+                            $shiftSL,
+                            $cacheTtl,
+                            $candles,
+                            $market
                         );
 
                         /*if (!$priceAnalysis['entry_touched'])
@@ -810,6 +810,14 @@ if(!empty($_GET)) {
                     <? if ($strategyFilter && $result["strategy"] != $strategyFilter) continue; ?>
 
                     <? if ($entryFilter == 'n' && !$result["entry_touched"]) continue; ?>
+
+                    <?/* if (
+                        !$result["allInfo"]['actualImpulsMacd']
+                        || (
+                            ($result["direction"] == 'short' && $result["allInfo"]['actualImpulsMacd']['impulse_macd'] != 0)
+                            || ($result["direction"] == 'long' && $result["allInfo"]['actualImpulsMacd']['impulse_macd'] != 0)
+                        )
+                    ) continue; */?>
 
                     <? //if ($result["tf"] == '30m' && $result["direction"] == 'short' ) continue; ?>
 

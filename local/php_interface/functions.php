@@ -24,17 +24,18 @@ function devlogs($data, $type)
 
 function agentBybitRespDev()
 {
-    //\Maksv\Bybit\Exchange::bybitExchange('15m', 0.1, true);
+    \Maksv\Bybit\Exchange::bybitExchange('15m', 0.99, -0.99, true);
     //bybitExch15m();
+    //\Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49, true);
     //\Maksv\Binance\Exchange::screener('15m', 1.49, -1.49, true);
     //\Maksv\Bybit\Exchange::bybitSummaryVolumeExchange(true);
     //\Maksv\Bybit\Exchange::bybitExchange('1d', 0.99, -0.99, true);
     //\Maksv\Bybit\Exchange::sendBtcCharts();
     //\Maksv\Binance\Exchange::binanceSummaryVolumeExchange(true);
     //\Maksv\Bybit\Exchange::btcDOthersExchange();
-    \Maksv\Binance\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5, true);
+    //\Maksv\Binance\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5, true);
     //\Maksv\Bybit\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5, true);
-
+    //\Maksv\Bybit\Exchange::checkMarketImpulsInfo();
 
     return "agentBybitRespDev();";
 }
@@ -103,7 +104,6 @@ function bybitScreenerExch15m()
 
     if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56])) {
         \Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49);
-        \Maksv\Binance\Exchange::screener('15m', 0.99, -0.99);
     }
 
     return "bybitScreenerExch15m();";
@@ -146,8 +146,15 @@ function bybitSummaryVolumeExchange()
 function binanceSummaryVolumeExchange() {
     $hour = (int)date('H');
     $minute = (int)date('i');
-    if (in_array($minute,  [2, 3, 7, 8, 12, 13, 17, 18, 22, 23, 27, 28, 32, 33, 37, 38, 42, 43, 47, 48, 52, 53, 57, 58]))
-        \Maksv\Binance\Exchange::binanceSummaryVolumeExchange();
+    // if (in_array($minute,  [3, 4, 8, 9, 13, 14, 18, 19, 23, 24, 28, 29, 33, 34, 38, 39, 43, 44, 48, 49, 53, 54, 58, 59])) {
+    if (in_array($minute,  [2, 3, 7, 8, 12, 13, 17, 18, 22, 23, 27, 28, 32, 33, 37, 38, 42, 43, 47, 48, 52, 53, 57, 58])) {
+        $binanceSummaryVolumeExchangeRes =  \Maksv\Binance\Exchange::binanceSummaryVolumeExchange();
+        if ($binanceSummaryVolumeExchangeRes) {
+            \Maksv\Binance\Exchange::screener('15m', 0.99, -0.99);
+            \Maksv\Binance\Exchange::screener('30m', 0.99, -0.99);
+            //\Maksv\Binance\Exchange::screener('5m', 0.99, -0.99);
+        }
+    }
 
     return "binanceSummaryVolumeExchange();";
 }

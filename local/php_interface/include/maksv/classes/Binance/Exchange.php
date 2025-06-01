@@ -27,7 +27,7 @@ class Exchange
             $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/timestampVolume.json'), true);
             if ($lastTimestapJson['TIMESTAMP'] && ((time() - $lastTimestapJson['TIMESTAMP']) < 150)) {
                 devlogs("end, timestamp dif -" . ' - ' . $timeMark, $marketMode . '/summaryVolumeExchange');
-                return;
+                return false;
             } else {
                 file_put_contents(
                     $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/timestampVolume.json',
@@ -173,7 +173,7 @@ class Exchange
         devlogs("end (cnt " . $processedSymbols . " - " . $timeMark, $marketMode . '/summaryVolumeExchange');
         devlogs("______________________________", $marketMode . '/summaryVolumeExchange');
 
-        return $output;
+        return true;
     }
 
     //анализ OI для поиска нужно лимита изменения
@@ -405,12 +405,16 @@ class Exchange
         }
         devlogs("start -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
-        if ($interval != '15m') {
-            sleep(40);
+        /*if ($interval != '15m') {
+            sleep(20);
             devlogs('sleep 40' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
         } else {
-            sleep(25);
-            devlogs('sleep 25' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+            sleep(5);
+            devlogs('sleep 5' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+        }*/
+        if ($interval != '15m') {
+            sleep(80);
+            devlogs('sleep 80' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
         }
 
         //получаем контракты, которые будем анализировать
@@ -468,7 +472,7 @@ class Exchange
 
                 $separateVolumes = array_reverse($existingDataSeparateVolume[$symbolName]['resBinance']) ?? [];
                 //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($separateVolumes, 5, 0.2, 0.55) ?? [];
-                $analyzeFastVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($separateVolumes, 3, 0.49, 0.59);
+                $analyzeFastVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($separateVolumes, 3, 0.39, 0.55);
 
                 if (!$analyzeFastVolumeSignalRes['isLong'] && !$analyzeFastVolumeSignalRes['isShort'])
                     continue;
@@ -519,14 +523,14 @@ class Exchange
                 ];
 
                 $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$interval]);
-                if (!$summaryOpenInterestOb['summaryOI'] || !$summaryOpenInterestOb['summaryOIBybit']) {
+                if (!$summaryOpenInterestOb['summaryOIBinance']) {
                     //devlogs('ERR ' . $symbolName . ' | err - oi ('.$summaryOpenInterestOb['summaryOI'].') ('.$summaryOpenInterestOb['summaryOIBybit'].')' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
                     //devlogs($summaryOpenInterestOb, $marketMode . '/screener'.$interval);
                     continue;
                 }
 
-                $summaryOIBybit = $screenerData['summaryOIBybit'] = $summaryOpenInterestOb['summaryOIBybit'] ?? 0;
                 $summaryOIBinance = $screenerData['summaryOIBinance'] = $summaryOpenInterestOb['summaryOIBinance'] ?? 0;
+                $summaryOIBybit = $screenerData['summaryOIBybit'] = $summaryOpenInterestOb['summaryOIBybit'] ?? 0;
                 $summaryOI = $screenerData['summaryOI'] = $summaryOpenInterestOb['summaryOI'] ?? 0;
 
                 //проверяем есть ли вычисленная граница открытого интереса
@@ -565,7 +569,7 @@ class Exchange
                     !($summaryOIBinance >= $longOiLimit)
                     && !($summaryOIBinance <= $shortOiLimit)
                 ) {
-                    //devlogs('ERR ' . $symbolName . ' | err - OI' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
+                    //devlogs('ERR ' . $symbolName . ' | err - OI lim' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
                     continue;
                 }
 
@@ -821,7 +825,7 @@ class Exchange
                     ($summaryOIBinance >= $longOiLimit)
                     && $marketInfo['isLong']
                     && $analyzeFastVolumeSignalRes['isLong']
-                    && ($actualMacd['isLong'] || ($actualImpulsMacd['isLong'] && $interval == '15m'))
+                    && ($actualMacd['isLong'] || $actualImpulsMacd['isLong'])
                     && ($ma26['isUptrend'] || ((($actualClosePrice - $ma26['sma']) / $ma26['sma']) * 100) <= -$maDistance)
                     && ($ma100['isUptrend'] || ((($actualClosePrice - $ma100['sma']) / $ma100['sma']) * 100) <= -$maDistance)
                     && ($ma400['isUptrend'] || ((($actualClosePrice - $ma400['sma']) / $ma400['sma']) * 100) <= -$maDistance)
@@ -895,7 +899,7 @@ class Exchange
                     ($summaryOIBinance <= $shortOiLimit)
                     && $marketInfo['isShort']
                     && $analyzeFastVolumeSignalRes['isShort']
-                    && ($actualMacd['isShort'] || ($actualImpulsMacd['isShort'] && $interval == '15m'))
+                    && ($actualMacd['isShort'] || $actualImpulsMacd['isShort'])
                     && (!$ma26['isUptrend'] || ((($actualClosePrice - $ma26['sma']) / $ma26['sma']) * 100) >= $maDistance)
                     && (!$ma100['isUptrend'] || ((($actualClosePrice - $ma100['sma']) / $ma100['sma']) * 100) >= $maDistance)
                     && (!$ma400['isUptrend'] || ((($actualClosePrice - $ma400['sma']) / $ma400['sma']) * 100) >= $maDistance)
