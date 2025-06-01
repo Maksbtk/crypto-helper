@@ -9,11 +9,18 @@ $aMenuLinks = Array(
 	),
 	Array(
 		"Сигналы bybit", 
-		"/user/bybitSignals/", 
+		"/user/bybitScreener/",
 		Array(), 
 		Array("SIDE"=>"LEFT"), 
 		"" 
 	),
+    Array(
+        "Сигналы binance",
+        "/user/binanceScreener/",
+        Array(),
+        Array("SIDE"=>"LEFT"),
+        ""
+    ),
 	Array(
 		"Купить подписку", 
 		"/user/subscriptions/", 

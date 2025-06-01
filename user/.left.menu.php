@@ -14,6 +14,13 @@ $aMenuLinks = Array(
         Array(),
         ""
     ),
+    Array(
+        "binance screener",
+        "/user/binanceScreener/",
+        Array(),
+        Array(),
+        ""
+    ),
 	Array(
 		"bybit master",
 		"/user/bybitMaster/",
@@ -24,13 +31,6 @@ $aMenuLinks = Array(
     Array(
         "bybit dev",
         "/user/bybitDev/",
-        Array(),
-        Array(),
-        ""
-    ),
-    Array(
-        "binance screener",
-        "/user/binanceScreener/",
         Array(),
         Array(),
         ""

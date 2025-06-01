@@ -9,7 +9,14 @@ $aMenuLinks = Array(
 	),
 	Array(
 		"Сигналы bybit",
-		"/user/bybitSignals/",
+		"/user/bybitScreener/",
+		Array(),
+		Array(),
+		""
+	),
+	Array(
+		"Сигналы binance",
+		"/user/binanceScreener/",
 		Array(),
 		Array(),
 		""
