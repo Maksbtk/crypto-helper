@@ -8,6 +8,8 @@ use Bitrix\Main\Page\Asset;
 
 define('NEED_AUTH', true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
+
+Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/maksv-statPage.css");
 $APPLICATION->SetPageProperty("title", "Статистика");
 $APPLICATION->SetTitle("Статистика");
 
@@ -75,6 +77,8 @@ $directionFilter = isset($_GET['directionFilter']) ? $_GET['directionFilter'] : 
 $tfFilter = isset($_GET['tfFilter']) ? $_GET['tfFilter'] : false;
 $entryFilter = isset($_GET['entryFilter']) ? $_GET['entryFilter'] : 'y';
 $strategyFilter = isset($_GET['strategyFilter']) ? $_GET['strategyFilter'] : false;
+$mlFilter = isset($_GET['mlFilter']) ? $_GET['mlFilter'] : 'n';
+$strongMlBoard = 0.705;
 
 // читаем из GET или ставим дефолт
 $startDateStr = isset($_GET['start_date'])
@@ -172,6 +176,9 @@ if(!empty($_GET)) {
                 } elseif(in_array($categorySectionID, [7, 8])){
                     $keyPump = "screenerPump";
                     $keyDump = "screenerDump";
+                } elseif(in_array($categorySectionID, [6])){
+                    $keyPump = "allPump";
+                    $keyDump = "allDump";
                 } else {
                     $keyPump = "";
                     $keyDump = "";
@@ -205,6 +212,51 @@ if(!empty($_GET)) {
                         // Обновляем время последнего сигнала для данного символа
                         if (!empty($symbolName)) {
                             $lastSignalTimes[$symbolName] = $startTime;
+                        }
+
+                        if ((!$strategy['SL'] || !$strategy['TP']) && $strategy['atrMultipliers'])  {
+                            $processed = \Maksv\Bybit\Exchange::processSignal(
+                                $direction,
+                                floatval($strategy['actualATR']['atr']),
+                                floatval($strategy['actualClosePrice']),
+                                $strategy['candles15m'], //candles15
+                                $strategy['actualSupertrend5m'],
+                                [],//$strategy['actualSupertrend15m'],
+                                $strategy['actualMacdDivergence'],
+                                $strategy['symbolScale'] ?? 6,
+                                $strategy['atrMultipliers'] /*?? [1.9, 2.6, 3.4]*/,
+                                ['risk' => 6],
+                                $symbolName,
+                                "stat"
+                            );
+
+                            if ($processed !== false) {
+                                $strategy = array_merge($strategy, $processed);
+                            }
+                        }
+
+                        if (!$strategy['actualMlModel']) {
+                            try {
+                                $preparedStrategy = [
+                                     'date' => $arItem['DATE_CREATE'],
+                                     'direction' => $direction,
+                                     'symbolName' => $symbolName,
+                                     'allInfo' => [
+                                             'candles15m' => $strategy['candles15m'],
+                                             'entryTarget' => $strategy['entryTarget'],
+                                             'actualClosePrice' => $strategy['actualClosePrice'],
+                                             'TP' => $strategy['TP'],
+                                             'SL' => $strategy['TP'],
+                                     ],
+                                ];
+                                $predictRes = \Maksv\MachineLearning\Assistant::predictRes([$preparedStrategy], $market, $bybitApiOb, $binanceApiOb) ?? [];
+                                $predictRes = array_shift($predictRes);
+                                if ($predictRes['symbolName'] == $symbolName)
+                                    $strategy['actualMlModel'] = $predictRes['prediction'];
+
+                            } catch (\Exception $e) {
+                                echo '<pre>'; var_dump($e->getMessage()); echo '</pre>';
+                            }
                         }
 
                         // Получаем остальные параметры стратегии
@@ -322,6 +374,25 @@ if(!empty($_GET)) {
                         }
 
                         $riskPercent = round(abs($actualClosePrice - $slForRiskCalc) / $actualClosePrice * 100, 2);
+
+                        //potential Profit
+                        $profit_percent_potential = 0;
+                        $reachedTPPotential = $tpCountGeneral;
+                        $portionWeightPotential = 1 / $tpCountGeneral;
+                        $profit_percent_potential = 0;
+                        // Берем первые $tpCountGeneral тейков
+                        $tpHitAr = array_slice($tp, 0, $tpCountGeneral);
+                        foreach ($tpHitAr as $tpPrice) {
+                            if ($direction == 'long') {
+                                $profitForTpPotential = (($tpPrice - $actualClosePrice) / $actualClosePrice) * 100;
+                            } else { // для short
+                                $profitForTpPotential = (($actualClosePrice - $tpPrice) / $actualClosePrice) * 100;
+                            }
+                            $profit_percent_potential += $profitForTpPotential * $portionWeightPotential;
+                        }
+                        $profit_percent_potential = round($profit_percent_potential, 2);
+                        //* potential Profit
+
                         // Расчёт итоговой процентной прибыли (profit_percent) и прибыли в валютном выражении (profit)
                         $profit_percent = 0;
 
@@ -397,7 +468,8 @@ if(!empty($_GET)) {
                             "entry_touched" => $priceAnalysis['entry_touched'],
                             'candlesUpdated' => $candlesUpdated,
                             'allInfo' => $strategy,
-                            'priceAnalysis' => $priceAnalysis
+                            'priceAnalysis' => $priceAnalysis,
+                            'profit_percent_potential' => $profit_percent_potential
                         ];
                     }
                 };
@@ -425,197 +497,7 @@ if(!empty($_GET)) {
     $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
 }
-
 ?>
-
-<!-- HTML-разметка страницы -->
-<style>
-    /* Ваши существующие стили */
-    .red-bg {
-        background-color: rgba(255, 3, 3, 0.46);
-    }
-    .green-bg {
-        background-color: rgb(0 102 51 / 66%);
-    }
-    .solid-border-top-td {
-        border-top: 3px solid #000;
-    }
-    .solid-border-red-td {
-        border: 3px solid #E22B2B;
-    }
-    .solid-border-green-td {
-        border: 3px solid #3BC915;
-    }
-    .stat-wrapper {
-        margin: 0px 10px 10px 10px;
-        font-family: Arial, sans-serif;
-    }
-
-    /* Стили для таблицы (оставляем без изменений) */
-    .table-container {
-        max-height: 400px;
-        overflow-y: auto;
-        overflow-x: auto;
-    }
-    table thead th {
-        position: sticky;
-        top: 0;
-        background-color: var(--bg-color-main, #007BFF);
-        color: #fff;
-        z-index: 2;
-        padding: 10px;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    /* Новый стиль для закреплённого футера */
-    table tfoot tr {
-        position: sticky;
-        bottom: 0;
-        z-index: 2;
-        background-color: var(--bg-color-main, #007BFF);
-        color: #fff;
-    }
-    table tfoot td {
-        border-top: 3px solid #000;
-        padding: 5px;
-    }
-
-    /* Стили для формы с фильтрами (без изменений, как вы задали) */
-    .filter-form {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        padding: 15px;
-        background-color: #f9f9f9;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-    }
-    .filter-form > div {
-        width: 100%;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin-bottom: 10px;
-    }
-    .filter-main .form-group,
-    .filter-trader .form-group,
-    .filter-date .form-group,
-    .button-footer .form-group {
-        flex: 1 1 200px;
-        display: flex;
-        flex-direction: column;
-    }
-    .filter-form label {
-        margin-bottom: 5px;
-        font-weight: bold;
-        font-size: 14px;
-    }
-    .filter-form input,
-    .filter-form select {
-        padding: 8px 10px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 14px;
-        transition: border-color 0.3s;
-    }
-    .filter-form input:focus,
-    .filter-form select:focus {
-        outline: none;
-        border-color: var(--bg-color-main, #007BFF);
-    }
-    .filter-form button {
-        padding: 8px 12px;
-        border: none;
-        border-radius: 4px;
-        background-color: var(--bg-color-main, #007BFF);
-        color: #fff;
-        font-size: 14px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .filter-form button:hover {
-        background-color: #006ae6;
-    }
-
-    /* Новые стили для блока мини-фильтров (filter-footer) и кнопки (button-footer) */
-    .filter-footer {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 12px;
-        margin-bottom: 10px;
-    }
-
-    .filter-footer .form-group {
-        display: flex;
-        flex-direction: column;
-    }
-    .filter-footer select,
-    .filter-footer input {
-        padding: 6px 8px;
-        font-size: 13px;
-    }
-    .button-footer {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        justify-content: flex-end;
-        align-items: center;
-    }
-    label.info {
-        margin-top: 5px;
-        margin-bottom: 0px;
-        font-weight: 100;
-    }
-
-    /* Адаптивные стили для мобильных устройств */
-    @media (max-width: 767px) {
-        .filter-form {
-            padding: 10px;
-            gap: 10px;
-        }
-        .filter-form > div {
-            flex-direction: row;
-            gap: 10px;
-        }
-        .filter-form .form-group {
-            flex: 1 1 100%;
-        }
-        /* При узком экране выравниваем мини-фильтры и кнопку по центру */
-        .filter-footer, .button-footer {
-            justify-content: center;
-        }
-        .filter-footer {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* Стили для блока ИИ-анализа — отступы совпадают с .stat-wrapper */
-    .ai-analyze-wrapper {
-        margin: 0px 10px 20px 10px;
-    }
-    #aiAnalyzeResult textarea {
-        box-sizing: border-box; /* чтобы width:100% не выходил за границы */
-    }
-
-    .btnAiAnalyzeBtn {
-        padding:8px 16px; border:none; border-radius:4px;
-        background:var(--bg-color-main,#007BFF); color:#fff;
-        cursor:pointer;
-    }
-
-    /* На мобильных экранах */
-    @media (max-width: 767px) {
-        .ai-analyze-wrapper {
-            margin: 0px 10px 20px 10px;
-        }
-        #aiAnalyzeResult textarea {
-            font-size: 14px;
-        }
-    }
-</style>
 
 <div class="stat-wrapper">
     <!-- Форма с фильтрами -->
@@ -637,6 +519,7 @@ if(!empty($_GET)) {
                         3 => [
                             7 => 'screener',
                             5 => 'master',
+                            6 => 'alerts',
                         ],
                         7 => [
                             8 => 'screener',
@@ -646,9 +529,6 @@ if(!empty($_GET)) {
                     <? foreach ($categoriesMap[intval($exchangeIblockID)] as $mapKey => $mapVal):?>
                         <option value="<?=$mapKey?>" <?=($categorySectionID == $mapKey ? "selected" : "")?>><?=$mapVal?></option>
                     <?endforeach;?>
-                    <?/*<option value="5" <?=($categorySectionID == 5 ? "selected" : "")?>>master</option>
-                    <option value="7" <?=($categorySectionID == 7 ? "selected" : "")?>>screener bybit</option>
-                    <option value="8" <?=($categorySectionID == 8 ? "selected" : "")?>>screener binance</option>*/?>
                 </select>
             </div>
         </div>
@@ -769,6 +649,13 @@ if(!empty($_GET)) {
                 <?$strategyFilter = false;?>
             <?endif;?>
 
+            <div class="form-group">
+                <label for="mlFilter">ml фильтр:</label>
+                <select name="mlFilter" id="entryFilter">
+                    <option value="n" <?=($mlFilter == 'n' ? "selected" : "")?>>Нет</option>
+                    <option value="y" <?=($mlFilter == 'y' ? "selected" : "")?>>Да</option>
+                </select>
+            </div>
         </div>
 
         <div class="button-footer">
@@ -813,6 +700,14 @@ if(!empty($_GET)) {
 
                     <? //if ($result["tf"] == '30m' && $result["direction"] == 'short' ) continue; ?>
 
+                    <?
+                    $mlPredictVal  = $result['allInfo']['actualMlModel']['probabilities'][1] ?? false;
+                    if ($mlFilter == 'y' && $mlPredictVal && $mlPredictVal < $strongMlBoard) continue; ?>
+
+                    <?//dev?>
+                    <?//if ($result["startRisk"] >= $result['allInfo']['riskBoard']) continue; ?>
+                    <?//if ($result["profit_percent_potential"] &&  $result["profit_percent_potential"] < $result['risk']) continue; ?>
+
                     <?$cntSignals += 1;?>
                     <? if ($result["profit"] > 0) { $cntSignalsProfit++; } elseif ($result["profit"] < 0) { $cntSignalsRisk++; } ?>
 
@@ -828,6 +723,10 @@ if(!empty($_GET)) {
                             <? if($result['strategy']): ?>
                                 <br><?=($result['strategy'])?>
                             <? endif; ?>
+                            <?if ($mlPredictVal):?>
+                                <br>
+                                ML - <?=$mlPredictVal?> %
+                            <?endif;?>
                         </td>
                         <td><?=($result["tpCount"])?></td>
                         <td <? if ($result["startRisk"] >= 3): ?>class="solid-border-red-td"<? endif ?>><?=($result["startRisk"] * $leverege)?></td>

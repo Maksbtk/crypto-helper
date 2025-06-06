@@ -130,6 +130,9 @@ class TelegramBot
             case '@cryptoHelperProphetAi':
                 $chatName = '-1002625670113';
                 break;
+            case '@cryptoHelperErrors':
+                $chatName = '-1002195205048';
+                break;
             /*default:
                 $chatName = $chatName;
           */

@@ -473,7 +473,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                     continue;*/
 
                 $diffHours = floatval(($now->getTimestamp() - $dateSignal->getTimestamp()) / 3600);
-                if ($diffHours <= 0.5) {
+                if ($diffHours <= 0.01) {
                     $signal['priceAnalysis'] = [
                         'status' => false,
                         'message' => 'Skipped, Signal too recent'
@@ -501,6 +501,27 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 $oneHourMs = 3600 * 1000;
                 $oneDayMs = 24 * $oneHourMs;
 
+                if (!$signal['SL'] || !$signal['TP']) {
+                    $processed = \Maksv\Bybit\Exchange::processSignal(
+                        $direct,
+                        floatval($signal['actualATR']['atr']),
+                        floatval($signal['actualClosePrice']),
+                        $signal['candles15m'], //candles15
+                        $signal['actualSupertrend5m'],
+                        $signal['actualSupertrend15m'],
+                        $signal['actualMacdDivergence'],
+                        $signal['symbolScale'],
+                        $signal['atrMultipliers'],
+                        ['risk' => 6],
+                        $symbolName,
+                        "bybit/component"
+                    );
+
+                    if ($processed !== false) {
+                        $signal = array_merge($signal, $processed);
+                    }
+                }
+
                 $cacheTtl = 10 * 60;
                 if ($ageMs < 2 * $oneHourMs) {
                     $cacheTtl = 5 * 60; // 10 минут
@@ -511,19 +532,6 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 } else {
                     $cacheTtl = 90 * 24 * 3600; // n месяц
                 }
-                /*$bybitApiOb,
-                $binanceApiOb,
-                $symbolName,
-                $startTime,
-                $endTime,
-                $type,
-                $actualClosePrice = false,
-                $sl = false,
-                $tp = false,
-                $shiftSL = false,
-                $cacheTime = 0,
-                $candles = [],
-                $market = 'bybit'*/
 
                 $analysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
                     $bybitApiOb,

@@ -9,11 +9,11 @@ class Request
     /**
      * @param string $host Хост (домен или IP) с указанием порта, например 'http://127.0.0.1:8000'
      */
-    public function __construct(string $host = 'http://127.0.0.1:8000')
+    public function __construct(string $host = 'http://127.0.0.1:8000', string $dir = 'ml' )
     {
         //  можно поставить 'https://infocrypto-helper.ru:8000'
-        $this->trainUrl   = rtrim($host, '/') . '/ml/train';
-        $this->predictUrl = rtrim($host, '/') . '/ml/predict';
+        $this->trainUrl   = rtrim($host, '/') . '/'.$dir.'/train';
+        $this->predictUrl = rtrim($host, '/') . '/'.$dir.'/predict';
     }
 
     /**
