@@ -25,8 +25,10 @@ function devlogs($data, $type)
 function agentBybitRespDev()
 {
     \Maksv\Bybit\Exchange::bybitExchange('15m', 0.99, -0.99, true);
+    //\Maksv\Binance\Exchange::screener('15m', 0.99, -0.99, true);
+    //\Maksv\Bybit\Exchange::screener('15m', 0.99, -0.99, true);
+
     //bybitExch15m();
-    //\Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49, true);
     //\Maksv\Binance\Exchange::screener('15m', 1.49, -1.49, true);
     //\Maksv\Bybit\Exchange::bybitSummaryVolumeExchange(true);
     //\Maksv\Bybit\Exchange::bybitExchange('1d', 0.99, -0.99, true);

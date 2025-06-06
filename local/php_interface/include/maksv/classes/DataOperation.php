@@ -8,6 +8,19 @@ use Bitrix\Main\Loader,
 class DataOperation
 {
     public function __construct(){}
+    
+    public static function sendErrorInfoMessage($text, $path = '', $space = '',  $chatName = '@cryptoHelperErrors' ) {
+        $message = '';
+        $message .= "‼ ERROR " .  "\n\n";
+        $message.= $text. "\n\n";
+
+        if ($path) $message.= 'path - ' . $path . "\n";
+        if ($space) $message.= 'space -' . $space . "\n";
+
+        $tgBot = new \Maksv\TelegramBot();
+        $sendRes = $tgBot->messageToTelegram($message, $chatName);
+        return $sendRes;
+    }
 
     public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m', $btcInfo = [], $cntInfo = [], $isScreener = false, $market = 'BYBIT')
     {
@@ -242,10 +255,10 @@ class DataOperation
             $message .= 'OI ' .  $res['summaryOI'] .  " | ";
 
         if ($res['summaryOI'])
-            $message .= 'bybit ' .  $res['summaryOIBybit'] .  " | ";
+            $message .= 'bbt ' .  $res['summaryOIBybit'] .  " | ";
 
         if ($res['summaryOI'])
-            $message .= 'binance ' .  $res['summaryOIBinance'] .  "\n";
+            $message .= 'bnc ' .  $res['summaryOIBinance'] .  "\n";
 
         // Если задан путь к графику, отправляем фото с подписью,
         // иначе отправляем обычное текстовое сообщение

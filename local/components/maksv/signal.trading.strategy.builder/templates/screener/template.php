@@ -281,6 +281,9 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?if ($item['tpCount']['longTpCount']):?>
                                     (Recommended tp count <?=$item['tpCount']['longTpCount']?>)<br>
                                 <?endif;?>
+                                <?if ($item['calculateRiskTargetsWithATR']['riskPercent']):?>
+                                    (risk <?=$item['calculateRiskTargetsWithATR']['riskPercent']?>)<br>
+                                <?endif;?>
 
                                 <?if ($item['TP']):?>
                                     <br>Profit Targets:<br>
@@ -370,6 +373,10 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?if ($item['tpCount']['shortTpCount']):?>
                                     (Recommended tp count <?=$item['tpCount']['shortTpCount']?>)<br>
                                 <?endif;?>
+                                <?if ($item['calculateRiskTargetsWithATR']['riskPercent']):?>
+                                    (risk <?=$item['calculateRiskTargetsWithATR']['riskPercent']?>)<br>
+                                <?endif;?>
+
 
                                 <?if ($item['TP']):?>
                                     <br>Profit Targets:<br>

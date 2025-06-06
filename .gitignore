@@ -6,6 +6,10 @@ robots.txt
 .access.php
 /local/php_interface/include/maksv/classes/Keys.php
 
+#ml
+/ml/venv
+/ml/__pycache__/
+
 # bitrix
 /devlogs
 /devlogs/
@@ -30,6 +34,10 @@ robots.txt
 /bitrix/*.log
 *.log
 *.log.*
+*.sqlite3
+*.db
+*.swp
+.DS_Store
 *.gz
 *.zip
 /export/*.xml

@@ -2867,6 +2867,9 @@ class TechnicalAnalysis
         float $overextensionThreshold = 1.1,
         float $atrMultiplier = 0.4
     ): array {
+        if (!$candles)
+            return [];
+
         // Извлекаем последнюю свечу и получаем цену закрытия.
         $lastCandle = end($candles);
         $currentPrice = floatval($lastCandle['c']);
