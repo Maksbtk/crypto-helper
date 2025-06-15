@@ -10,8 +10,29 @@ define('NEED_AUTH', true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 
 Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/maksv-statPage.css");
-$APPLICATION->SetPageProperty("title", "Статистика");
-$APPLICATION->SetTitle("Статистика");
+
+
+$exchangeIblockID = isset($_GET['exchange']) ? intval($_GET['exchange']) : 3;  // вариант пока только bybit (id инфоблока - 3)
+$categorySectionID = isset($_GET['category']) ? intval($_GET['category']) : 7;  // по умолчанию  (id=5)
+
+$marketMap = [
+    3 => 'bybit',
+    7 => 'binance',
+];
+
+$categoriesMap = [
+    3 => [
+        7 => 'screener',
+        5 => 'master',
+        6 => 'alerts',
+    ],
+    7 => [
+        8 => 'screener',
+    ],
+];
+
+$APPLICATION->SetPageProperty("title", "Статистика " . $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
+$APPLICATION->SetTitle("Статистика " .  $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
 
 global $USER;
 
@@ -25,14 +46,6 @@ $defaultEndDate  ->setTime(23, 59, 0);
 $defaultStartStr = $defaultStartDate->format('Y-m-d\TH:i');
 $defaultEndStr   = $defaultEndDate  ->format('Y-m-d\TH:i');
 
-// Получаем параметры из GET-запроса (если имеются)
-$exchangeIblockID = isset($_GET['exchange']) ? intval($_GET['exchange']) : 3;  // вариант пока только bybit (id инфоблока - 3)
-$marketMap = [
-    3 => 'bybit',
-    7 => 'binance',
-];
-
-$categorySectionID = isset($_GET['category']) ? intval($_GET['category']) : 7;  // по умолчанию  (id=5)
 $tpCountGeneral = isset($_GET['tpCountGeneral']) ? intval($_GET['tpCountGeneral']) : 0;  // сколько всего тейк профитов у сделки  (false)
 $deposit = isset($_GET['deposit']) ? intval($_GET['deposit']) : 100;  //сумма на которая используется в сделке  ()
 $shiftSL = isset($_GET['shiftSL']) ? intval($_GET['shiftSL']) : false;  // передвигание стопа после достижения какого тейк профита  ()
@@ -77,7 +90,10 @@ $directionFilter = isset($_GET['directionFilter']) ? $_GET['directionFilter'] : 
 $tfFilter = isset($_GET['tfFilter']) ? $_GET['tfFilter'] : false;
 $entryFilter = isset($_GET['entryFilter']) ? $_GET['entryFilter'] : 'y';
 $strategyFilter = isset($_GET['strategyFilter']) ? $_GET['strategyFilter'] : false;
+
 $mlFilter = isset($_GET['mlFilter']) ? $_GET['mlFilter'] : 'n';
+$mlFilterAr = ['0.7', '0.71', '0.705', '0.61', '0.605', '0.651', '0.8', '0.75', '0.55'];
+if (!in_array($mlFilter, $mlFilterAr)) $mlFilter = 'n';
 $strongMlBoard = 0.705;
 
 // читаем из GET или ставим дефолт
@@ -220,14 +236,15 @@ if(!empty($_GET)) {
                                 floatval($strategy['actualATR']['atr']),
                                 floatval($strategy['actualClosePrice']),
                                 $strategy['candles15m'], //candles15
-                                $strategy['actualSupertrend5m'],
+                                $strategy['actualSupertrend15m'],//$strategy['actualSupertrend5m'],
                                 [],//$strategy['actualSupertrend15m'],
                                 $strategy['actualMacdDivergence'],
                                 $strategy['symbolScale'] ?? 6,
                                 $strategy['atrMultipliers'] /*?? [1.9, 2.6, 3.4]*/,
                                 ['risk' => 6],
                                 $symbolName,
-                                "stat"
+                                "stat",
+                                false
                             );
 
                             if ($processed !== false) {
@@ -235,7 +252,7 @@ if(!empty($_GET)) {
                             }
                         }
 
-                        if (!$strategy['actualMlModel']) {
+                        /*if (!$strategy['actualMlModel']) {
                             try {
                                 $preparedStrategy = [
                                      'date' => $arItem['DATE_CREATE'],
@@ -257,7 +274,7 @@ if(!empty($_GET)) {
                             } catch (\Exception $e) {
                                 echo '<pre>'; var_dump($e->getMessage()); echo '</pre>';
                             }
-                        }
+                        }*/
 
                         // Получаем остальные параметры стратегии
                         $actualClosePrice = isset($strategy["actualClosePrice"]) ? $strategy["actualClosePrice"] : false;
@@ -321,19 +338,14 @@ if(!empty($_GET)) {
                         }
                         // Анализ изменения
                         // цены (функция возвращает массив с tp_count и realized_percent_change)
-                        /*$bybitApiOb,
-                           $binanceApiOb,
-                           $symbolName,
-                           $startTime,
-                           $endTime,
-                           $type,
-                           $actualClosePrice = false,
-                           $sl = false,
-                           $tp = false,
-                           $shiftSL = false,
-                           $cacheTime = 0,
-                           $candles = [],
-                           $market = 'bybit'*/
+
+                        $perc = 1;
+                        if ($direction == 'long') {
+                            $sl = $sl - (($sl/100) * ($perc));
+                        } else {
+                            $sl = $sl + (($sl/100) * ($perc));
+                        }
+
                         $priceAnalysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
                             $bybitApiOb,
                             $binanceApiOb,
@@ -349,10 +361,7 @@ if(!empty($_GET)) {
                             $candles,
                             $market
                         );
-
-                        /*if (!$priceAnalysis['entry_touched'])
-                            continue;*/
-
+                        
                         // Приводим значение realized_percent_change к float
                         $rpch = floatval(isset($priceAnalysis["realized_percent_change"]) ? $priceAnalysis["realized_percent_change"] : 0);
 
@@ -514,18 +523,6 @@ if(!empty($_GET)) {
             <div class="form-group">
                 <label for="category">Категория:</label>
                 <select name="category" id="category">
-                    <?
-                    $categoriesMap = [
-                        3 => [
-                            7 => 'screener',
-                            5 => 'master',
-                            6 => 'alerts',
-                        ],
-                        7 => [
-                            8 => 'screener',
-                        ],
-                    ];
-                    ?>
                     <? foreach ($categoriesMap[intval($exchangeIblockID)] as $mapKey => $mapVal):?>
                         <option value="<?=$mapKey?>" <?=($categorySectionID == $mapKey ? "selected" : "")?>><?=$mapVal?></option>
                     <?endforeach;?>
@@ -653,7 +650,9 @@ if(!empty($_GET)) {
                 <label for="mlFilter">ml фильтр:</label>
                 <select name="mlFilter" id="entryFilter">
                     <option value="n" <?=($mlFilter == 'n' ? "selected" : "")?>>Нет</option>
-                    <option value="y" <?=($mlFilter == 'y' ? "selected" : "")?>>Да</option>
+                    <?foreach ($mlFilterAr as $mlVal):?>
+                        <option value="<?=$mlVal?>" <?=($mlFilter == $mlVal ? "selected" : "")?>><?=$mlVal?></option>
+                    <?endforeach;?>
                 </select>
             </div>
         </div>
@@ -702,7 +701,7 @@ if(!empty($_GET)) {
 
                     <?
                     $mlPredictVal  = $result['allInfo']['actualMlModel']['probabilities'][1] ?? false;
-                    if ($mlFilter == 'y' && $mlPredictVal && $mlPredictVal < $strongMlBoard) continue; ?>
+                    if ($mlFilter != 'n' && $mlPredictVal && $mlPredictVal < floatval($mlFilter)) continue; ?>
 
                     <?//dev?>
                     <?//if ($result["startRisk"] >= $result['allInfo']['riskBoard']) continue; ?>

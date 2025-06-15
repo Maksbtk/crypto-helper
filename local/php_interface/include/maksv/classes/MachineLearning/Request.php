@@ -13,6 +13,7 @@ class Request
     {
         //  можно поставить 'https://infocrypto-helper.ru:8000'
         $this->trainUrl   = rtrim($host, '/') . '/'.$dir.'/train';
+        $this->trainFileUrl   = rtrim($host, '/') . '/'.$dir.'/train-file';
         $this->predictUrl = rtrim($host, '/') . '/'.$dir.'/predict';
     }
 
@@ -29,6 +30,11 @@ class Request
     public function train(array $signals): array
     {
         return $this->request($this->trainUrl, $signals);
+    }
+
+    public function trainFile(string $trainFilePath): array
+    {
+        return $this->request($this->trainFileUrl,  ['trainFilePath' => $trainFilePath]);
     }
 
     /**
@@ -60,7 +66,8 @@ class Request
                 'Content-Type: application/json',
                 'Content-Length: ' . strlen($payload),
             ],
-            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_CONNECTTIMEOUT  => 5,    // сколько секунд ждать установку соединения
+            CURLOPT_TIMEOUT         => 60,   // сколько секунд ждать полного ответа
         ]);
         $resp = curl_exec($ch);
         if ($resp === false) {

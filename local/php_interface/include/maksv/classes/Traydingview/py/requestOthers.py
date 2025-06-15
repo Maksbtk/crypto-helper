@@ -14,7 +14,7 @@ import pandas as pd
 # === Параметры ===
 SYMBOL      = 'OTHERS'  # Total Market Cap Excluding Top 10 на TradingView
 EXCHANGE    = 'CRYPTOCAP'
-NUM_BARS    = 200
+NUM_BARS    = 402
 INTERVALS   = {
     '15m': Interval.in_15_minute,
     '5m':  Interval.in_5_minute,
@@ -80,6 +80,7 @@ def main():
 
         log('JSON written to ' + OUTPUT_JSON)
         log('Process completed successfully')
+        log('______________________________')
         print('OK')
     except Exception as e:
         log('Error: ' + str(e))

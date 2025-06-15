@@ -492,7 +492,7 @@ class Exchange
                 if ($cnt % 20 === 0)
                     $latestScreener = \Maksv\DataOperation::getLatestScreener($binanceScreenerIblockId);
 
-                if ($cnt % 10 === 0)
+                if ($cnt % 20 === 0)
                     $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfoDev();
 
                 //dev $marketInfo['isLong'] = true; $marketInfo['risk'] = 5;
@@ -757,7 +757,7 @@ class Exchange
 
                 if (is_array($candles15m) && count($candles15m) >= 202) {
                     try {
-                        $ma100His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 12, 100, 102) ?? [];
+                        $ma100His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 100, 102) ?? [];
                         $ma100 = $ma100His[array_key_last($ma100His)];
                     } catch (Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma100 candles15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -767,9 +767,9 @@ class Exchange
                     devlogs('ERR ' . $symbolName . ' | err - ma100' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
 
-                if (is_array($candles) && count($candles) >= 402) {
+                if (is_array($candles15m) && count($candles15m) >= 402) {
                     try {
-                        $ma200His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 12, 200, 102) ?? [];
+                        $ma200His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 200, 102) ?? [];
                         $ma200 = $ma200His[array_key_last($ma200His)];
                     } catch (Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma200' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -778,7 +778,7 @@ class Exchange
 
                 if (is_array($candles15m) && count($candles15m) >= 802) {
                     try {
-                        $ma400His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 12, 400, 10) ?? [];
+                        $ma400His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 400, 10) ?? [];
                         $ma400 = $ma400His[array_key_last($ma400His)];
                     } catch (Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma400 candles15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -830,7 +830,7 @@ class Exchange
 
                 $screenerData['atrMultipliers'] = $atrMultipliers;
 
-                $maDistance = 3;
+                $maDistance = 2.5;
                 if (
                     ($summaryOIBinance >= $longOiLimit)
                     && $marketInfo['isLong']
@@ -839,10 +839,12 @@ class Exchange
                         $actualMacd['isLong']
                         || ($actualImpulsMacd['isLong'] && $interval == '15m')
                         || ($ma100['isLong'] && $interval == '15m')
+                        || ($ma200['isLong'] && $interval == '15m')
                         || ($ma400['isLong'] && $interval == '15m')
                     )
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma26,  $actualClosePrice, $maDistance, 'long')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Bybit\Exchange::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'long')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'long')
                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                 ) {
@@ -858,6 +860,8 @@ class Exchange
                         $screenerData['strategy'] = 'macdI/direct/!d/MAfar';
                     } else if ($ma100['isLong']) {
                         $screenerData['strategy'] = 'MA100xEMA9/MACD';
+                    } else if ($ma200['isLong']) {
+                        $screenerData['strategy'] = 'MA200xEMA9/MACD';
                     } else if ($ma400['isLong']) {
                         $screenerData['strategy'] = 'MA400xEMA9/MACD';
                     }
@@ -881,14 +885,13 @@ class Exchange
                         "$marketMode/screener$interval"
                     );
 
-                    if (
-                        $processed !== false
-                        && ($processed['actualMlModel']['probabilities'][1] && $marketInfo['mlBoard'] && $processed['actualMlModel']['probabilities'][1] > $marketInfo['mlBoard'])
-                    ) {
-                        // сливаем результат и сохраняем
+                    if ($processed !== false) {
                         $screenerData = array_merge($screenerData, $processed);
                         $res['screenerPump'][$symbolName] = $screenerData;
+                    } else {
+                        $continueSymbols .= $symbol['symbol'] . ', ';
                     }
+
                 } else if (
                     ($summaryOIBinance <= $shortOiLimit)
                     && $marketInfo['isShort']
@@ -897,11 +900,12 @@ class Exchange
                         $actualMacd['isShort']
                         || ($actualImpulsMacd['isShort'] && $interval)
                         || ($ma100['isShort'] && $interval == '15m')
+                        || ($ma200['isShort'] && $interval == '15m')
                         || ($ma400['isShort'] && $interval == '15m')
                     )
-                    // проверяем MA26, MA100 и MA400 для направления 'long'
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma26,  $actualClosePrice, $maDistance, 'short')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Bybit\Exchange::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'short')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'short')
                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                 ) {
@@ -916,6 +920,8 @@ class Exchange
                         $screenerData['strategy'] = 'macdI/direct/!d/MAfar';
                     } else if ($ma100['isShort']) {
                         $screenerData['strategy'] = 'MA100xEMA9/MACD';
+                    } else if ($ma200['isShort']) {
+                        $screenerData['strategy'] = 'MA200xEMA9/MACD';
                     } else if ($ma400['isShort']) {
                         $screenerData['strategy'] = 'MA400xEMA9/MACD';
                     }
@@ -938,13 +944,12 @@ class Exchange
                         $symbolName,
                         "$marketMode/screener$interval"
                     );
-
-                    if (
-                        $processed !== false
-                        && ($processed['actualMlModel']['probabilities'][1] && $marketInfo['mlBoard'] && $processed['actualMlModel']['probabilities'][1] > $marketInfo['mlBoard'])
-                    ) {
+                    
+                    if ($processed !== false) {
                         $screenerData = array_merge($screenerData, $processed);
                         $res['screenerDump'][$symbolName] = $screenerData;
+                    } else {
+                        $continueSymbols .= $symbol['symbol'] . ', ';
                     }
                 }
 
@@ -984,22 +989,46 @@ class Exchange
                     foreach ($screenerData['tempChartPath'] as $path)
                         unlink($path);
 
-                    /*
+                    $screenerData['marketMLName'] = 'notFound';
+                    if ($screenerData['isLong']){
+                        $screenerData['marketMLName'] = 'longMl';
+                    } else {
+                        $screenerData['marketMLName'] = 'shortMl';
+                    }
+
                     $screenerData['tempChartPath'] = [];
-                    //Prophet AI //сбор статистики
-                    $screenerData['leverage'] = '5x';
-                    \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperProphetAi');
+                    $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.61;
+                    $screenerData['mlMarketBoard'] = $mlMarketBoard = $marketInfo['mlMarketBoard'] ?? 0.65;
 
-                    //мой бот для торговли bybit
-                    $screenerData['leverage'] = '10x';
+                    if (
+                        $screenerData['actualMlModel']
+                        && $screenerData['actualMlModel']['probabilities'][1] >= $mlBoard
+                        && $marketInfo[$screenerData['marketMLName']]
+                        && $marketInfo[$screenerData['marketMLName']]['probabilities'][1] >= $mlMarketBoard
+                    ) {
+                        devlogs(
+                            'ML approve | ' . $screenerData['actualMlModel']['probabilities'][1] . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            $marketMode . '/screener' . $interval
+                        );
 
-                    if ($screenerData['isLong'])
-                        $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
-                    else
-                        $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $shortTpCount);
+                        //мой бот для торговли bybit // check ML
+                        $screenerData['leverage'] = '10x';
+                        if ($screenerData['isLong'])
+                            $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
+                        else
+                            $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $shortTpCount);
 
-                    \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperCornixTreadingBot');
-                    */
+                        if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
+                            $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
+
+                        \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperCornixTreadingBot');
+                    } else  {
+                        devlogs(
+                            'ML skip | ' . $marketInfo[$screenerData['marketMLName']]['probabilities'][1] . ' > ' . $mlMarketBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            $marketMode . '/screener' . $interval
+                        );
+                        $continueSymbols .= $symbol['symbol'] . ', ';
+                    }
 
                     $actualStrategy = [
                         "TIMEMARK" => date("d.m.y H:i:s"),

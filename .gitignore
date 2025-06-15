@@ -9,6 +9,11 @@ robots.txt
 #ml
 /ml/venv
 /ml/__pycache__/
+/ml/data/
+
+/mlDev/venv
+/mlDev/__pycache__/
+/mlDev/data/
 
 # bitrix
 /devlogs
