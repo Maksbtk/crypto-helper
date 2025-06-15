@@ -105,7 +105,7 @@ function bybitScreenerExch15m()
     $minute = (int)date('i');
 
     if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56])) {
-        \Maksv\Bybit\Exchange::screener('15m', 1.49, -1.49);
+        \Maksv\Bybit\Exchange::screener('15m', 0.99, -0.99);
     }
 
     return "bybitScreenerExch15m();";
@@ -128,7 +128,7 @@ function bybitScreenerExch30m()
     $hour = (int)date('H');
 
     if (in_array($minute,  [0, 1, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51]))
-        \Maksv\Bybit\Exchange::screener('30m', 1.49, -1.49);
+        \Maksv\Bybit\Exchange::screener('30m', 0.99, -0.99);
 
     return "bybitScreenerExch30m();";
 }
@@ -154,11 +154,45 @@ function binanceSummaryVolumeExchange() {
         if ($binanceSummaryVolumeExchangeRes) {
             \Maksv\Binance\Exchange::screener('15m', 0.99, -0.99);
             \Maksv\Binance\Exchange::screener('30m', 0.99, -0.99);
-            //\Maksv\Binance\Exchange::screener('5m', 0.99, -0.99);
+            \Maksv\Binance\Exchange::screener('5m', 0.99, -0.99);
         }
     }
 
     return "binanceSummaryVolumeExchange();";
+}
+
+function binanceScreenerExch15m()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+
+    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56])) {
+        \Maksv\Binance\Exchange::screener('15m', 0.99, -0.99);
+    }
+
+    return "binanceScreenerExch15m();";
+}
+
+function binanceScreenerExch5m()
+{
+    $hour = (int)date('H');
+    $minute = (int)date('i');
+
+    //if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+    //\Maksv\Binance\Exchange::screener('5m', 0.99, -0.99);
+
+    return "binanceScreenerExch5m();";
+}
+
+function binanceScreenerExch30m()
+{
+    $minute = (int)date('i');
+    $hour = (int)date('H');
+
+    if (in_array($minute,  [0, 1, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51]))
+        \Maksv\Binance\Exchange::screener('30m', 0.99, -0.99);
+
+    return "binanceScreenerExch30m();";
 }
 
 function btcDOthersExchange()
@@ -263,7 +297,7 @@ function clean_expire_cache($path = "") {
     $curentTime = time();
     /*if (defined("BX_CRONTAB") && BX_CRONTAB === true) $endTime = time() + 5; //Если на кроне, то работаем 5 секунд
     else $endTime = time() + 1; //Если на хитах, то не более секунды*/
-    $endTime = time() + 5;
+    $endTime = time() + 10;
     //Работаем со всем кешем
     $obCacheCleaner = new CFileCacheCleaner("all");
 

@@ -5,11 +5,48 @@ class Assistant
 {
     public function __construct(string $host = 'http://127.0.0.1:8000'){}
 
+    /** @var string Базовый URL ML-сервиса */
+    public static string $host = 'http://127.0.0.1:8000';
+
+    /** @var string Префикс маршрутов (часть URL перед /train и /predict) */
+    public static string $prefix = 'ml';
+
     public static $nBars = 30;
     public static $mBars = 100;
     public static $intervalMinutes = 15;
     public static $intervalMs = 15 * 60 * 1000; // 15 минут в миллисекундах
 
+    public static function getTrainData () {
+        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
+        $allData = [];
+        $errors = [];
+
+        // 1) Загружаем существующие данные
+        if (file_exists($trainDataFile)) {
+            $json = @file_get_contents($trainDataFile);
+            if ($json !== false) {
+                $decoded = json_decode($json, true);
+                if (is_array($decoded)) {
+                    $allData = $decoded;
+                } else {
+                    $errors[] = "Не удалось декодировать JSON из {$trainDataFile}";
+                }
+            } else {
+                $errors[] = "Не удалось прочитать файл {$trainDataFile}";
+            }
+        }
+
+        $count = false;
+        if (is_array($allData))
+            $count = count($allData);
+
+        return [
+            'allData' => $allData,
+            'count' => $count,
+            'errors' => $errors,
+        ];
+    }
+    
     /**
      * Собирает и сохраняет тренировочные данные в JSON-файл.
      * Возвращает статистику обработки сигналов и возможные ошибки.
@@ -28,7 +65,7 @@ class Assistant
      */
     public static function collectAndStoreTrainData(array $finalResults, string $market, $bybitApiOb, $binanceApiOb): array
     {
-        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/ml/data/train_data.json';
+        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
         $allData = [];
         $errors = [];
 
@@ -220,6 +257,25 @@ class Assistant
         ];
     }
 
+    public static function trainFromFile(): array
+    {
+        $errors = [];
+        $resp   = null;
+        try {
+            $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
+            $trainDataFileShort = 'data/train_data.json';
+
+            $req  = new Request(self::$host, self::$prefix);
+            //$resp = $req->trainFile($trainDataFile);
+            $resp = $req->trainFile($trainDataFileShort);
+
+        } catch (\Exception $e) {
+            $errors[] = "Ошибка при File-тренировке: " . $e->getMessage();
+        }
+
+        return ['resp' => $resp, 'errors' => $errors];
+    }
+
     /**
      * Считывает накопленные данные и отправляет батч в ML для тренировки.
      * Возвращает массив с батчем, ответом сервера и возможными ошибками.
@@ -238,7 +294,7 @@ class Assistant
      */
     public static function trainRes(array $ignored = [], string $ignored2 = '', $ignored3 = null, $ignored4 = null): array
     {
-        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/ml/data/train_data.json';
+        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
         $trainBatch    = [];
         $resp          = null;
         $errors        = [];
@@ -271,7 +327,7 @@ class Assistant
         // 3) Отправляем батч в ML, если есть данные
         if (!empty($trainBatch)) {
             try {
-                $ml   = new \Maksv\MachineLearning\Request('http://127.0.0.1:8000');
+                $ml   = new \Maksv\MachineLearning\Request(self::$host);
                 $resp = $ml->train($trainBatch);
             } catch (\Exception $e) {
                 $errors[] = "Ошибка при тренировке ML: " . $e->getMessage();
@@ -490,7 +546,7 @@ class Assistant
 
             // 4) Вызываем ML-предсказание
             try {
-                $ml       = new \Maksv\MachineLearning\Request('http://127.0.0.1:8000');
+                $ml       = new \Maksv\MachineLearning\Request(self::$host);
                 $response = $ml->predict($payload);
                 $response['symbolName'] = $symbolName;
                 $response['date']       = $dt->format('d.m.Y H:i:s');

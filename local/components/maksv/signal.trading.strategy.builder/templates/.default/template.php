@@ -204,7 +204,7 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
             <table class="iksweb js-strategy_table">
                 <thead>
                 <tr>
-                    <th>Сделка</th>
+                    <th>Направление</th>
                     <th>Контракт</th>
                     <th>Targets</th>
                     <th>TA</th>
@@ -219,10 +219,10 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                         <tr data-val="<?=$item['symbolName']?>">
                             <td data-name="trand" class="green-bg">
                                 long
+                                <br><?=$item['strategy']?>
                             </td>
                             <td data-name="symbolName">
                                 <?=$item['symbolName']?>
-                                <br><?=$item['strategy']?>
 
                                 <?if ($item['oiLimits']['longOiLimit']):?>
                                     <br>oi limit: <?=round($item['oiLimits']['longOiLimit'], 2)?>
@@ -303,11 +303,12 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                     <?endforeach;?>
                     <?foreach ($strtagyItem['STRATEGIES'][$signalsCode . 'Dump'] as $item):?>
                         <tr data-val="<?=$item['symbolName']?>">
-                            <td data-name="trade" class="red-bg">short
+                            <td data-name="trade" class="red-bg">
+                                short
+                                <br><?=$item['strategy']?>
                             </td>
                             <td data-name="symbolName">
                                 <?=$item['symbolName']?>
-                                <br><?=$item['strategy']?>
                                 <?if ($item['oiLimits']['shortOiLimit']):?>
                                     <br>oi limit: <?=round($item['oiLimits']['shortOiLimit'], 2)?>
                                 <?endif;?>

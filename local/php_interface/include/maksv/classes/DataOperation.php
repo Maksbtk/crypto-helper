@@ -36,11 +36,12 @@ class DataOperation
             $message .= $btcInfo['infoText'];
         }
 
-        if ($cntInfo['count'] || $cntInfo['analysisCount'] || $cntInfo['analysisSymbols']) {
+        if ($cntInfo['count'] || $cntInfo['analysisCount'] || $cntInfo['analysisSymbols'] || $cntInfo['continueSymb']) {
             $message .= 'cnt info:' . "\n";
             $message .= 'count - ' . $cntInfo['count'] . "\n";
             $message .= 'analysisCount - ' . $cntInfo['analysisCount'] . "\n";
             $message .= 'analysis - ' . $cntInfo['analysisSymbols'] . "\n";
+            $message .= 'continue - ' . $cntInfo['continueSymb'] . "\n";
         }
 
         if ($actualOpportunities['allPump']) {
@@ -420,7 +421,7 @@ class DataOperation
     {
         $res = [];
         // Рассчитываем время начала интервала
-        $intervalInHours = 8;
+        $intervalInHours = 6;
         $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHours} hours");
 
         $propertyStrategiesFileId = self::getPropertyIdByCode($iblockId, 'STRATEGIES_FILE');
@@ -492,7 +493,8 @@ class DataOperation
     {
         $res = [];
         // Рассчитываем время начала интервала
-        $intervalInHoursMap = ['5m' => 8, '15m' => 8, '30m' => 8, '1h' => 8, '4h' => 32, '1d' => 48];
+        $commonInterval = 6;
+        $intervalInHoursMap = ['5m' => $commonInterval, '15m' => $commonInterval, '30m' => $commonInterval, '1h' => 8, '4h' => 32, '1d' => 42];
         $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHoursMap[$tf]} hours");
 
         $propertyStrategiesFileId = self::getPropertyIdByCode(3, 'STRATEGIES_FILE');

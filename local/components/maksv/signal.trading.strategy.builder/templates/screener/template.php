@@ -219,6 +219,7 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                         <tr data-val="<?=$item['symbolName']?>">
                             <td data-name="trand" class="green-bg">
                                 long
+                                <br><?=$item['strategy']?>
                             </td>
 
                             <td data-name="symbolName">
@@ -312,6 +313,7 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                         <tr data-val="<?=$item['symbolName']?>">
                             <td data-name="trand" class="red-bg">
                                 short
+                                <br><?=$item['strategy']?>
                             </td>
 
                             <td data-name="symbolName">
