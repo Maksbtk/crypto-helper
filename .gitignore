@@ -6,6 +6,9 @@ robots.txt
 .access.php
 /local/php_interface/include/maksv/classes/Keys.php
 
+#api
+/local/bitrixoa.yaml
+
 #ml
 /ml/venv
 /ml/__pycache__/

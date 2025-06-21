@@ -19,6 +19,7 @@ use Swoole\Coroutine;
 use Swoole\Event;
 use Swoole\Process;
 use Swoole\Timer;
+use Throwable;
 
 final class Swoole implements EventInterface
 {
@@ -47,6 +48,8 @@ final class Swoole implements EventInterface
      * @var ?callable
      */
     private $errorHandler = null;
+
+    private bool $stopping = false;
 
     /**
      * Constructor.
@@ -220,6 +223,10 @@ final class Swoole implements EventInterface
      */
     public function stop(): void
     {
+        if ($this->stopping) {
+            return;
+        }
+        $this->stopping = true;
         // Cancel all coroutines before Event::exit
         foreach (Coroutine::listCoroutines() as $coroutine) {
             Coroutine::cancel($coroutine);
@@ -276,14 +283,16 @@ final class Swoole implements EventInterface
      */
     private function safeCall(callable $func, array $args = []): void
     {
-        try {
-            $func(...$args);
-        } catch (\Throwable $e) {
-            if ($this->errorHandler === null) {
-                echo $e;
-            } else {
-                ($this->errorHandler)($e);
+        Coroutine::create(function() use ($func, $args) {
+            try {
+                $func(...$args);
+            } catch (Throwable $e) {
+                if ($this->errorHandler === null) {
+                    echo $e;
+                } else {
+                    ($this->errorHandler)($e);
+                }
             }
-        }
+        });
     }
 }

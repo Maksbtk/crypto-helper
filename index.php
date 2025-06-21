@@ -245,60 +245,59 @@ $bybitApiOb->closeConnection();*/
     <div style="display: flex;justify-content: center;">
         <?=nl2br(\Maksv\Bybit\Exchange::checkMarketImpulsInfo()['infoText'])?>
     </div>
-<?endif;?>
+
 <?php
 
-
 //$dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/summaryVolumeExchange.json';
-$dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/summaryVolumeExchange.json';
-$existingDataSparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
-$volumesData = $existingDataSparateVolume ?? [];
-$volumes = [];
-foreach ($volumesData as $symbol => $volume)
-    $volumes[$symbol] = $volume['resBinance'];
+    $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/summaryVolumeExchange.json';
+    $existingDataSparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
+    $volumesData = $existingDataSparateVolume ?? [];
+    $volumes = [];
+    foreach ($volumesData as $symbol => $volume)
+        $volumes[$symbol] = $volume['resBinance'];
     //$volumes[$symbol] = $volume['resBybit'];
 
 
-$startTime = date("H:i:s");
-$signals = ['long' => [], 'short' => []];
-$volumesBTC = [];
-foreach ($volumes as $symbol => $volume) {
-    $volume = array_reverse($volume);
+    $startTime = date("H:i:s");
+    $signals = ['long' => [], 'short' => []];
+    $volumesBTC = [];
+    foreach ($volumes as $symbol => $volume) {
+        $volume = array_reverse($volume);
 
-    if ($symbol == 'BTCUSDT') {
-        $volumesBTC = $volume;
+        if ($symbol == 'BTCUSDT') {
+            $volumesBTC = $volume;
+        }
+
+        $analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
+        //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
+        $analyzeVolumeSignalRes['symbol'] = $symbol;
+
+        if ($analyzeVolumeSignalRes['isLong'])
+            $signals['long'][$symbol] = $analyzeVolumeSignalRes;
+        else if ($analyzeVolumeSignalRes['isShort'])
+            $signals['short'][$symbol] = $analyzeVolumeSignalRes;
+        else if (!$analyzeVolumeSignalRes['isLong'] && !$analyzeVolumeSignalRes['isShort'])
+            $signals['neutral'][$symbol] = $analyzeVolumeSignalRes;
+
     }
+    uasort($signals['long'], function ($a, $b) {
+        return $b['growth'] <=> $a['growth'];
+    });
+    uasort($signals['short'], function ($a, $b) {
+        return $b['growth'] <=> $a['growth'];
+    });
+    $endTime = date("H:i:s");
 
-    $analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
-    //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($volume, 3, 0.49, 0.55);
-    $analyzeVolumeSignalRes['symbol'] = $symbol;
+    /*$coinmarketcapOb = new \Maksv\Coinmarketcap\Request();
+    $others15m = $coinmarketcapOb->getTotalExTop10_5m(200);*/
 
-    if ($analyzeVolumeSignalRes['isLong'])
-        $signals['long'][$symbol] = $analyzeVolumeSignalRes;
-    else if ($analyzeVolumeSignalRes['isShort'])
-        $signals['short'][$symbol] = $analyzeVolumeSignalRes;
-    else if (!$analyzeVolumeSignalRes['isLong'] && !$analyzeVolumeSignalRes['isShort'])
-        $signals['neutral'][$symbol] = $analyzeVolumeSignalRes;
-
-}
-uasort($signals['long'], function($a, $b) {
-    return $b['growth'] <=> $a['growth'];
-});
-uasort($signals['short'], function($a, $b) {
-    return $b['growth'] <=> $a['growth'];
-});
-$endTime = date("H:i:s");
-
-/*$coinmarketcapOb = new \Maksv\Coinmarketcap\Request();
-$others15m = $coinmarketcapOb->getTotalExTop10_5m(200);*/
-
-$binanceApiOb = new \Maksv\Binance\BinanceFutures();
-$binanceApiOb->openConnection();
-$oiData = [];
-$kline = $binanceApiOb->kline('ALTUSDT ', '15m', 500, false, false, true, 300);
+    $binanceApiOb = new \Maksv\Binance\BinanceFutures();
+    $binanceApiOb->openConnection();
+    $oiData = [];
+    $kline = $binanceApiOb->kline('ALTUSDT ', '15m', 500, false, false, true, 300);
 
 //$tradesHistoryResp = $binanceApiOb->tradesHistory('XMRUSDT', 1000);
-$binanceApiOb->closeConnection();
+    $binanceApiOb->closeConnection();
 
 
 ?>
@@ -310,15 +309,7 @@ $binanceApiOb->closeConnection();
     }
     console.log('devRes', devRes);
 </script>
-<?php
+<?endif;?>
 
-/*$coinmarketcapOb = new \Maksv\Coinmarketcap();
-$res = $coinmarketcapOb->fearGreedLatest('bitcoin');*/
 
-/*$btcQuote = $res['data'][1]['quote']['USDT'];
-$btcDQuote = $res['data']['bitcoin-dominance']['quote']['USD'];*/
-
-//echo '<pre>'; var_dump($res); echo '</pre>';
-
-?>
 <?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>

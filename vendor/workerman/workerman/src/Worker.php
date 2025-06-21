@@ -18,7 +18,6 @@ namespace Workerman;
 
 use AllowDynamicProperties;
 use Exception;
-use Revolt\EventLoop;
 use RuntimeException;
 use stdClass;
 use Stringable;
@@ -26,11 +25,14 @@ use Throwable;
 use Workerman\Connection\ConnectionInterface;
 use Workerman\Connection\TcpConnection;
 use Workerman\Connection\UdpConnection;
+use Workerman\Coroutine;
+use Workerman\Coroutine\Context;
 use Workerman\Events\Event;
 use Workerman\Events\EventInterface;
-use Workerman\Events\Revolt;
+use Workerman\Events\Fiber;
 use Workerman\Events\Select;
-use Workerman\Protocols\ProtocolInterface;
+use Workerman\Events\Swoole;
+use Workerman\Events\Swow;
 use function defined;
 use function function_exists;
 use function is_resource;
@@ -59,7 +61,14 @@ class Worker
      *
      * @var string
      */
-    final public const VERSION = '5.0.1';
+    final public const VERSION = '5.1.3';
+
+    /**
+     * Status initial.
+     *
+     * @var int
+     */
+    public const STATUS_INITIAL = 0;
 
     /**
      * Status starting.
@@ -344,9 +353,9 @@ class Worker
     /**
      * EventLoopClass
      *
-     * @var class-string<EventInterface>
+     * @var ?class-string<EventInterface>
      */
-    public static string $eventLoopClass;
+    public static ?string $eventLoopClass = null;
 
     /**
      * After sending the stop command to the child process stopTimeout seconds,
@@ -432,7 +441,7 @@ class Worker
      *
      * @var int
      */
-    protected static int $status = self::STATUS_STARTING;
+    protected static int $status = self::STATUS_INITIAL;
 
     /**
      * UI data.
@@ -785,7 +794,6 @@ class Worker
         }
 
         static::$eventLoopClass = match (true) {
-            class_exists(EventLoop::class) => Revolt::class,
             extension_loaded('event') => Event::class,
             default => Select::class,
         };
@@ -865,6 +873,7 @@ class Worker
             // Listen.
             if (!$worker->reusePort) {
                 $worker->listen();
+                $worker->pauseAccept();
             }
         }
     }
@@ -1001,7 +1010,7 @@ class Worker
         //Show version
         $jitStatus = function_exists('opcache_get_status') && (opcache_get_status()['jit']['on'] ?? false) === true ? 'on' : 'off';
         $version = str_pad('Workerman/' . static::VERSION, 24);
-        $version .= str_pad('PHP/' . PHP_VERSION . ' (Jit ' . $jitStatus . ')', 30);
+        $version .= str_pad('PHP/' . PHP_VERSION . ' (JIT ' . $jitStatus . ')', 30);
         $version .= php_uname('s') . '/' . php_uname('r') . PHP_EOL;
         return $version;
     }
@@ -1585,7 +1594,17 @@ class Worker
             restore_error_handler();
 
             // Add an empty timer to prevent the event-loop from exiting.
-            Timer::add(1000000, function (){});
+            Timer::add(0.8, function (){});
+
+            // Compatibility with the bug in Swow where the first request on Windows fails to trigger stream_select.
+            if (extension_loaded('swow')) {
+                Timer::delay(0.1 , function(){
+                    $stream = fopen(__FILE__, 'r');
+                    static::$globalEvent->onReadable($stream, function($stream) {
+                        static::$globalEvent->offReadable($stream);
+                    });
+                });
+            }
 
             // Display UI.
             static::safeEcho(str_pad($worker->name, 48) . str_pad($worker->getSocketName(), 36) . str_pad('1', 10) . "  [ok]\n");
@@ -1721,9 +1740,6 @@ class Worker
 
             // Init Timer.
             Timer::init(static::$globalEvent);
-
-            // Init TcpConnection.
-            TcpConnection::init();
 
             restore_error_handler();
 
@@ -2043,18 +2059,33 @@ class Worker
             }
             // Execute exit.
             $workers = array_reverse(static::$workers);
-            array_walk($workers, static fn (Worker $worker) => $worker->stop());
+            array_walk($workers, static fn (Worker $worker) => $worker->stop(false));
 
-            if (!static::getGracefulStop() || ConnectionInterface::$statistics['connection_count'] <= 0) {
-                static::$globalEvent?->stop();
-                try {
-                    // Ignore Swoole ExitException: Swoole exit.
-                    exit($code);
-                    /** @phpstan-ignore-next-line */
-                } catch (Throwable) {
-                    // do nothing
+            $callback = function () use ($code, $workers) {
+                $allWorkerConnectionClosed = true;
+                if (!static::getGracefulStop()) {
+                    foreach ($workers as $worker) {
+                        foreach ($worker->connections as $connection) {
+                            // Delay closing, waiting for data to be sent.
+                            if (!$connection->getRecvBufferQueueSize() && !isset($connection->context->closeTimer)) {
+                                $connection->context->closeTimer = Timer::delay(0.01, static fn () => $connection->close());
+                            }
+                            $allWorkerConnectionClosed = false;
+                        }
+                    }
                 }
-            }
+                if ((!static::getGracefulStop() && $allWorkerConnectionClosed) || ConnectionInterface::$statistics['connection_count'] <= 0) {
+                    static::$globalEvent?->stop();
+                    try {
+                        // Ignore Swoole ExitException: Swoole exit.
+                        exit($code);
+                        /** @phpstan-ignore-next-line */
+                    } catch (Throwable) {
+                        // do nothing
+                    }
+                }
+            };
+            Timer::repeat(0.01, $callback);
         }
     }
 
@@ -2158,9 +2189,6 @@ class Worker
             return;
         }
 
-        // For child processes.
-        gc_collect_cycles();
-        gc_mem_caches();
         reset(static::$workers);
         /** @var static $worker */
         $worker = current(static::$workers);
@@ -2533,29 +2561,47 @@ class Worker
      * Run worker instance.
      *
      * @return void
+     * @throws Throwable
      */
     public function run(): void
     {
         $this->listen();
 
+        if (!$this->onWorkerStart) {
+            return;
+        }
+
         // Try to emit onWorkerStart callback.
-        if ($this->onWorkerStart) {
+        $callback = function() {
             try {
                 ($this->onWorkerStart)($this);
             } catch (Throwable $e) {
                 // Avoid rapid infinite loop exit.
                 sleep(1);
                 static::stopAll(250, $e);
+            } finally {
+                Context::destroy();
             }
+        };
+
+        switch (Worker::$eventLoopClass) {
+            case Swoole::class:
+            case Swow::class:
+            case Fiber::class:
+                Coroutine::create($callback);
+                break;
+            default:
+                (new \Fiber($callback))->start();
         }
     }
 
     /**
      * Stop current worker instance.
      *
+     * @param bool $force
      * @return void
      */
-    public function stop(): void
+    public function stop(bool $force = true): void
     {
         if ($this->stopping === true) {
             return;
@@ -2573,7 +2619,9 @@ class Worker
         // Close all connections for the worker.
         if (!static::getGracefulStop()) {
             foreach ($this->connections as $connection) {
-                $connection->close();
+                if ($force || !$connection->getRecvBufferQueueSize()) {
+                    $connection->close();
+                }
             }
         }
         // Clear callback.
@@ -2704,5 +2752,15 @@ class Worker
         }
 
         return str_contains($content, 'WorkerMan') || str_contains($content, 'php');
+    }
+
+    /**
+     * If worker is running.
+     *
+     * @return bool
+     */
+    public static function isRunning(): bool
+    {
+        return Worker::$status !== Worker::STATUS_INITIAL;
     }
 }

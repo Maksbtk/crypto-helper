@@ -112,7 +112,7 @@ final class Select implements EventInterface
      *
      * @var int
      */
-    private int $selectTimeout = 100000000;
+    private int $selectTimeout = self::MAX_SELECT_TIMOUT_US;
 
     /**
      * Next run time of the timer.
@@ -125,6 +125,13 @@ final class Select implements EventInterface
      * @var ?callable
      */
     private $errorHandler = null;
+
+    /**
+     * Select timeout.
+     *
+     * @var int
+     */
+    const MAX_SELECT_TIMOUT_US = 800000;
 
     /**
      * Construct.
@@ -357,11 +364,10 @@ final class Select implements EventInterface
     {
         $this->nextTickTime = $nextTickTime;
         if ($nextTickTime == 0) {
-            $this->selectTimeout = 10000000;
+            $this->selectTimeout = self::MAX_SELECT_TIMOUT_US;
             return;
         }
-        $timeNow = microtime(true);
-        $this->selectTimeout = max((int)(($nextTickTime - $timeNow) * 1000000), 0);
+        $this->selectTimeout = min(max((int)(($nextTickTime - microtime(true)) * 1000000), 0), self::MAX_SELECT_TIMOUT_US);
     }
 
     /**
@@ -415,10 +421,15 @@ final class Select implements EventInterface
                 }
             }
 
-            if ($this->nextTickTime > 0 && microtime(true) >= $this->nextTickTime) {
-                $this->tick();
+            if ($this->nextTickTime > 0) {
+                if (microtime(true) >= $this->nextTickTime) {
+                    $this->tick();
+                } else {
+                    $this->selectTimeout = (int)(($this->nextTickTime - microtime(true)) * 1000000);
+                }
             }
 
+            // The $this->signalEvents are empty under Windows, make sure not to call pcntl_signal_dispatch.
             if ($this->signalEvents) {
                 // Calls signal handlers for pending signals
                 pcntl_signal_dispatch();

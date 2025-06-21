@@ -1,9 +1,12 @@
 <?php
+
 namespace Maksv\MachineLearning;
 
 class AssistantDev
 {
-    public function __construct(string $host = 'http://127.0.0.1:8001'){}
+    public function __construct(string $host = 'http://127.0.0.1:8001')
+    {
+    }
 
     /** @var string Базовый URL ML-сервиса */
     public static string $host = 'http://127.0.0.1:8001';
@@ -16,8 +19,9 @@ class AssistantDev
     public static $intervalMinutes = 15;
     public static $intervalMs = 15 * 60 * 1000; // 15 минут в миллисекундах
 
-    public static function getTrainData () {
-        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
+    public static function getTrainData()
+    {
+        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/' . self::$prefix . '/data/train_data.json';
         $allData = [];
         $errors = [];
 
@@ -51,9 +55,9 @@ class AssistantDev
      * Собирает и сохраняет тренировочные данные в JSON-файл.
      * Возвращает статистику обработки сигналов и возможные ошибки.
      *
-     * @param array  $finalResults Массив сигналов.
-     * @param string $market       'bybit' или 'binance'.
-     * @param object $bybitApiOb   Клиент Bybit API.
+     * @param array $finalResults Массив сигналов.
+     * @param string $market 'bybit' или 'binance'.
+     * @param object $bybitApiOb Клиент Bybit API.
      * @param object $binanceApiOb Клиент Binance API.
      *
      * @return array {
@@ -66,7 +70,7 @@ class AssistantDev
 
     public static function collectAndStoreTrainData(array $finalResults, string $market, $bybitApiOb, $binanceApiOb): array
     {
-        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
+        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/' . self::$prefix . '/data/train_data.json';
         $allData = [];
         $errors = [];
 
@@ -113,11 +117,11 @@ class AssistantDev
 
             // 2.3) Интервалы
             $startTimeMs = $signalTimestampMs - (self::$nBars * self::$intervalMs);
-            $endTimeMs   = $signalTimestampMs + (self::$mBars * self::$intervalMs);
-            $symbolName  = $res['symbolName'];
-            $useCache    = true;
-            $cacheTime   = 86400;
-            $limit       = self::$nBars + self::$mBars + 10;
+            $endTimeMs = $signalTimestampMs + (self::$mBars * self::$intervalMs);
+            $symbolName = $res['symbolName'];
+            $useCache = true;
+            $cacheTime = 86400;
+            $limit = self::$nBars + self::$mBars + 10;
 
             // 2.4) Запрос сырых баров
             $rawBars = [];
@@ -182,7 +186,7 @@ class AssistantDev
 
             // 2.6) Разделяем на “до” и “после”
             $historicalAll = [];
-            $futureAll     = [];
+            $futureAll = [];
             foreach ($candlesAll as $bar) {
                 if ($bar['t'] < $signalTimestampMs) {
                     $historicalAll[] = [
@@ -208,7 +212,7 @@ class AssistantDev
 
             // 2.8) Вырезаем ровно нужное число баров
             $historical = array_slice($historicalAll, -self::$nBars);
-            $future     = array_slice($futureAll, 0, self::$mBars);
+            $future = array_slice($futureAll, 0, self::$mBars);
             if (count($historical) !== self::$nBars || count($future) !== self::$mBars) {
                 $errors[] = "[{$symbolName}] Ошибка при обрезке баров";
                 continue;
@@ -221,7 +225,7 @@ class AssistantDev
             }
 
             $tpsRaw = (array)$res['allInfo']['TP'];
-            $tps    = array_map(fn($x) => floatval($x), $tpsRaw);
+            $tps = array_map(fn($x) => floatval($x), $tpsRaw);
             if (count($tps) > 3) {
                 $tps = array_slice($tps, 0, 3);
             }
@@ -229,13 +233,13 @@ class AssistantDev
             $slPrice = floatval($res['allInfo']['SL']);
 
             $trainSignal = [
-                'candles'   => $historical,
-                'entry'     => $entryPrice,
-                'tps'       => $tps,
-                'sl'        => $slPrice,
-                'future'    => $future,
+                'candles' => $historical,
+                'entry' => $entryPrice,
+                'tps' => $tps,
+                'sl' => $slPrice,
+                'future' => $future,
                 'direction' => $res['direction'],
-                'date'      => $dt->format('d.m.Y H:i:s'),
+                'date' => $dt->format('d.m.Y H:i:s'),
             ];
 
             // 2.10) Сохраняем под ключом
@@ -251,10 +255,10 @@ class AssistantDev
         }
 
         return [
-            'allCount'      => $allCount,
+            'allCount' => $allCount,
             'continueCount' => $continueCount,
-            'procCount'     => $procCount,
-            'errors'        => $errors,
+            'procCount' => $procCount,
+            'errors' => $errors,
             //'allData'        => $allData,
         ];
     }
@@ -262,12 +266,12 @@ class AssistantDev
     public static function trainFromFile(): array
     {
         $errors = [];
-        $resp   = null;
+        $resp = null;
         try {
-            $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
+            $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/' . self::$prefix . '/data/train_data.json';
             $trainDataFileShort = 'data/train_data.json';
 
-            $req  = new Request(self::$host, self::$prefix);
+            $req = new Request(self::$host, self::$prefix);
             //$resp = $req->trainFile($trainDataFile);
             $resp = $req->trainFile($trainDataFileShort);
 
@@ -282,10 +286,10 @@ class AssistantDev
      * Считывает накопленные данные и отправляет батч в ML для тренировки.
      * Возвращает массив с батчем, ответом сервера и возможными ошибками.
      *
-     * @param array  $ignored
+     * @param array $ignored
      * @param string $ignored2
-     * @param mixed  $ignored3
-     * @param mixed  $ignored4
+     * @param mixed $ignored3
+     * @param mixed $ignored4
      *
      * @return array {
      *   array trainBatch,    // список всех записей для тренировки
@@ -296,10 +300,10 @@ class AssistantDev
      */
     public static function trainRes(array $ignored = [], string $ignored2 = '', $ignored3 = null, $ignored4 = null): array
     {
-        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/'.self::$prefix.'/data/train_data.json';
-        $trainBatch    = [];
-        $resp          = null;
-        $errors        = [];
+        $trainDataFile = $_SERVER["DOCUMENT_ROOT"] . '/' . self::$prefix . '/data/train_data.json';
+        $trainBatch = [];
+        $resp = null;
+        $errors = [];
         $trainCountAll = 0;
 
         // 1) Читаем JSON
@@ -329,7 +333,7 @@ class AssistantDev
         // 3) Отправляем батч в ML, если есть данные
         if (!empty($trainBatch)) {
             try {
-                $ml   = new \Maksv\MachineLearning\Request(self::$host, self::$prefix);
+                $ml = new \Maksv\MachineLearning\Request(self::$host, self::$prefix);
                 $resp = $ml->train($trainBatch);
             } catch (\Exception $e) {
                 $errors[] = "Ошибка при тренировке ML: " . $e->getMessage();
@@ -337,10 +341,10 @@ class AssistantDev
         }
 
         return [
-            'trainBatch'    => $trainBatch,
-            'resp'          => $resp,
+            'trainBatch' => $trainBatch,
+            'resp' => $resp,
             'trainCountAll' => $trainCountAll,
-            'errors'        => $errors,
+            'errors' => $errors,
         ];
     }
 
@@ -349,9 +353,9 @@ class AssistantDev
      * достаточное количество баров, использует их, иначе запрашивает бары с биржи.
      * Возвращает массив с результатами и ошибками.
      *
-     * @param array  $finalResults Массив сигналов.
-     * @param string $market       'bybit' или 'binance'.
-     * @param object $bybitApiOb   Клиент Bybit API.
+     * @param array $finalResults Массив сигналов.
+     * @param string $market 'bybit' или 'binance'.
+     * @param object $bybitApiOb Клиент Bybit API.
      * @param object $binanceApiOb Клиент Binance API.
      *
      * @return array {
@@ -370,12 +374,12 @@ class AssistantDev
 
         foreach ($finalResults as $res) {
             $symbolName = $res['symbolName'];
-            $rawDate    = $res['date'];
+            $rawDate = $res['date'];
             $entry = [
                 'symbolName' => $symbolName,
-                'date'       => $rawDate,
+                'date' => $rawDate,
                 'prediction' => null,
-                'errors'     => [],
+                'errors' => [],
             ];
 
             // 1) Парсим дату
@@ -392,9 +396,212 @@ class AssistantDev
             $signalTimestampMs = $dt->getTimestamp() * 1000;
 
             // 2) Получаем ровно self::$nBars свечек
-            $payloadCandles = [];
-            $needApiFetch = true;
+            /* $payloadCandles = [];
+             $needApiFetch = true;
 
+             if (
+                 isset($res['allInfo']['candles15m']) &&
+                 is_array($res['allInfo']['candles15m']) &&
+                 count($res['allInfo']['candles15m']) >= self::$nBars
+             ) {
+                 // Берём последние nBars из переданных
+                 $candlesAll = $res['allInfo']['candles15m'];
+                 usort($candlesAll, fn($a, $b) => floatval($a['t']) <=> floatval($b['t']));
+                 $subset = array_slice($candlesAll, -self::$nBars);
+                 if (count($subset) === self::$nBars) {
+                     // Преобразуем в формат ['o','h','l','c','v']
+                     foreach ($subset as $bar) {
+                         $payloadCandles[] = [
+                             'o' => floatval($bar['o']),
+                             'h' => floatval($bar['h']),
+                             'l' => floatval($bar['l']),
+                             'c' => floatval($bar['c']),
+                             'v' => floatval($bar['v']),
+                         ];
+                     }
+                     $needApiFetch = false;
+                 }
+             }
+
+             if ($needApiFetch) {
+                 // 2.1) Запрашиваем бары с биржи
+                 $endTimeMs   = $signalTimestampMs;
+                 $startTimeMs = $signalTimestampMs - (self::$nBars * self::$intervalMs);
+                 $barsData    = [];
+                 $errorsLocal = [];
+
+                 if ($market === 'bybit') {
+                     $limit = self::$nBars;
+                     try {
+                         $resp = $bybitApiOb->klineTimeV5(
+                             "linear",
+                             $symbolName,
+                             $startTimeMs,
+                             $endTimeMs,
+                             '15m',
+                             $limit,
+                             true,
+                             86400
+                         );
+                     } catch (\Exception $e) {
+                         $errorsLocal[] = "Ошибка Bybit API: " . $e->getMessage();
+                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
+                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
+                         continue;
+                     }
+                     if (empty($resp['result']['list']) || !is_array($resp['result']['list'])) {
+                         $errorsLocal[] = "Нет данных от Bybit";
+                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
+                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
+                         continue;
+                     }
+                     foreach ($resp['result']['list'] as $b) {
+                         $barsData[] = [
+                             floatval($b[0]), // t
+                             floatval($b[1]), // o
+                             floatval($b[2]), // h
+                             floatval($b[3]), // l
+                             floatval($b[4]), // c
+                             floatval($b[5]), // v
+                         ];
+                     }
+                 }
+                 elseif ($market === 'binance') {
+                     $limit = self::$nBars;
+                     try {
+                         $bars = $binanceApiOb->kline(
+                             $symbolName,
+                             '15m',
+                             $limit,
+                             $startTimeMs,
+                             $endTimeMs,
+                             true,
+                             604800
+                         );
+                     } catch (\Exception $e) {
+                         $errorsLocal[] = "Ошибка Binance API: " . $e->getMessage();
+                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
+                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
+                         continue;
+                     }
+                     if (empty($bars) || !is_array($bars)) {
+                         $errorsLocal[] = "Нет данных от Binance";
+                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
+                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
+                         continue;
+                     }
+                     foreach ($bars as $b) {
+                         $barsData[] = [
+                             floatval($b[0]),
+                             floatval($b[1]),
+                             floatval($b[2]),
+                             floatval($b[3]),
+                             floatval($b[4]),
+                             floatval($b[5]),
+                         ];
+                     }
+                 }
+                 else {
+                     $errorsLocal[] = "Маркет '{$market}' не поддерживается";
+                     $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
+                     $results[$symbolName . '_' . $signalTimestampMs] = $entry;
+                     continue;
+                 }
+
+                 usort($barsData, fn($a, $b) => $a[0] <=> $b[0]);
+                 $filtered = array_filter($barsData, fn($bar) => floatval($bar[0]) < $signalTimestampMs);
+                 if (count($filtered) < self::$nBars) {
+                     $errorsLocal[] = "Получено " . count($filtered) . " баров, нужно " . self::$nBars;
+                     $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
+                     $results[$symbolName . '_' . $signalTimestampMs] = $entry;
+                     continue;
+                 }
+                 if (count($filtered) > self::$nBars) {
+                     $filtered = array_slice($filtered, -self::$nBars);
+                 }
+                 foreach ($filtered as $b) {
+                     $payloadCandles[] = [
+                         'o' => floatval($b[1]),
+                         'h' => floatval($b[2]),
+                         'l' => floatval($b[3]),
+                         'c' => floatval($b[4]),
+                         'v' => floatval($b[5]),
+                     ];
+                 }
+             }*/
+
+            try {
+                $payloadCandles = self::extractNBars($res, $market, $bybitApiOb, $binanceApiOb) ?? [];
+            } catch (\Exception $e) {
+                $entry['errors'][] = "Ошибка extractNBars: " . $e->getMessage();
+                continue;
+            }
+
+            // 3) TP/SL и direction
+            $entryPrice = floatval($res['allInfo']['entryTarget']);
+            if ($entryPrice == 0) {
+                $entryPrice = floatval($res['allInfo']['actualClosePrice']);
+            }
+            $tpsRaw = (array)$res['allInfo']['TP'];
+            $tps = array_map(fn($x) => floatval($x), $tpsRaw);
+            if (count($tps) > 3) {
+                $tps = array_slice($tps, 0, 3);
+            }
+            $slPrice = floatval($res['allInfo']['SL']);
+
+            $payload = [
+                'candles' => $payloadCandles,
+                'entry' => $entryPrice,
+                'tps' => $tps,
+                'sl' => $slPrice,
+                'direction' => $res['direction'],
+            ];
+
+            // 4) Вызываем ML-предсказание
+            try {
+                $ml = new \Maksv\MachineLearning\Request(self::$host, self::$prefix);
+                $response = $ml->predict($payload);
+                $response['symbolName'] = $symbolName;
+                $response['date'] = $dt->format('d.m.Y H:i:s');
+                $entry['prediction'] = $response;
+            } catch (\Exception $e) {
+                $entry['errors'][] = "Ошибка ML: " . $e->getMessage();
+            }
+
+            $results[$symbolName . '_' . $dt->getTimestamp()] = $entry;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Вспомогательный метод: точно как в вашем старом коде
+     * возвращает массив последних self::$nBars баров или null.
+     */
+    private static function extractNBars($res, $market, $bybitApiOb, $binanceApiOb, $marketMode): ?array
+    {
+        $symbolName = $res['symbolName'];
+        $rawDate = $res['date'];
+
+        // 1) Парсим дату
+        $dt = \DateTime::createFromFormat(
+            'd.m.Y H:i:s',
+            $rawDate,
+            new \DateTimeZone('Europe/Amsterdam')
+        );
+        if ($dt === false) {
+            $entry['errors'][] = "Неверный формат даты: {$rawDate}";
+            $results[$symbolName . '_invalid_date'] = $entry;
+            //continue;
+        }
+        $signalTimestampMs = $dt->getTimestamp() * 1000;
+
+
+        // 2) Получаем ровно self::$nBars свечек
+        $payloadCandles = [];
+        $needApiFetch = true;
+
+        if (!$marketMode) {
             if (
                 isset($res['allInfo']['candles15m']) &&
                 is_array($res['allInfo']['candles15m']) &&
@@ -421,9 +628,9 @@ class AssistantDev
 
             if ($needApiFetch) {
                 // 2.1) Запрашиваем бары с биржи
-                $endTimeMs   = $signalTimestampMs;
+                $endTimeMs = $signalTimestampMs;
                 $startTimeMs = $signalTimestampMs - (self::$nBars * self::$intervalMs);
-                $barsData    = [];
+                $barsData = [];
                 $errorsLocal = [];
 
                 if ($market === 'bybit') {
@@ -443,13 +650,13 @@ class AssistantDev
                         $errorsLocal[] = "Ошибка Bybit API: " . $e->getMessage();
                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
-                        continue;
+                        //continue;
                     }
                     if (empty($resp['result']['list']) || !is_array($resp['result']['list'])) {
                         $errorsLocal[] = "Нет данных от Bybit";
                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
-                        continue;
+                        //continue;
                     }
                     foreach ($resp['result']['list'] as $b) {
                         $barsData[] = [
@@ -461,8 +668,7 @@ class AssistantDev
                             floatval($b[5]), // v
                         ];
                     }
-                }
-                elseif ($market === 'binance') {
+                } elseif ($market === 'binance') {
                     $limit = self::$nBars;
                     try {
                         $bars = $binanceApiOb->kline(
@@ -472,19 +678,19 @@ class AssistantDev
                             $startTimeMs,
                             $endTimeMs,
                             true,
-                            604800
+                            86400
                         );
                     } catch (\Exception $e) {
                         $errorsLocal[] = "Ошибка Binance API: " . $e->getMessage();
                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
-                        continue;
+                        //continue;
                     }
                     if (empty($bars) || !is_array($bars)) {
                         $errorsLocal[] = "Нет данных от Binance";
                         $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
                         $results[$symbolName . '_' . $signalTimestampMs] = $entry;
-                        continue;
+                        //continue;
                     }
                     foreach ($bars as $b) {
                         $barsData[] = [
@@ -496,12 +702,11 @@ class AssistantDev
                             floatval($b[5]),
                         ];
                     }
-                }
-                else {
+                } else {
                     $errorsLocal[] = "Маркет '{$market}' не поддерживается";
                     $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
                     $results[$symbolName . '_' . $signalTimestampMs] = $entry;
-                    continue;
+                    //continue;
                 }
 
                 usort($barsData, fn($a, $b) => $a[0] <=> $b[0]);
@@ -510,7 +715,7 @@ class AssistantDev
                     $errorsLocal[] = "Получено " . count($filtered) . " баров, нужно " . self::$nBars;
                     $entry['errors'] = array_merge($entry['errors'], $errorsLocal);
                     $results[$symbolName . '_' . $signalTimestampMs] = $entry;
-                    continue;
+                    //continue;
                 }
                 if (count($filtered) > self::$nBars) {
                     $filtered = array_slice($filtered, -self::$nBars);
@@ -525,42 +730,136 @@ class AssistantDev
                     ];
                 }
             }
+        } else {
+            if (
+                isset($res['marketImpulsInfo']['last30Candles15m']) &&
+                is_array($res['marketImpulsInfo']['last30Candles15m']) &&
+                count($res['marketImpulsInfo']['last30Candles15m']) >= self::$nBars
+            ) {
 
-            // 3) TP/SL и direction
-            $entryPrice = floatval($res['allInfo']['entryTarget']);
-            if ($entryPrice == 0) {
-                $entryPrice = floatval($res['allInfo']['actualClosePrice']);
+                // Берём последние nBars из переданных
+                $candlesAll = $res['marketImpulsInfo']['last30Candles15m'];
+                //usort($candlesAll, fn($a, $b) => floatval($a['t']) <=> floatval($b['t']));
+                $subset = array_slice($candlesAll, -self::$nBars);
+                if (count($subset) === self::$nBars) {
+                    // Преобразуем в формат ['o','h','l','c','v']
+                    foreach ($subset as $bar) {
+                        $payloadCandles[] = [
+                            'o' => floatval($bar['o']),
+                            'h' => floatval($bar['h']),
+                            'l' => floatval($bar['l']),
+                            'c' => floatval($bar['c']),
+                            'v' => floatval($bar['v']),
+                        ];
+                    }
+                }
             }
+        }
+
+        return $payloadCandles;
+    }
+
+    /**
+     * Пакетный Predict для массива сигналов.
+     *
+     * @param array $finalResults Список входных сигналов, каждый в формате:
+     *   [
+     *     'symbolName' => string,
+     *     'date'       => 'd.m.Y H:i:s',
+     *     'allInfo'    => [...],
+     *     'direction'  => 'long'|'short'
+     *   ]
+     * @param string $market 'bybit'|'binance'
+     * @param object $bybitApiOb
+     * @param object $binanceApiOb
+     * @return array
+     */
+    public static function predictResBatch(array $finalResults, string $market, $bybitApiOb, $binanceApiOb, $marketMode = false): array
+    {
+        // 1) Собираем одиночные payloadы
+        $payloads = [];
+        $meta = []; // вспомогательно сохраняем dt и symbolName, чтобы потом сопоставить
+        foreach ($finalResults as $res) {
+
+            $dt = \DateTime::createFromFormat(
+                'd.m.Y H:i:s',
+                $res['date'],
+                new \DateTimeZone('Europe/Amsterdam')
+            );
+            if (!$dt) {
+                continue;
+            }
+            $ts = $dt->getTimestamp();
+            $key = $res['symbolName'] . '_' . $ts;
+            // формируем payload как раньше
+            $candles = self::extractNBars($res, $market, $bybitApiOb, $binanceApiOb, $marketMode);
+            if ($candles === null) {
+                // ошибка при сборе баров — отметим только в errors
+                $meta[$key] = ['symbolName' => $res['symbolName'], 'date' => $res['date'], 'candles' => null, 'error' => 'Не удалось собрать бары'];
+                continue;
+            }
+            $entryPrice = floatval($res['allInfo']['entryTarget']) ?: floatval($res['allInfo']['actualClosePrice']);
             $tpsRaw = (array)$res['allInfo']['TP'];
-            $tps    = array_map(fn($x) => floatval($x), $tpsRaw);
-            if (count($tps) > 3) {
-                $tps = array_slice($tps, 0, 3);
-            }
+            $tps = array_slice(array_map('floatval', $tpsRaw), 0, 3);
             $slPrice = floatval($res['allInfo']['SL']);
-
-            $payload = [
-                'candles'   => $payloadCandles,
-                'entry'     => $entryPrice,
-                'tps'       => $tps,
-                'sl'        => $slPrice,
+            $payloads[] = [
+                'key' => $key,
+                'symbolName' => $res['symbolName'],
+                'date' => $dt->format('d.m.Y H:i:s'),
+                'candles' => $candles,
+                'entry' => $entryPrice,
+                'tps' => $tps,
+                'sl' => $slPrice,
                 'direction' => $res['direction'],
             ];
+            $meta[$key] = ['symbolName' => $res['symbolName'], 'date' => $dt->format('d.m.Y H:i:s')];
+        }
 
-            // 4) Вызываем ML-предсказание
-            try {
-                $ml       = new \Maksv\MachineLearning\Request(self::$host, self::$prefix);
-                $response = $ml->predict($payload);
-                $response['symbolName'] = $symbolName;
-                $response['date']       = $dt->format('d.m.Y H:i:s');
-                $entry['prediction']    = $response;
-            } catch (\Exception $e) {
-                $entry['errors'][] = "Ошибка ML: " . $e->getMessage();
+        // 2) Отправляем весь массив одним запросом
+        $ml = new \Maksv\MachineLearning\Request(self::$host, self::$prefix);
+        $responseList = $ml->predictBatch($payloads);
+
+        // 3) Собираем финальный результат
+        $results = [];
+        foreach ($payloads as $p) {
+            $key = $p['key'];
+            if (!isset($meta[$key])) {
+                continue;
             }
+            $entry = [
+                'symbolName' => $meta[$key]['symbolName'],
+                'date' => $meta[$key]['date'],
+                'prediction' => null,
+                'errors' => [],
+            ];
+            // Найдём в ответах
+            $found = array_filter($responseList, fn($r) => ($r['key'] ?? null) === $key);
+            if (count($found) === 1) {
+                $r = array_shift($found);
+                if (isset($r['status']) && $r['status'] === 'ok') {
+                    $entry['prediction'] = $r;
+                } else {
+                    $entry['errors'][] = 'ML error: ' . ($r['error'] ?? 'unknown');
+                }
+            } else {
+                $entry['errors'][] = 'No ML response';
+            }
+            $results[$key] = $entry;
+        }
 
-            $results[$symbolName . '_' . $dt->getTimestamp()] = $entry;
+        // Добавим те сигналы, где не получилось собрать бары
+        foreach ($meta as $key => $m) {
+            if (!isset($results[$key]) && isset($m['error'])) {
+                $results[$key] = [
+                    'symbolName' => $m['symbolName'],
+                    'date' => $m['date'],
+                    'prediction' => null,
+                    'errors' => [$m['error']],
+                ];
+            }
         }
 
         return $results;
     }
-    
+
 }

@@ -1,0 +1,4 @@
+AuthType Basic
+AuthName "Restricted Area"
+AuthUserFile /home/c/cz06737izol/crypto/public_html/dev/.htpasswd
+Require valid-user

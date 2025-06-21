@@ -2865,7 +2865,7 @@ class TechnicalAnalysis
         string $direction = "long",
         int $lookback = 2,
         float $overextensionThreshold = 1.1,
-        float $atrMultiplier = 0.4
+        float $atrMultiplier = 0.3
     ): array {
         if (!$candles)
             return [];
