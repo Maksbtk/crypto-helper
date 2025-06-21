@@ -16,24 +16,16 @@ os.environ["VECLIB_MAXIMUM_THREADS"]  = "1"
 
 app = Flask(__name__)
 
-# Корень проекта (там, где лежит этот файл)
+# Пути
 BASE_DIR           = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR         = os.path.join(BASE_DIR, 'models')
+SCALER_PATH        = os.path.join(MODELS_DIR, 'scaler.joblib')
+CLF_PATH           = os.path.join(MODELS_DIR, 'clf.joblib')
 DATA_DIR           = os.path.join(BASE_DIR, 'data')
 DEFAULT_TRAIN_FILE = os.path.join(DATA_DIR, 'train_data.json')
 
 N_BARS = 30
 M_BARS = 100
-
-# Попытка загрузить уже обученные модели
-scaler = clf = None
-try:
-    scaler = load(os.path.join(MODELS_DIR, 'scaler.joblib'))
-    clf    = load(os.path.join(MODELS_DIR, 'clf.joblib'))
-    app.logger.info("ML models loaded.")
-except Exception:
-    app.logger.warning("No model on startup; train first.")
-
 
 def featurize(sig, include_future: bool):
     feats = []
@@ -81,9 +73,8 @@ def featurize(sig, include_future: bool):
 
     return np.array(feats), label
 
-
 def do_train(data):
-    """Тренируем модель на списке сигналов data."""
+    """Тренируем модель и сохраняем её на диск."""
     Xs, ys = [], []
     for sig in data:
         dir_str = sig.get('direction')
@@ -106,16 +97,10 @@ def do_train(data):
     ).fit(Xs_s, y)
 
     os.makedirs(MODELS_DIR, exist_ok=True)
-    dump(scaler_local, os.path.join(MODELS_DIR, 'scaler.joblib'))
-    dump(clf_local,    os.path.join(MODELS_DIR, 'clf.joblib'))
-
-    # чтобы в этом же процессе predict увидел новые модели
-    global scaler, clf
-    scaler = scaler_local
-    clf    = clf_local
+    dump(scaler_local, SCALER_PATH)
+    dump(clf_local,    CLF_PATH)
 
     return {"status": "trained", "n_samples": int(len(y))}
-
 
 @app.route("/mlDev/train", methods=["POST"])
 def train():
@@ -131,14 +116,11 @@ def train():
         app.logger.error(f"Train error: {e}\n{traceback.format_exc()}")
         return jsonify(error="Train failed"), 500
 
-
 @app.route("/mlDev/train-file", methods=["POST"])
 def train_file():
     """
-    Ожидает JSON:
-      { "trainFilePath": "/полный/или/относительный/путь" }
-    Если отсутствует — берёт DEFAULT_TRAIN_FILE.
-    Поддерживает JSON формата list или dict{key:signal}.
+    Тренируем модель данными из файла JSON:
+    { "trainFilePath": "/путь/к/файлу" }
     """
     try:
         body = request.get_json(silent=True) or {}
@@ -148,39 +130,36 @@ def train_file():
         if not os.path.exists(path):
             return jsonify(error=f"File not found: {path}"), 404
 
-        raw = json.load(open(path, 'r'))
+        with open(path, 'r') as f:
+            raw = json.load(f)
+
+        # Приводим dict.values() к списку, если нужно
         if isinstance(raw, dict):
             data = list(raw.values())
-        elif isinstance(raw, list):
-            data = raw
         else:
-            return jsonify(error="Unsupported JSON format in train file"), 400
+            data = raw
 
-        if not data:
-            return jsonify(error="No data in train file"), 400
+        if not isinstance(data, list) or not data:
+            return jsonify(error="Unsupported or empty JSON format"), 400
 
         result = do_train(data)
         return jsonify(result)
-
     except ValueError as ve:
         return jsonify(error=str(ve)), 400
     except Exception as e:
         app.logger.error(f"Train-file error: {e}\n{traceback.format_exc()}")
         return jsonify(error="Train-file failed"), 500
 
-
 @app.route("/mlDev/predict", methods=["POST"])
 def predict():
-    global scaler, clf
-    # Если моделей нет в памяти, попробуем загрузить с диска
-    if scaler is None or clf is None:
-        try:
-            scaler = load(os.path.join(MODELS_DIR, 'scaler.joblib'))
-            clf    = load(os.path.join(MODELS_DIR, 'clf.joblib'))
-        except Exception:
+    """Всегда загружаем модели с диска и делаем предсказание."""
+    try:
+        if not os.path.exists(SCALER_PATH) or not os.path.exists(CLF_PATH):
             return jsonify(error="Model not trained"), 400
 
-    try:
+        scaler = load(SCALER_PATH)
+        clf    = load(CLF_PATH)
+
         sig = request.get_json()
         dir_str = sig.get('direction')
         if dir_str not in ('long', 'short'):
@@ -193,6 +172,95 @@ def predict():
         app.logger.error(f"Predict error: {e}\n{traceback.format_exc()}")
         return jsonify(error="Predict failed"), 500
 
+@app.route("/ml/predict-batch", methods=["POST"])
+def predict_batch():
+    import os, traceback
+    from flask import request, jsonify
+    from joblib import load
+    import numpy as np
 
+    SCALER_PATH = os.path.join(MODELS_DIR, 'scaler.joblib')
+    CLF_PATH    = os.path.join(MODELS_DIR, 'clf.joblib')
+
+    # 1) Подгрузка модели
+    if not os.path.exists(SCALER_PATH) or not os.path.exists(CLF_PATH):
+        # возвращаем единичный элемент со статусом error,
+        # чтобы PHP увидел r['status'] === 'error'
+        return jsonify([{
+            'key': None,
+            'status': 'error',
+            'error': 'Model not trained'
+        }])
+
+    try:
+        scaler = load(SCALER_PATH)
+        clf    = load(CLF_PATH)
+    except Exception as e:
+        return jsonify([{
+            'key': None,
+            'status': 'error',
+            'error': f'Failed to load model: {e}'
+        }])
+
+    # 2) Чтение и базовая валидация входа
+    try:
+        payloads = request.get_json(force=True)
+        if not isinstance(payloads, list) or len(payloads) == 0:
+            raise ValueError("Expected non-empty JSON array of payloads")
+    except Exception as e:
+        return jsonify([{
+            'key': None,
+            'status': 'error',
+            'error': f'Invalid input: {e}'
+        }])
+
+    resp = []
+    # 3) Для каждого payload
+    for idx, p in enumerate(payloads):
+        entry = {
+            'key':           p.get('key'),
+            'status':        None,
+            'probabilities': None,
+            'classes':       None,
+            'error':         None
+        }
+
+        # 3.1) Проверяем поля
+        missing = []
+        for fld in ('key','candles','entry','tps','sl','direction'):
+            if fld not in p:
+                missing.append(fld)
+        if missing:
+            entry['status'] = 'error'
+            entry['error']  = "Missing fields: " . implode(',', missing)
+            resp.append(entry)
+            continue
+
+        # 3.2) featurize
+        try:
+            x = featurize(p, include_future=False).reshape(1, -1)
+        except Exception as fe:
+            entry['status'] = 'error'
+            entry['error']  = f'Featurize failed: {fe}'
+            resp.append(entry)
+            continue
+
+        # 3.3) predict
+        try:
+            Xs = scaler.transform(x)
+            probs = clf.predict_proba(Xs)[0].tolist()
+            classes = clf.classes_.tolist()
+            entry['status']        = 'ok'
+            entry['probabilities'] = probs
+            entry['classes']       = classes
+        except Exception as ex:
+            entry['status'] = 'error'
+            entry['error']  = f'Predict failed: {ex}'
+
+        resp.append(entry)
+
+    # 4) Возвращаем ровно массив ответов
+    return jsonify(resp)
+        
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8001, threaded=False)

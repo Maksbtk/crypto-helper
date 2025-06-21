@@ -227,8 +227,8 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?if ($item['oiLimits']['longOiLimit']):?>
                                     <br>oi limit: <?=round($item['oiLimits']['longOiLimit'], 2)?>
                                 <?endif;?>
-                                <?if ($item['actualAdx']):?>
-                                    <br>adx: dir <?=$item['actualAdx']['adxDirection']['adxDir']?> / trend <?=$item['actualAdx']['trendDirection']['trendDir']?> (<?= round($item['actualAdx']['adx'], 1)?>)
+                                <?if ($item['actualAdx1h']):?>
+                                    <br>adx 1h: dir <?=$item['actualAdx1h']['adxDirection']['adxDir']?> / trend <?=$item['actualAdx1h']['trendDirection']['trendDir']?> (<?= round($item['actualAdx1h']['adx'], 1)?>)
                                 <?endif;?>
                                 <?if ($item['calculateRiskTargetsWithATR']['tpMultipliers']):?>
                                     <br>atr m: <?=implode(', ',$item['calculateRiskTargetsWithATR']['tpMultipliers'])?>
@@ -312,8 +312,8 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?if ($item['oiLimits']['shortOiLimit']):?>
                                     <br>oi limit: <?=round($item['oiLimits']['shortOiLimit'], 2)?>
                                 <?endif;?>
-                                <?if ($item['actualAdx']):?>
-                                    <br>adx: dir <?=$item['actualAdx']['adxDirection']['adxDir']?> / trend <?=$item['actualAdx']['trendDirection']['trendDir']?> (<?= round($item['actualAdx']['adx'], 1)?>)
+                                <?if ($item['actualAdx1h']):?>
+                                    <br>adx 1h: dir <?=$item['actualAdx1h']['adxDirection']['adxDir']?> / trend <?=$item['actualAdx1h']['trendDirection']['trendDir']?> (<?= round($item['actualAdx1h']['adx'], 1)?>)
                                 <?endif;?>
                                 <?if ($item['calculateRiskTargetsWithATR']['tpMultipliers']):?>
                                     <br>atr m: <?=implode(', ',$item['calculateRiskTargetsWithATR']['tpMultipliers'])?>

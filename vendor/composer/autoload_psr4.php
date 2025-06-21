@@ -6,15 +6,25 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Workerman\\' => array($vendorDir . '/workerman/workerman/src'),
-    'Psr\\Log\\' => array($vendorDir . '/psr/log/src'),
+    'Workerman\\Coroutine\\' => array($vendorDir . '/workerman/coroutine/src'),
+    'Workerman\\' => array($vendorDir . '/workerman/coroutine/src', $vendorDir . '/workerman/workerman/src'),
+    'Symfony\\Polyfill\\Ctype\\' => array($vendorDir . '/symfony/polyfill-ctype'),
+    'Symfony\\Component\\Yaml\\' => array($vendorDir . '/symfony/yaml'),
+    'Symfony\\Component\\Finder\\' => array($vendorDir . '/symfony/finder'),
+    'Psr\\Log\\' => array($vendorDir . '/psr/log/Psr/Log'),
     'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-factory/src', $vendorDir . '/psr/http-message/src'),
     'Psr\\Http\\Client\\' => array($vendorDir . '/psr/http-client/src'),
     'Psr\\Container\\' => array($vendorDir . '/psr/container/src'),
+    'Psr\\Cache\\' => array($vendorDir . '/psr/cache/src'),
+    'OpenApi\\' => array($vendorDir . '/zircote/swagger-php/src'),
     'Lin\\Binance\\' => array($vendorDir . '/linwj/binance/src'),
     'Http\\Promise\\' => array($vendorDir . '/php-http/promise/src'),
     'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
     'GuzzleHttp\\Promise\\' => array($vendorDir . '/guzzlehttp/promises/src'),
     'GuzzleHttp\\' => array($vendorDir . '/guzzlehttp/guzzle/src'),
     'GlobalData\\' => array($vendorDir . '/workerman/globaldata/src'),
+    'Doctrine\\Deprecations\\' => array($vendorDir . '/doctrine/deprecations/src'),
+    'Doctrine\\Common\\Lexer\\' => array($vendorDir . '/doctrine/lexer/src'),
+    'Doctrine\\Common\\Annotations\\' => array($vendorDir . '/doctrine/annotations/lib/Doctrine/Common/Annotations'),
+    'BitrixOA\\' => array($vendorDir . '/webpractik/bitrixoa/src'),
 );

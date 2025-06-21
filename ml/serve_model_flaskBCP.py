@@ -189,7 +189,8 @@ def predict():
 
         x     = featurize(sig, include_future=False).reshape(1, -1)
         probs = clf.predict_proba(scaler.transform(x))[0].tolist()
-        return jsonify(status="ok", probabilities=probs)
+        classes = clf.classes_.tolist()
+        return jsonify(status="ok", probabilities=probs, classes=classes)
     except Exception as e:
         app.logger.error(f"Predict error: {e}\n{traceback.format_exc()}")
         return jsonify(error="Predict failed"), 500

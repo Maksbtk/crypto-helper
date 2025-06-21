@@ -5,6 +5,7 @@ class Request
 {
     private string $trainUrl;
     private string $predictUrl;
+    private string $predictBatchUrl;
 
     /**
      * @param string $host Хост (домен или IP) с указанием порта, например 'http://127.0.0.1:8000'
@@ -15,6 +16,7 @@ class Request
         $this->trainUrl   = rtrim($host, '/') . '/'.$dir.'/train';
         $this->trainFileUrl   = rtrim($host, '/') . '/'.$dir.'/train-file';
         $this->predictUrl = rtrim($host, '/') . '/'.$dir.'/predict';
+        $this->predictBatchUrl = rtrim($host, '/') . '/'.$dir.'/predict-batch';
     }
 
     /**
@@ -45,6 +47,15 @@ class Request
     public function predict(array $signal): array
     {
         return $this->request($this->predictUrl, $signal);
+    }
+
+    /**
+     * @param array $signal пакет Signal:
+     * @return array Ответ сервиса []
+     */
+    public function predictBatch(array $signals): array
+    {
+        return $this->request($this->predictBatchUrl, $signals);
     }
 
     /**

@@ -406,16 +406,9 @@ class Exchange
         }
         devlogs("start -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
-        /*if ($interval != '15m') {
-            sleep(20);
-            devlogs('sleep 40' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-        } else {
-            sleep(5);
-            devlogs('sleep 5' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-        }*/
-        if ($interval != '15m') {
-            sleep(80);
-            devlogs('sleep 80' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+        if ($interval == '15m') {
+            sleep(15);
+            devlogs('sleep 15' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
         }
 
         //получаем контракты, которые будем анализировать
@@ -445,7 +438,7 @@ class Exchange
         $existingDataSeparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
         $separateVolumes = $analyzeVolumeSignalRes ?? [];
 
-        $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfoDev();
+        $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
         $analyzeSymbols = $repeatSymbols = '';
 
         $oiBorderExchangeFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/15m/oiBorderExchange.json';
@@ -492,8 +485,8 @@ class Exchange
                 if ($cnt % 20 === 0)
                     $latestScreener = \Maksv\DataOperation::getLatestScreener($binanceScreenerIblockId);
 
-                if ($cnt % 20 === 0)
-                    $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfoDev();
+                if ($cnt % 30 === 0)
+                    $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
 
                 //dev $marketInfo['isLong'] = true; $marketInfo['risk'] = 5;
 
@@ -689,9 +682,10 @@ class Exchange
                                 'v' => floatval($k[5])  // Volume
                             ];
                         }, $kline15mList);
-                        $screenerData['candles15m'] = array_slice($candles15m, -30);
+
                     }
                 }
+                $screenerData['candles15m'] = array_slice($candles15m, -30);
 
                 $screenerData['actualMacdDivergence'] = $actualMacdDivergence = [];
                 try {
@@ -814,6 +808,54 @@ class Exchange
                     $screenerData['actualAdx'] = $actualAdx = $adxData[array_key_last($adxData)];
                 } catch (Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - adx' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                }
+
+                $candles1h = [];
+                $kline1h = $bybitApiOb->klineV5("linear", $symbolName, '1h', 100, true, 120);
+                if (!$kline1h['result'] || !$kline1h['result']['list'] || !is_array($kline1h['result']['list'])) {
+                    devlogs('ERR 3' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    //continue;
+                } else {
+                    $kline1hList = array_reverse($kline1h['result']['list']);
+                    $candles1h = array_map(function ($k) {
+                        return [
+                            't' => floatval($k[0]), // timestap
+                            'o' => floatval($k[1]), // Open price
+                            'h' => floatval($k[2]), // High price
+                            'l' => floatval($k[3]), // Low price
+                            'c' => floatval($k[4]), // Close price
+                            'v' => floatval($k[5])  // Volume
+                        ];
+                    }, $kline1hList);
+
+                    try {
+                        $stochasticOscillatorData1h = \Maksv\TechnicalAnalysis::calculateStochasticRSI($candles1h) ?? false;
+                        if ($stochasticOscillatorData1h && is_array($stochasticOscillatorData1h))
+                            $screenerData['actualStochastic1h'] = $actualStochastic1h = $stochasticOscillatorData1h[array_key_last($stochasticOscillatorData1h)];
+
+                    } catch (Exception $e) {
+                        devlogs('ERR err - stoch 1h ' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    }
+
+                    $actualAdx1h = false;
+                    try {
+                        $adxData1h = \Maksv\TechnicalAnalysis::calculateADX($candles1h) ?? [];
+                        $screenerData['actualAdx1h'] = $actualAdx1h = $adxData1h[array_key_last($adxData1h)];
+                    } catch (Exception $e) {
+                        devlogs('ERR ' . $symbolName . ' | err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    }
+                }
+
+                if (
+                    $actualAdx1h
+                    && (
+                        $actualAdx1h['adx'] < 20
+                        || ($actualAdx1h['adx'] < 26 && $actualAdx1h['adxDirection']['isDownDir'] === true)
+                    )
+                ) {
+                    $continueSymbols .= $symbol['symbol'] . ', ';
+                    devlogs('CONTINUE ' . $symbolName . ' |  adx 1h' . $actualAdx1h['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    continue;
                 }
 
                 //risk/profit

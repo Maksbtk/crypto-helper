@@ -17,14 +17,16 @@ class DataOperation
         if ($path) $message.= 'path - ' . $path . "\n";
         if ($space) $message.= 'space -' . $space . "\n";
 
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
         $sendRes = $tgBot->messageToTelegram($message, $chatName);
         return $sendRes;
     }
 
     public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m', $btcInfo = [], $cntInfo = [], $isScreener = false, $market = 'BYBIT')
     {
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
 
         $message = $market . ' | ';
         if ($isScreener)
@@ -116,7 +118,9 @@ class DataOperation
 
     public static function sendSignalMessage($pump = [], $dump = [], $btcInfo = false, $chatName = '@cryptoHelperAlerts', $timeFrame = '', $infoAr = [])
     {
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
+
         $message = '';
         $message .= "ℹ " . $timeFrame . " ⏰" .  DataOperation::actualDateFormatted() . "\n\n";
 
@@ -201,7 +205,9 @@ class DataOperation
 
     public static function sendScreener($res, $chatName = '@cryptoHelperAlerts')
     {
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
+
         $islong = '🔴';
         if ($res['isLong']) {
             $islong = '🟢';
@@ -274,7 +280,8 @@ class DataOperation
 
     public static function sendMarketCharts($res, $chatName = '@cryptoHelperAlerts')
     {
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
 
         $message = "ℹ " . $res['interval'] .  "\n\n";
         // Если задан путь к графику, отправляем фото с подписью,
@@ -289,7 +296,9 @@ class DataOperation
 
     public static function sendTrendWarning($cmcExchangeRes, $btcDVal = false, $btcVal = false, $chatName = '@infoCryptoHelperTrend')
     {
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
+
         $message = "ℹ BTC.D coinmarketcap" . "\n\n";
 
         if ($btcDVal && $btcVal)
@@ -305,7 +314,9 @@ class DataOperation
 
     public static function sendFearGreedWarning($cmcExchangeRes, $chatName = '@infoCryptoHelperTrend')
     {
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
+
         $message = "ℹ fear and greed index coinmarketcap" . "\n\n";
 
         $message .=  '👻 ' . $cmcExchangeRes . "\n";
@@ -317,7 +328,9 @@ class DataOperation
 
     public static function sendMarketDivergenceWarning($text, $chatName = '@infoCryptoHelperTrend')
     {
-        $tgBot = new \Maksv\TelegramBot();
+        //$tgBot = new \Maksv\TelegramBot();
+        $tgBot = new \Maksv\Telegram\Request();
+
         $message = "ℹ Market MACD Divergence alert" . "\n\n";
 
         $message .=  $text . "\n";
@@ -421,7 +434,7 @@ class DataOperation
     {
         $res = [];
         // Рассчитываем время начала интервала
-        $intervalInHours = 6;
+        $intervalInHours = 4;
         $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHours} hours");
 
         $propertyStrategiesFileId = self::getPropertyIdByCode($iblockId, 'STRATEGIES_FILE');
@@ -493,7 +506,7 @@ class DataOperation
     {
         $res = [];
         // Рассчитываем время начала интервала
-        $commonInterval = 6;
+        $commonInterval = 4;
         $intervalInHoursMap = ['5m' => $commonInterval, '15m' => $commonInterval, '30m' => $commonInterval, '1h' => 8, '4h' => 32, '1d' => 42];
         $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHoursMap[$tf]} hours");
 
