@@ -1,4 +1,3 @@
-# File: requestOthers.py
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
@@ -7,6 +6,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['OMP_NUM_THREADS']      = '1'
 
 import json
+import tempfile
 from datetime import datetime
 from tvDatafeed import TvDatafeed, Interval
 import pandas as pd
@@ -18,14 +18,15 @@ NUM_BARS    = 402
 INTERVALS   = {
     '15m': Interval.in_15_minute,
     '5m':  Interval.in_5_minute,
-    '1h':  Interval.in_1_hour
+    '1h':  Interval.in_1_hour,
+    '4h':  Interval.in_4_hour,
 }
 
 # Пути
 OUTPUT_JSON = '/home/c/cz06737izol/crypto/public_html/upload/traydingviewExchange/total_ex_top10.json'
 LOG_DIR     = '/home/c/cz06737izol/crypto/public_html/devlogs/traydingview'
 
-# Создаем директории, если их нет
+# Создаём директории, если их нет
 os.makedirs(os.path.dirname(OUTPUT_JSON), exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -33,34 +34,41 @@ os.makedirs(LOG_DIR, exist_ok=True)
 log_file = os.path.join(LOG_DIR, datetime.now().strftime('%Y%m') + '.txt')
 
 def log(message: str):
-    """
-    Записывает строку message в лог-файл с текущим временем.
-    """
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     with open(log_file, 'a') as lf:
         lf.write(f"[{ts}] {message}\n")
 
-# Функция получения свечей с TradingView
-
-def fetch_data(interval):
+def fetch_data(interval, tf_name):
+    """
+    Возвращает список свечей или пустой список,
+    если данных нет или произошла ошибка.
+    """
+    log(f"  -> fetch_data start for {tf_name}")
     tv = TvDatafeed()
-    df = tv.get_hist(
-        symbol=SYMBOL,
-        exchange=EXCHANGE,
-        interval=interval,
-        n_bars=NUM_BARS
-    )
-    df = df.reset_index()
-    df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
-    return df.to_dict(orient='records')
-
-# Главная функция
+    try:
+        df = tv.get_hist(
+            symbol=SYMBOL,
+            exchange=EXCHANGE,
+            interval=interval,
+            n_bars=NUM_BARS
+        )
+        # Если нет данных — возвращаем пустой список
+        if df is None or df.empty:
+            log(f"     no data for {tf_name}, got None or empty DataFrame")
+            return []
+        # Преобразуем индекс и форматируем дату
+        df = df.reset_index()
+        df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        return df.to_dict(orient='records')
+    except Exception as e:
+        log(f"     ERROR in fetch_data for {tf_name}: {e}")
+        return []
 
 def main():
     try:
         log('Process started')
         now = datetime.now()
-        timestamp = int(now.timestamp())
+        timestamp   = int(now.timestamp())
         server_time = now.strftime('%Y-%m-%d %H:%M:%S')
         result = {
             'timestamp': timestamp,
@@ -68,15 +76,18 @@ def main():
             'data': {}
         }
 
-        # Запрашиваем данные для каждого таймфрейма
+        # Цикл по всем таймфреймам
         for tf_name, tf_interval in INTERVALS.items():
             log(f'Fetching {tf_name} data')
-            candles = fetch_data(tf_interval)
+            candles = fetch_data(tf_interval, tf_name)
             result['data'][tf_name] = candles
 
-        # Записываем JSON
-        with open(OUTPUT_JSON, 'w') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
+        # Атомарная запись JSON
+        dir_out = os.path.dirname(OUTPUT_JSON)
+        with tempfile.NamedTemporaryFile('w', dir=dir_out, delete=False, encoding='utf-8') as tmp:
+            json.dump(result, tmp, indent=2, ensure_ascii=False)
+            tmp_path = tmp.name
+        os.replace(tmp_path, OUTPUT_JSON)
 
         log('JSON written to ' + OUTPUT_JSON)
         log('Process completed successfully')
@@ -84,6 +95,7 @@ def main():
         print('OK')
     except Exception as e:
         log('Error: ' + str(e))
+        log('______________________________')
         print('ERROR: ' + str(e))
         exit(1)
 

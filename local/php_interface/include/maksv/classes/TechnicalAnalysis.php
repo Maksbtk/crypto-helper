@@ -3265,4 +3265,85 @@ class TechnicalAnalysis
 
         return $res;
     }
+
+    /**
+     * Находит последние Pivot High и Pivot Low в массиве свечей.
+     * Pivot — это максимум/минимум среди lookback свечей слева и справа.
+     */
+    public static function findLastPivots(array $candles, int $lookback = 8): array {
+        $n = count($candles);
+        $pivotHighC = $pivotHigh = null;
+        $pivotLowC = $pivotLow = null;
+
+        for ($i = $n - $lookback - 1; $i >= $lookback; $i--) {
+            $isHigh = true;
+            $isLow = true;
+            $high = $candles[$i]['h'];
+            $low = $candles[$i]['l'];
+
+            for ($j = $i - $lookback; $j <= $i + $lookback; $j++) {
+                if ($j === $i) continue;
+                if ($candles[$j]['h'] >= $high) $isHigh = false;
+                if ($candles[$j]['l'] <= $low) $isLow = false;
+                if (!($isHigh || $isLow)) break;
+            }
+
+            if ($isHigh && $pivotHigh === null) {
+                $pivotHighC = $candles[$i];
+                $pivotHigh = $i;
+            }
+            if ($isLow && $pivotLow === null) {
+                $pivotLowC = $candles[$i];
+                $pivotLow = $i;
+            }
+            if ($pivotHigh !== null && $pivotLow !== null) break;
+        }
+
+        return [
+            'highIndex' => $pivotHigh,
+            'pivotHighC' => $pivotHighC,
+            'lowIndex' => $pivotLow,
+            'pivotLowC' => $pivotLowC,
+        ];
+    }
+
+    /**
+     * Строит уровни Фибоначчи по найденным pivot-точкам.
+     */
+    public static function buildFibonacciLevels(array $candles, int $lookback = 8): array {
+        $ratios = [0, 0.382, 0.618, 1, 1.618, 2.618, 3.618];
+
+        $pivots = self::findLastPivots($candles, $lookback);
+        if ($pivots['highIndex'] === null || $pivots['lowIndex'] === null) {
+            return [];
+        }
+
+        $hi = $candles[$pivots['highIndex']]['h'];
+        $lo = $candles[$pivots['lowIndex']]['l'];
+
+        // определяем направление — восходящий или нисходящий тренд
+        $isUptrend = $pivots['lowIndex'] < $pivots['highIndex'];
+
+        $levels = [];
+        $diff = abs($hi - $lo);
+
+        foreach ($ratios as $r) {
+            if ($isUptrend) {
+                $levels["{$r}"] = $lo + $diff * $r;
+            } else {
+                $levels["{$r}"] = $hi - $diff * $r;
+            }
+        }
+
+        // сортируем от большего к меньшему (вниз по графику)
+       // arsort($levels);
+
+        $res = [
+            'isUptrend' => $isUptrend,
+            'levels' => $levels,
+            'pivots' => $pivots,
+        ];
+
+        return $res;
+    }
 }

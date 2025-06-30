@@ -46,6 +46,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         $iblockIdMap = [
             'bybit' => 3,
             'binance' => 7,
+            'okx' => 8,
         ];
 
         $arParams["IBLOCK_ID"] = $iblockIdMap[$arParams["MARKET_CODE"]];
@@ -75,6 +76,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         $bybitApiOb->openConnection();
         $binanceApiOb = new \Maksv\Binance\BinanceFutures();
         $binanceApiOb->openConnection();
+        $okxApiOb = new \Maksv\Okx\OkxFutures();
+        $okxApiOb->openConnection();
 
         $res['success'] = false;
         $err = false;
@@ -329,6 +332,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
 
         $bybitApiOb->closeConnection();
         $binanceApiOb->closeConnection();
+        $okxApiOb->closeConnection();
         return $res;
     }
 
@@ -457,6 +461,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         $bybitApiOb->openConnection();
         $binanceApiOb = new \Maksv\Binance\BinanceFutures();
         $binanceApiOb->openConnection();
+        $okxApiOb = new \Maksv\Okx\OkxFutures();
+        $okxApiOb->openConnection();
 
         // Проверяем только masterPump и masterDump $this->arParams['MAIN_CODE']
         foreach ([$this->arParams['MAIN_CODE'] . 'Pump', $this->arParams['MAIN_CODE'] . 'Dump'] as $type) {
@@ -464,7 +470,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 continue;
             }
 
-            foreach ($strategies[$type] as &$signal) {
+            foreach ($strategies[$type] as $name => &$signal) {
                 if (!isset($signal['symbolName'])) {
                     continue; // Пропуск, если нет symbolName
                 }
@@ -482,7 +488,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 }
 
                 // Ограничиваем анализ n часами с момента сигнала
-                $symbolName = $signal['symbolName'];
+                $symbolName = $name;//$signal['symbolName'];
                 $startTime = $dateSignal->getTimestamp() * 1000; // Начало в миллисекундах
                 $endTime = ($dateSignal->getTimestamp() + 36 * 3600) * 1000; // Конец через n часов в миллисекундах
 
@@ -536,6 +542,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 $analysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
                     $bybitApiOb,
                     $binanceApiOb,
+                    $okxApiOb,
                     $symbolName,
                     $startTime,
                     $endTime,
@@ -554,6 +561,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         }
         $bybitApiOb->closeConnection();
         $binanceApiOb->closeConnection();
+        $okxApiOb->closeConnection();
+
     }
     
     protected function checkBybitConnect()

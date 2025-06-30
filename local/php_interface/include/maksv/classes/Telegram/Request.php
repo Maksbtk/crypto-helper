@@ -112,10 +112,10 @@ class Request
             case '@infoCryptoHelperTrend':
                 $chatName = '-1002245853663';
                 break;
-            /*case '@infoCryptoHelper4h':
+            case '@infoCryptoHelperScreenerOkx':
                 $chatName = '-1002148237966';
                 break;
-            case '@infoCryptoHelper1d':
+            /*case '@infoCryptoHelper1d':
                 $chatName = '-1002236380560';
                 break;*/
             case '@infoCryptoHelperDev':

@@ -17,7 +17,7 @@ class DataOperation
         if ($path) $message.= 'path - ' . $path . "\n";
         if ($space) $message.= 'space -' . $space . "\n";
 
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
         $sendRes = $tgBot->messageToTelegram($message, $chatName);
         return $sendRes;
@@ -25,7 +25,7 @@ class DataOperation
 
     public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m', $btcInfo = [], $cntInfo = [], $isScreener = false, $market = 'BYBIT')
     {
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
 
         $message = $market . ' | ';
@@ -118,7 +118,7 @@ class DataOperation
 
     public static function sendSignalMessage($pump = [], $dump = [], $btcInfo = false, $chatName = '@cryptoHelperAlerts', $timeFrame = '', $infoAr = [])
     {
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
 
         $message = '';
@@ -205,7 +205,7 @@ class DataOperation
 
     public static function sendScreener($res, $chatName = '@cryptoHelperAlerts')
     {
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
 
         $islong = '🔴';
@@ -261,11 +261,15 @@ class DataOperation
         if ($res['summaryOI'])
             $message .= 'OI ' .  $res['summaryOI'] .  " | ";
 
-        if ($res['summaryOI'])
-            $message .= 'bbt ' .  $res['summaryOIBybit'] .  " | ";
+        if ($res['summaryOIBybit'])
+            $message .= 'bybit ' .  $res['summaryOIBybit'] .  " | ";
 
-        if ($res['summaryOI'])
-            $message .= 'bnc ' .  $res['summaryOIBinance'] .  "\n";
+        if ($res['summaryOIBinance'])
+            $message .= 'binance ' .  $res['summaryOIBinance'] . " | ";
+
+        if ($res['summaryOIOkx'])
+            $message .= 'okx ' .  $res['summaryOIOkx'] .  "\n";
+
 
         // Если задан путь к графику, отправляем фото с подписью,
         // иначе отправляем обычное текстовое сообщение
@@ -280,7 +284,7 @@ class DataOperation
 
     public static function sendMarketCharts($res, $chatName = '@cryptoHelperAlerts')
     {
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
 
         $message = "ℹ " . $res['interval'] .  "\n\n";
@@ -296,7 +300,7 @@ class DataOperation
 
     public static function sendTrendWarning($cmcExchangeRes, $btcDVal = false, $btcVal = false, $chatName = '@infoCryptoHelperTrend')
     {
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
 
         $message = "ℹ BTC.D coinmarketcap" . "\n\n";
@@ -314,7 +318,7 @@ class DataOperation
 
     public static function sendFearGreedWarning($cmcExchangeRes, $chatName = '@infoCryptoHelperTrend')
     {
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
 
         $message = "ℹ fear and greed index coinmarketcap" . "\n\n";
@@ -328,7 +332,7 @@ class DataOperation
 
     public static function sendMarketDivergenceWarning($text, $chatName = '@infoCryptoHelperTrend')
     {
-        //$tgBot = new \Maksv\TelegramBot();
+        
         $tgBot = new \Maksv\Telegram\Request();
 
         $message = "ℹ Market MACD Divergence alert" . "\n\n";
@@ -355,7 +359,7 @@ class DataOperation
 
         if ($opportunitiesFileId && \CModule::IncludeModule("iblock")) {
 
-            $iblockMap = ['bybit' => 3, 'binance' => 7];
+            $iblockMap = ['bybit' => 3, 'binance' => 7, 'okx' => 8];
 
             $iblockSectionsMap['bybit'] = [
                 'master' => 5,
@@ -365,6 +369,10 @@ class DataOperation
 
             $iblockSectionsMap['binance'] = [
                 'screener' => 8,
+            ];
+
+            $iblockSectionsMap['okx'] = [
+                'screener' => 9,
             ];
 
             $elementProperty = [
@@ -434,7 +442,7 @@ class DataOperation
     {
         $res = [];
         // Рассчитываем время начала интервала
-        $intervalInHours = 4;
+        $intervalInHours = 8;
         $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHours} hours");
 
         $propertyStrategiesFileId = self::getPropertyIdByCode($iblockId, 'STRATEGIES_FILE');
@@ -506,7 +514,7 @@ class DataOperation
     {
         $res = [];
         // Рассчитываем время начала интервала
-        $commonInterval = 4;
+        $commonInterval = 8;
         $intervalInHoursMap = ['5m' => $commonInterval, '15m' => $commonInterval, '30m' => $commonInterval, '1h' => 8, '4h' => 32, '1d' => 42];
         $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHoursMap[$tf]} hours");
 
