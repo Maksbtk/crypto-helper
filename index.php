@@ -291,21 +291,62 @@ $bybitApiOb->closeConnection();*/
     /*$coinmarketcapOb = new \Maksv\Coinmarketcap\Request();
     $others15m = $coinmarketcapOb->getTotalExTop10_5m(200);*/
 
+
+    $bybitApiOb = new \Maksv\Bybit\Bybit();
+    $bybitApiOb->openConnection();
     $binanceApiOb = new \Maksv\Binance\BinanceFutures();
     $binanceApiOb->openConnection();
-    $oiData = [];
-    $kline = $binanceApiOb->kline('ALTUSDT ', '15m', 500, false, false, true, 300);
+    $okxApiOb = new \Maksv\Okx\OkxFutures();
+    $okxApiOb->openConnection();
 
-//$tradesHistoryResp = $binanceApiOb->tradesHistory('XMRUSDT', 1000);
+    //получаем контракты, которые будем анализировать
+    $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+    $exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+    $exchangeOkxSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/okxExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+
+    /*$binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
+    $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
+    $okxSymbolsList = array_column(
+        array_map(function($item) {
+            $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
+            return [
+                $item['instId'],
+                str_replace('-', '', $cleanId)
+            ];
+        }, $exchangeOkxSymbolsList),
+        1,
+        0
+    );*/
+
+    //$tradesHistoryResp = $okxApiOb->tradesHistory('TRUMP-USDT-SWAP', 1000);
+    //$rsOi = \Maksv\Bybit\Exchange::getSummaryOpenInterestDev('ZETAUSDT', $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, '15m');
+    //$batchOI = $okxApiOb->getOpenInterestHist('ZETA-USDT-SWAP', false, false, '15m', 500, true, 300)['data'] ?? [];
+    //$candles = $okxApiOb->getCandles('FLM-USDT-SWAP', '15m', 802, false);
+
+    /*$creationTs = MakeTimeStamp("28.06.2025 16:37:04");   // в секундах
+    $startMs    = $creationTs * 1000;
+    $endMs      = ($creationTs + 48*3600) * 1000;          // +48 часов
+    $candlesHist = $okxApiOb->getCandlesHist('DOOD-USDT-SWAP', '5m', $startMs, $endMs, false, 120);*/
+
+    $res = [];
+    $count = 0;
+    foreach ($exchangeBybitSymbolsList as $item) {
+        if ($item['filterVal']['turnover24h'] >= 900000 /*&& $item['filterVal']['openInterestValue'] >= 500000*/) {
+            $count++;
+            $res[$item['symbol']] = $item;
+        }
+    }
+
+    $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
-
-
-?>
+    $okxApiOb->closeConnection();
+    ?>
 <script>
     var devRes = {
         longV: <?=CUtil::PhpToJSObject($signals['long'], false, false, true)?>,
         shortV: <?=CUtil::PhpToJSObject($signals['short'], false, false, true)?>,
-        $kline: <?=CUtil::PhpToJSObject($kline, false, false, true)?>,
+        $count: <?=CUtil::PhpToJSObject($count, false, false, true)?>,
+        $res: <?=CUtil::PhpToJSObject($res, false, false, true)?>,
     }
     console.log('devRes', devRes);
 </script>

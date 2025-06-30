@@ -1,5 +1,5 @@
 <?php
-namespace Maksv\Binance;
+namespace Maksv\Okx;
 
 use Bitrix\Main\Loader,
     Bitrix\Main\Data\Cache;
@@ -7,385 +7,10 @@ use Bitrix\Main\Loader,
 
 class Exchange
 {
-    const SYMBOLS_STOP_LIST_MAIN = ['SOLUSDT', 'BTCUSDT', 'ETHUSDT'];
-    const SYMBOLS_STOP_LIST1 = ['USDCUSDT', 'USDEUSDT', 'USTCUSDT'];
+    const SYMBOLS_STOP_LIST_MAIN = ['SOL-USDT-SWAP', 'BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
+    const SYMBOLS_STOP_LIST1 = ['USDC-USDT-SWAP', 'USDE-USDT-SWAP', 'USTC-USDT-SWAP'];
 
     public function __construct() {}
-
-    public static function binanceSummaryVolumeExchange(
-        $devMode = false,
-        $cacheTime = 240,
-        $useCache = false
-    )
-    {
-        $marketMode = 'binance';
-        $timeMark = date("d.m.y H:i:s");
-        devlogs("start -" . ' - ' . $timeMark, $marketMode . '/summaryVolumeExchange');
-
-        // проверяем не запускался ли только что обмен
-        if (!$devMode) {
-            $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/timestampVolume.json'), true);
-            if ($lastTimestapJson['TIMESTAMP'] && ((time() - $lastTimestapJson['TIMESTAMP']) < 150)) {
-                devlogs("end, timestamp dif -" . ' - ' . $timeMark, $marketMode . '/summaryVolumeExchange');
-                return false;
-            } else {
-                file_put_contents(
-                    $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/timestampVolume.json',
-                    json_encode(['TIMESTAMP' => time(), "TIMEMARK" => $timeMark])
-                );
-            }
-        }
-
-        // Загрузка существующих данных
-        $dataFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/summaryVolumeExchange.json';
-        $existingData = file_exists($dataFile) ?
-            json_decode(file_get_contents($dataFile), true)['RESPONSE_EXCHENGE'] ?? [] : [];
-
-        // Инициализация API
-        $binanceApiOb = new \Maksv\Binance\BinanceFutures();
-        $binanceApiOb->openConnection();
-
-        // Получение списка символов
-        $exchangeBybitSymbolsList = json_decode(
-            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/derivativeBaseCoin.json'),
-            true
-        )['RESPONSE_EXCHENGE'] ?? [];
-
-        $processedSymbols = 0;
-        foreach ($exchangeBybitSymbolsList as $symbol) {
-            //if ($devMode && $processedSymbols >= 60) break;
-
-            if (
-                !isset($symbol['symbol'])
-                || !is_string($symbol['symbol'])
-                || $symbol['status'] !== 'TRADING'
-                //|| preg_match('/^(ETHUSDT-|ETH-|BTCUSDT-|BTC-|SOLUSDT-)/', $symbol['symbol'])
-                || !in_array($symbol['quoteAsset'], ['USDT'])
-                || in_array($symbol['symbol'], self::SYMBOLS_STOP_LIST1)
-                || in_array($symbol['symbol'], self::SYMBOLS_STOP_LIST_MAIN)
-
-            ) {
-                $continueSymbols .= $symbol['symbol'] . ', ';
-                // Удаляем прежние данные по этому символу, чтобы он не остался в $existingData
-                if ($existingData[$symbol['symbol']]) {
-                    unset($existingData[$symbol['symbol']]);
-                }
-                continue;
-            }
-
-            $symbolName = $symbol['symbol'];
-            $currentData = $existingData[$symbolName]['resBinance'] ?? [];
-
-            // Получение новых сделок
-            $tradesHistoryResp = $binanceApiOb->tradesHistory($symbolName, 1000, $useCache, $cacheTime);
-            $tradesHistoryList = $tradesHistoryResp ?? [];
-
-            $intervalData = [];
-            foreach ($tradesHistoryList as $tradeItem) {
-                $tradeTimestamp = (int)($tradeItem['time'] / 1000);
-
-                // Расчет 5-минутного интервала:
-                $minutes = (int)date('i', $tradeTimestamp);
-                $roundedMinutes = floor($minutes / 5) * 5;
-                $intervalStart = strtotime(date(sprintf('Y-m-d H:%02d:00', $roundedMinutes), $tradeTimestamp));
-                $intervalDuration = 300; // 5 минут = 300 секунд
-
-                if (!isset($intervalData[$intervalStart])) {
-                    $intervalData[$intervalStart] = [
-                        'buyVolume' => 0,
-                        'sellVolume' => 0,
-                        'sumVolume' => 0,
-                        'startTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp($intervalStart * 1000),
-                        'startTime' => $intervalStart,
-                        'endTime' => $intervalStart + $intervalDuration,
-                        'endTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp(($intervalStart + $intervalDuration) * 1000)
-                    ];
-                }
-
-                $size = (float)$tradeItem['qty'];
-                $intervalData[$intervalStart][$tradeItem['isBuyerMaker'] === true ? 'sellVolume' : 'buyVolume'] += $size;
-                $intervalData[$intervalStart]['sumVolume'] += $size;
-            }
-
-            // Слияние с существующими данными
-            $currentDataMap = [];
-            foreach ($currentData as $item) {
-                $currentDataMap[$item['startTime']] = $item;
-            }
-            foreach ($intervalData as $startTime => $newInterval) {
-                $newInterval['last_edit'] = date("d.m.y H:i:s");
-                if (isset($currentDataMap[$startTime])) {
-                    if (
-                        $newInterval['buyVolume'] > $currentDataMap[$startTime]['buyVolume']
-                        || $newInterval['sellVolume'] > $currentDataMap[$startTime]['sellVolume']
-                        || $newInterval['sumVolume'] > $currentDataMap[$startTime]['sumVolume']
-                    ) {
-                        $currentDataMap[$startTime] = $newInterval;
-                    }
-                } else {
-                    $currentDataMap[$startTime] = $newInterval;
-                }
-            }
-
-            // Конвертируем обратно в массив и сортируем по времени (от новых к старым)
-            $currentData = array_values($currentDataMap);
-            usort($currentData, function ($a, $b) {
-                return $b['startTime'] - $a['startTime'];
-            });
-            // Ограничиваем количество интервалов
-            $currentData = array_slice($currentData, 0, 302);
-            $currentData = \Maksv\TechnicalAnalysis::calculateDelta($currentData);
-
-            // Сохранение обновленных данных для текущего символа
-            $existingData[$symbolName] = [
-                'resBybit' => [],
-                'resBinance' => $currentData,
-                'resSummary' => []
-            ];
-
-            $processedSymbols++;
-
-            // Если обработали 50 символов, сохраняем текущие данные в файл
-            if ($processedSymbols % 50 == 0) {
-                $timeMark = date("d.m.y H:i:s");
-                $output = [
-                    "TIMEMARK" => $timeMark,
-                    "RESPONSE_EXCHENGE" => $existingData,
-                    "EXCHANGE_CODE" => $marketMode,
-                ];
-                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/summaryVolumeExchange.json', json_encode($output));
-                devlogs("save (processedSymbols " . $processedSymbols . " - " . $timeMark, $marketMode . '/summaryVolumeExchange');
-            }
-        }
-
-        // Финальная запись, если осталось меньше 50 символов в конце
-        $timeMark = date("d.m.y H:i:s");
-        $output = [
-            "TIMEMARK" => $timeMark,
-            "RESPONSE_EXCHENGE" => $existingData,
-            "EXCHANGE_CODE" => $marketMode,
-        ];
-        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/summaryVolumeExchange.json', json_encode($output));
-
-        $binanceApiOb->closeConnection();
-
-        //devlogs("continueSymbols " . $continueSymbols, $marketMode . '/summaryVolumeExchange');
-        devlogs("end (cnt " . $processedSymbols . " - " . $timeMark, $marketMode . '/summaryVolumeExchange');
-        devlogs("______________________________", $marketMode . '/summaryVolumeExchange');
-
-        return true;
-    }
-
-    //анализ OI для поиска нужно лимита изменения
-    public static function oiBorderExchange(
-        string $timeFrame = '5m',
-        // 6) Настройки окна и порогов
-        int    $barsCount = 500,
-        int    $oiWindow = 3, // 3 * 5m = 15 минут
-        int    $priceFutureWindow = 48,   // 24 * 5m = 2 часа
-        float  $pumpThreshold = 2.5,  // % роста цены
-        float  $dumpThreshold = -2.5, // % падения цены
-        bool   $devMode = false,
-
-    ) {
-        if ($barsCount > 500) {
-            $barsCount = 500;
-        }
-
-        $marketCode = 'binance';
-        $timeMark = date("d.m.y H:i:s");
-
-        // 0) Подгружаем старые накопленные события (если есть)
-        $filePath = $_SERVER['DOCUMENT_ROOT'] . "/upload/{$marketCode}Exchange/{$timeFrame}/oiBorderExchange.json";
-        $existing = file_exists($filePath)
-            ? (json_decode(file_get_contents($filePath), true)['RESPONSE'] ?? [])
-            : [];
-
-        $res = [];
-
-        // проверяем не запускался ли только что обмен
-        if (!$devMode) {
-            $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/upload/{$marketCode}Exchange/{$timeFrame}/oiBorderTimestamp.json"), true);
-            if ($lastTimestapJson['TIMESTAMP'] && ((time() - $lastTimestapJson['TIMESTAMP']) < 360)) {
-                devlogs("end, timestamp dif -" . ' - ' . $timeMark, "{$marketCode}/oiBorder{$timeFrame}");
-                return;
-            } else {
-                file_put_contents(
-                    $_SERVER['DOCUMENT_ROOT'] . "/upload/{$marketCode}Exchange/{$timeFrame}/oiBorderTimestamp.json",
-                    json_encode(['TIMESTAMP' => time(), "TIMEMARK" => $timeMark])
-                );
-            }
-        }
-        devlogs("Start oiBorderExchange batch - {$timeMark}", "{$marketCode}/oiBorder{$timeFrame}");
-
-        $binanceApiOb = new \Maksv\Binance\BinanceFutures();
-        $binanceApiOb->openConnection();
-
-        // 2) Список символов
-        $symbolsList = json_decode(
-            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketCode.'Exchange/derivativeBaseCoin.json'),
-            true
-        )['RESPONSE_EXCHENGE'] ?? [];
-
-        $processed = 0;
-        foreach ($symbolsList as $meta) {
-            if (
-                !isset($meta['symbol'])
-                || !is_string($meta['symbol'])
-                || $meta['status'] !== 'TRADING'
-                || !in_array($meta['quoteAsset'], ['USDT'])
-                || in_array($meta['symbol'], self::SYMBOLS_STOP_LIST1)
-                || in_array($meta['symbol'], self::SYMBOLS_STOP_LIST_MAIN)
-            ) {
-                if ($existing[$meta['symbol']]) {
-                    unset($existing[$meta['symbol']]);
-                }
-                continue;
-            }
-            $symbol = $meta['symbol'];
-            $processed++;
-
-            // 3) Собираем barsCount свечей и OI
-            $kline = $binanceApiOb->kline($symbol, $timeFrame, $barsCount, false, false, true, 300);
-            if (empty($kline)) {
-                devlogs("No candles for {$symbol}", "{$marketCode}/oiBorder{$timeFrame}");
-                continue;
-            }
-            usort($kline, fn($a, $b) => $a[0] <=> $b[0]);
-            $priceData = array_column(($kline), 4, 0);
-
-            $oiData = [];
-            $batch = $binanceApiOb->getOpenInterestHist($symbol, false, false, $timeFrame, $barsCount, true, 300) ?? [];
-            if (!empty($batch) && is_array($batch)) {
-                foreach ($batch as $item) {
-                    $oiData[(int)$item['timestamp']] = (float)$item['sumOpenInterest'];
-                }
-            }
-
-            if (count($priceData) < 4 || count($oiData) < 4) {
-                devlogs("Not enough data for {$symbol}", "{$marketCode}/oiBorder{$timeFrame}");
-                continue;
-            }
-
-            // 4) Синхронизация по timestamp
-            $common = array_intersect_key($priceData, $oiData);
-            ksort($common);
-            $tsList = array_keys($common);
-
-            // 5) Загружаем старые события в ассоц. мапы по ключу 'startTimestamp'
-            $pumpMap = [];
-            $dumpMap = [];
-            if (!empty($existing[$symbol]['pumpEvents'])) {
-                foreach ($existing[$symbol]['pumpEvents'] as $ev) {
-                    $pumpMap[$ev['startTimestamp']] = $ev;
-                }
-            }
-            if (!empty($existing[$symbol]['dumpEvents'])) {
-                foreach ($existing[$symbol]['dumpEvents'] as $ev) {
-                    $dumpMap[$ev['startTimestamp']] = $ev;
-                }
-            }
-
-            $newUpOi = [];
-            $newDownOi = [];
-
-            // 7) Находим новые события и добавляем в мапы
-            for ($i = $oiWindow; $i + $priceFutureWindow < count($tsList); $i++) {
-                $tPrev = $tsList[$i - $oiWindow];
-                $tCurr = $tsList[$i];
-                $tFut = $tsList[$i + $priceFutureWindow];
-
-                $pctOi = ($oiData[$tCurr] - $oiData[$tPrev]) / max($oiData[$tPrev], 1) * 100;
-                $pctFut = ($priceData[$tFut] - $priceData[$tCurr]) / max($priceData[$tCurr], 1) * 100;
-
-                // pump
-                if ($pctOi > 0 && $pctFut >= $pumpThreshold) {
-                    $newUpOi[] = $pctOi;
-                    $startKey = $startTimestamp = strval($tPrev);
-                    if (!isset($pumpMap[$startKey])) {
-                        $pumpMap[$startKey] = [
-                            'startTimestamp' => $startTimestamp,
-                            'start' => date("H:i d.m", $tPrev / 1000),
-                            'end' => date("H:i d.m", $tFut / 1000),
-                            'oiChange' => round($pctOi, 3),
-                            'priceChange' => round($pctFut, 3),
-                        ];
-                    }
-                }
-                // dump
-                if ($pctOi < 0 && $pctFut <= $dumpThreshold) {
-                    $newDownOi[] = $pctOi;
-                    $startKey = $startTimestamp = strval($tPrev);
-                    if (!isset($dumpMap[$startKey])) {
-                        $dumpMap[$startKey] = [
-                            'startTimestamp' => $startTimestamp,
-                            'start' => date("H:i d.m", $tPrev / 1000),
-                            'end' => date("H:i d.m", $tFut / 1000),
-                            'oiChange' => round($pctOi, 3),
-                            'priceChange' => round($pctFut, 3),
-                        ];
-                    }
-                }
-            }
-
-            // 8) Обрезаем мапы до 50 элементов и приводим к списку
-            $pumpEvents = array_slice($pumpMap, -80, 80, true);
-            $dumpEvents = array_slice($dumpMap, -80, 80, true);
-
-            // 9) Считаем границы по всем накопленным событиям
-            $allUpOi = array_column($pumpEvents, 'oiChange');
-            $allDownOi = array_column($dumpEvents, 'oiChange');
-            $borderLong = !empty($allUpOi) ? array_sum($allUpOi) / count($allUpOi) : 0;
-            $borderShort = !empty($allDownOi) ? array_sum($allDownOi) / count($allDownOi) : 0;
-
-            // 10) Сохранение по символу
-            $res[$symbol] = [
-                'borderLong' => round($borderLong, 3),
-                'borderShort' => round($borderShort, 3),
-                'samplesUp' => count($allUpOi),
-                'samplesDown' => count($allDownOi),
-                'pumpEvents' => ($pumpEvents),
-                'dumpEvents' => ($dumpEvents),
-            ];
-
-            //if ($processed > 20) break;
-        }
-
-        // 11) Агрегированная статистика
-        $sumL = $cntL = $sumS = $cntS = 0;
-        foreach ($res as $d) {
-            if ($d['borderLong'] != 0) {
-                $sumL += $d['borderLong'];
-                $cntL++;
-            }
-            if ($d['borderShort'] != 0) {
-                $sumS += $d['borderShort'];
-                $cntS++;
-            }
-        }
-        $info = [
-            'avgBorderLong' => $cntL ? round($sumL / $cntL, 3) : 0,
-            'avgBorderShort' => $cntS ? round($sumS / $cntS, 3) : 0,
-            'countLong' => $cntL,
-            'countShort' => $cntS,
-        ];
-
-        // 12) Завершение и запись
-        devlogs("Processed {$processed} symbols", "{$marketCode}/oiBorder{$timeFrame}");
-        devlogs("End oiBorderExchange - " . date("d.m.y H:i:s"), "{$marketCode}/oiBorder{$timeFrame}");
-        devlogs("___________________________", "{$marketCode}/oiBorder{$timeFrame}");
-
-        $output = [
-            'TIMESTAMP' => time(),
-            'TIMEMARK' => date("d.m.y H:i:s"),
-            'RESPONSE' => $res,
-            'INFO' => $info,
-        ];
-        $resOutput = file_put_contents($filePath, json_encode($output));
-
-        $binanceApiOb->closeConnection();
-        return $filePath;
-    }
 
     //обмен по основной стратегии
     public static function screener($interval = '15m', $longOiLimit = 0.99, $shortOiLimit = -0.99, $devMode = false)
@@ -393,7 +18,7 @@ class Exchange
         $currentLongOiLimit = $longOiLimit;
         $currentShortOiLimit = $shortOiLimit;
 
-        $marketMode = 'binance';
+        $marketMode = 'okx';
         // проверяем не запускался ли только что обмен
         if (!$devMode) {
             $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/timestap.json'), true);
@@ -412,49 +37,68 @@ class Exchange
         }
 
         //получаем контракты, которые будем анализировать
+        $exchangeOkxSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/okxExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
         $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
         $exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+
+        $okxSymbolsList = array_column(
+            array_map(function($item) {
+                $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
+                return [
+                    $item['instId'],
+                    str_replace('-', '', $cleanId)
+                ];
+            }, $exchangeOkxSymbolsList),
+            1,
+            0
+        );
         $binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
         $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
 
-        if (!$binanceSymbolsList) {
-            devlogs("err, binanceSymbolsList -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+        if (!$okxSymbolsList) {
+            devlogs("err, okxSymbolsList -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
             return;
         }
+
+        if (!$binanceSymbolsList)
+            devlogs("err, binanceSymbolsList -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
         if (!$bybitSymbolsList)
             devlogs("err, bybitSymbolsList -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
+        $okxApiOb = new \Maksv\Okx\OkxFutures();
+        $okxApiOb->openConnection();
         $bybitApiOb = new \Maksv\Bybit\Bybit();
         $bybitApiOb->openConnection();
         $binanceApiOb = new \Maksv\Binance\BinanceFutures();
         $binanceApiOb->openConnection();
 
-        $binanceScreenerIblockId = 7;
-        $latestScreener = \Maksv\DataOperation::getLatestScreener($binanceScreenerIblockId);
+        $okxScreenerIblockId = 8;
+        $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
         $analyzeCnt = $cnt = $cntSuccess = 0;
 
-        $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/summaryVolumeExchange.json';
+        $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/summaryVolumeExchange.json'; // '/upload/okxExchange/summaryVolumeExchange.json';
         $existingDataSeparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
         $separateVolumes = $analyzeVolumeSignalRes ?? [];
 
-        $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
+        $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfoDev();
         $analyzeSymbols = $repeatSymbols = '';
 
-        $oiBorderExchangeFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/15m/oiBorderExchange.json';
+        $oiBorderExchangeFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/15m/oiBorderExchange.json'; // '/upload/okxExchange/15m/oiBorderExchange.json';
         $oiBorderExchangeFileData = file_exists($oiBorderExchangeFile) ? json_decode(file_get_contents($oiBorderExchangeFile), true) ?? [] : [];
         $oiBorderExchangeList = $oiBorderExchangeFileData['RESPONSE'];
         $oiBorderExchangeInfo = $oiBorderExchangeFileData['INFO'];
 
-        foreach ($exchangeBinanceSymbolsList as &$symbol) {
-
+        foreach ($exchangeOkxSymbolsList as &$symbol) {
             try {
                 $screenerData = $res['screenerPump'] = $res['screenerDump'] = [];
                 $screenerData['marketCode'] = $marketMode;
 
-                $symbolName = $screenerData['symbolName'] = $symbol['symbol'];
-                $symbolScale = $screenerData['symbolScale'] = intval($symbol['pricePrecision']) ?? 6;
-                $symbolMaxLeverage = $screenerData['symbolMaxLeverage'] = floatval($symbol['leverageFilter']['maxLeverage']) ?? 10;
+                $symbolNameFormatted = $screenerData['symbolName'] = $okxSymbolsList[$symbol['instId']];
+                $symbolName = $symbol['instId'];
+
+                $symbolScale = $screenerData['symbolScale'] = countDecimalDigits($symbol['tickSz']) ?? 6;
+                $symbolMaxLeverage = $screenerData['symbolMaxLeverage'] = floatval($symbol['lever']) ?? 10;
 
                 $screenerData['interval'] = $interval;
 
@@ -462,10 +106,10 @@ class Exchange
                 if (!$marketInfo['isShort'] && !$marketInfo['isLong'])
                     continue;
 
-                if (!$existingDataSeparateVolume[$symbolName]['resBinance'])
+                if (!$existingDataSeparateVolume[$symbolName]['resOkx'])
                     continue;
 
-                $separateVolumes = array_reverse($existingDataSeparateVolume[$symbolName]['resBinance']) ?? [];
+                $separateVolumes = array_reverse($existingDataSeparateVolume[$symbolName]['resOkx']) ?? [];
                 //$analyzeVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($separateVolumes, 5, 0.2, 0.55) ?? [];
                 $analyzeFastVolumeSignalRes = \Maksv\TechnicalAnalysis::analyzeVolumeSignal($separateVolumes, 3, 0.39, 0.55);
 
@@ -483,30 +127,26 @@ class Exchange
 
                 //периодически обновляем данные
                 if ($cnt % 20 === 0)
-                    $latestScreener = \Maksv\DataOperation::getLatestScreener($binanceScreenerIblockId);
+                    $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
 
                 if ($cnt % 50 === 0)
-                    $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
+                    $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfoDev();
 
                 //dev $marketInfo['isLong'] = true; $marketInfo['risk'] = 5;
 
                 $screenerData['latestScreener'] = $latestScreener;
-                if ($latestScreener[$symbolName]) {
+                if ($latestScreener[$symbolNameFormatted]) {
                     $repeatSymbols .= $symbolName . ',';
                     continue;
                 }
-                //devlogs("c3.1 ",  $marketMode . '/screener' . $interval);
 
                 if (
-                    !isset($symbol['symbol'])
-                    || !is_string($symbol['symbol'])
-                    || preg_match('/^(ETHUSDT-|ETH-|BTCUSDT-|BTC-|SOLUSDT-)/', $symbol['symbol'])
-                    || !in_array($symbol['quoteAsset'], ['USDT'])
-                    || in_array($symbol['symbol'], self::SYMBOLS_STOP_LIST1)
-                    || in_array($symbol['symbol'], self::SYMBOLS_STOP_LIST_MAIN)
-
+                    $symbol['state'] !== 'live'
+                    || !in_array($symbol['settleCcy'], ['USDT'])
+                    || in_array($symbol['instId'], self::SYMBOLS_STOP_LIST1)
+                    || in_array($symbol['instId'], self::SYMBOLS_STOP_LIST_MAIN)
                 ) {
-                    $continueSymbols .= $symbol['symbol'] . ', ';
+                    $continueSymbols .= $symbolName . ', ';
                     continue;
                 }
 
@@ -519,15 +159,16 @@ class Exchange
                     '1d' => '30m',
                 ];
 
-                $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$interval]);
-                if (!$summaryOpenInterestOb['summaryOIBinance']) {
-                    //devlogs('ERR ' . $symbolName . ' | err - oi ('.$summaryOpenInterestOb['summaryOI'].') ('.$summaryOpenInterestOb['summaryOIBybit'].')' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
+                $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterestDev($symbolNameFormatted, $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, $intervalsOImap[$interval]);
+                if ($summaryOpenInterestOb['summaryOIOkx'] == 0 && $screenerData['summaryOI'] == 0) {
+                    devlogs('ERR  ' . $symbolName . ' | err - oi 1 ('.$summaryOpenInterestOb['summaryOI'].') ('.$summaryOpenInterestOb['summaryOIBybit'].') ('.$summaryOpenInterestOb['summaryOIOkx'].')' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
                     //devlogs($summaryOpenInterestOb, $marketMode . '/screener'.$interval);
                     continue;
                 }
 
                 $summaryOIBinance = $screenerData['summaryOIBinance'] = $summaryOpenInterestOb['summaryOIBinance'] ?? 0;
                 $summaryOIBybit = $screenerData['summaryOIBybit'] = $summaryOpenInterestOb['summaryOIBybit'] ?? 0;
+                $summaryOIOkx = $screenerData['summaryOIOkx'] = $summaryOpenInterestOb['summaryOIOkx'] ?? 0;
                 $summaryOI = $screenerData['summaryOI'] = $summaryOpenInterestOb['summaryOI'] ?? 0;
 
                 //проверяем есть ли вычисленная граница открытого интереса
@@ -561,18 +202,19 @@ class Exchange
 
                 }
                 $screenerData['oiLimits'] = ['longOiLimit' => $longOiLimit, 'shortOiLimit' => $shortOiLimit];
+                //dev $longOiLimit = 0.1; $shortOiLimit = -0.1;
 
                 if (
-                    !($summaryOIBinance >= $longOiLimit)
-                    && !($summaryOIBinance <= $shortOiLimit)
+                    !(($summaryOIOkx >= $longOiLimit) && ($summaryOI >= 0.01))
+                    && !(($summaryOIOkx <= $shortOiLimit) && ($summaryOI <= -0.01))
                 ) {
-                    //devlogs('ERR ' . $symbolName . ' | err - OI lim' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
+                    //devlogs('ERR ' . $symbolName . ' | err - OI 2' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
                     continue;
                 }
 
                 //$priceChangeRange = false;
                 $barsCount = 802;
-                $kline = $binanceApiOb->kline($symbolName, $interval, $barsCount, false, false, true, 120);
+                $kline = $okxApiOb->getCandles($symbolName, $interval, $barsCount,true, 120);
                 if (empty($kline) || !is_array($kline)) {
                     devlogs('ERR ' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     continue;
@@ -597,9 +239,6 @@ class Exchange
                 $absPriceChangeRange = $screenerData['priceChangeRange'] = abs(round(((floatval($candles[$lastIndex - 1]['c']) - floatval($candles[$lastIndex - 3]['o'])) / floatval($candles[$lastIndex - 3]['o'])) * 100, 2));
                 $priceChangeRange = $screenerData['priceChangeRange'] = (round(((floatval($candles[$lastIndex - 1]['c']) - floatval($candles[$lastIndex - 3]['o'])) / floatval($candles[$lastIndex - 3]['o'])) * 100, 2));
                 $actualClosePrice = $screenerData['actualClosePrice'] = $screenerData['entryTarget'] = $candles[$lastIndex]['c'] ?? false;
-
-                /*if ($absPriceChangeRange > 3)
-                   continue;*/
 
                 //объемы
                 $volumeMA = \Maksv\TechnicalAnalysis::calculateVolumeMA($candles, 5, 2) ?? false;
@@ -631,9 +270,9 @@ class Exchange
                     devlogs('ERR ' . $symbolName . ' | err - actualImpulsMacd' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
-
                 $candles5m = [];
-                $kline5m = $binanceApiOb->kline($symbolName, '5m', $barsCount, false, false, true, 120);
+                $kline5m = $okxApiOb->getCandles($symbolName, '5m', $barsCount, true, 120);
+
                 if (empty($kline5m) || !is_array($kline5m)) {
                     devlogs('ERR 2' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     //continue;
@@ -665,7 +304,7 @@ class Exchange
 
                 $candles15m = $candles;
                 if ($interval != '15m') {
-                    $kline15m = $binanceApiOb->kline($symbolName, '15m', $barsCount, false, false, true, 120);
+                    $kline15m = $okxApiOb->getCandles($symbolName, '15m', $barsCount,true, 120);
                     if (empty($kline15m) || !is_array($kline15m)) {
                         devlogs('ERR 3' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         //continue;
@@ -820,7 +459,7 @@ class Exchange
 
                 $candles1h = [];
                 $actualAdx1h = false;
-                $kline1h = $binanceApiOb->kline($symbolName, '1h', 100, false, false, true, 120);
+                $kline1h = $okxApiOb->getCandles($symbolName, '1H', 100,true, 120);
                 if (empty($kline1h) || !is_array($kline1h)) {
                     devlogs('ERR 4' . $symbolName . ' | err - klinen 1h' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     //continue;
@@ -854,7 +493,6 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
-
                 if (
                     $actualAdx1h
                     && (
@@ -862,7 +500,7 @@ class Exchange
                         || ($actualAdx1h['adx'] < 26 && $actualAdx1h['adxDirection']['isDownDir'] === true)
                     )
                 ) {
-                    $continueSymbols .= $symbol['symbol'] . ', ';
+                    $continueSymbols .= $symbolName . ', ';
                     devlogs('CONTINUE ' . $symbolName . ' |  adx 1h ' . $actualAdx1h['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     continue;
                 }
@@ -883,7 +521,7 @@ class Exchange
 
                 $maDistance = 2.5;
                 if (
-                    ($summaryOIBinance >= $longOiLimit)
+                    (($summaryOIOkx >= $longOiLimit) && ($summaryOI >= 0.01))
                     && $marketInfo['isLong']
                     && $analyzeFastVolumeSignalRes['isLong']
                     && (
@@ -940,11 +578,11 @@ class Exchange
                         $screenerData = array_merge($screenerData, $processed);
                         $res['screenerPump'][$symbolName] = $screenerData;
                     } else {
-                        $continueSymbols .= $symbol['symbol'] . ', ';
+                        $continueSymbols .= $symbolName . ', ';
                     }
 
                 } else if (
-                    ($summaryOIBinance <= $shortOiLimit)
+                    (($summaryOIOkx <= $shortOiLimit) && ($summaryOI <= -0.01))
                     && $marketInfo['isShort']
                     && $analyzeFastVolumeSignalRes['isShort']
                     && (
@@ -995,12 +633,12 @@ class Exchange
                         $symbolName,
                         "$marketMode/screener$interval"
                     );
-                    
+
                     if ($processed !== false) {
                         $screenerData = array_merge($screenerData, $processed);
                         $res['screenerDump'][$symbolName] = $screenerData;
                     } else {
-                        $continueSymbols .= $symbol['symbol'] . ', ';
+                        $continueSymbols .= $symbolName . ', ';
                     }
                 }
 
@@ -1035,7 +673,7 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - PriceChartGenerator' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
-                    \Maksv\DataOperation::sendScreener($screenerData, '@infoCryptoHelperScreenerBinance');
+                    \Maksv\DataOperation::sendScreener($screenerData, '@infoCryptoHelperScreenerOkx');
 
                     foreach ($screenerData['tempChartPath'] as $path)
                         unlink($path);
@@ -1051,7 +689,7 @@ class Exchange
                     $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.61;
                     $screenerData['mlMarketBoard'] = $mlMarketBoard = $marketInfo['mlMarketBoard'] ?? 0.65;
 
-                    if (
+                    /*if (
                         $screenerData['actualMlModel']
                         && $screenerData['actualMlModel']['probabilities'][1] >= $mlBoard
                         && $marketInfo[$screenerData['marketMLName']]
@@ -1061,10 +699,6 @@ class Exchange
                             'ML approve | ' . $screenerData['actualMlModel']['probabilities'][1] . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
-
-                        //Prophet AI //сбор статистики
-                        $screenerData['leverage'] = '5x';
-                        \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperProphetAi');
 
                         //мой бот для торговли bybit // check ML
                         $screenerData['leverage'] = '10x';
@@ -1082,8 +716,8 @@ class Exchange
                             'ML skip | ' . $marketInfo[$screenerData['marketMLName']]['probabilities'][1] . ' > ' . $mlMarketBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
-                        $continueSymbols .= $symbol['symbol'] . ', ';
-                    }
+                        $continueSymbols .= $symbolName . ', ';
+                    }*/
 
                     $actualStrategy = [
                         "TIMEMARK" => date("d.m.y H:i:s"),
@@ -1125,9 +759,386 @@ class Exchange
         ];
 
         if ($interval == '15m')
-            \Maksv\DataOperation::sendInfoMessage([], $interval, $marketInfo, $cntInfo, true, 'BINANCE');
+            \Maksv\DataOperation::sendInfoMessage([], $interval, $marketInfo, $cntInfo, true, 'OKX');
 
         return $res;
     }
 
+    //анализ OI для поиска нужно лимита изменения
+    public static function oiBorderExchange(
+        string $timeFrame = '5m',
+        // 6) Настройки окна и порогов
+        int    $barsCount = 500,
+        int    $oiWindow = 3, // 3 * 5m = 15 минут
+        int    $priceFutureWindow = 48,   // 24 * 5m = 2 часа
+        float  $pumpThreshold = 2.5,  // % роста цены
+        float  $dumpThreshold = -2.5, // % падения цены
+        bool   $devMode = false,
+
+    ) {
+        if ($barsCount > 100) {
+            $barsCount = 100;
+        }
+
+        $marketCode = 'okx';
+        $timeMark = date("d.m.y H:i:s");
+
+        // 0) Подгружаем старые накопленные события (если есть)
+        $filePath = $_SERVER['DOCUMENT_ROOT'] . "/upload/{$marketCode}Exchange/{$timeFrame}/oiBorderExchange.json";
+        $existing = file_exists($filePath)
+            ? (json_decode(file_get_contents($filePath), true)['RESPONSE'] ?? [])
+            : [];
+
+        $res = [];
+
+        // проверяем не запускался ли только что обмен
+        if (!$devMode) {
+            $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . "/upload/{$marketCode}Exchange/{$timeFrame}/oiBorderTimestamp.json"), true);
+            if ($lastTimestapJson['TIMESTAMP'] && ((time() - $lastTimestapJson['TIMESTAMP']) < 360)) {
+                devlogs("end, timestamp dif -" . ' - ' . $timeMark, "{$marketCode}/oiBorder{$timeFrame}");
+                return;
+            } else {
+                file_put_contents(
+                    $_SERVER['DOCUMENT_ROOT'] . "/upload/{$marketCode}Exchange/{$timeFrame}/oiBorderTimestamp.json",
+                    json_encode(['TIMESTAMP' => time(), "TIMEMARK" => $timeMark])
+                );
+            }
+        }
+        devlogs("Start oiBorderExchange batch - {$timeMark}", "{$marketCode}/oiBorder{$timeFrame}");
+
+        $okxApiOb = new \Maksv\Okx\OkxFutures();
+        $okxApiOb->openConnection();
+
+        // 2) Список символов
+        $symbolsList = json_decode(
+            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketCode.'Exchange/derivativeBaseCoin.json'),
+            true
+        )['RESPONSE_EXCHENGE'] ?? [];
+
+        $processed = 0;
+        foreach ($symbolsList as $meta) {
+            if (
+                !isset($meta['instId'])
+                || !is_string($meta['instId'])
+                || $meta['state'] !== 'live'
+                || !in_array($meta['settleCcy'], ['USDT'])
+                || in_array($meta['instId'], self::SYMBOLS_STOP_LIST1)
+                || in_array($meta['instId'], self::SYMBOLS_STOP_LIST_MAIN)
+            ) {
+                if ($existing[$meta['symbol']]) {
+                    unset($existing[$meta['symbol']]);
+                }
+                continue;
+            }
+            $symbol = $meta['instId'];
+            $processed++;
+
+            // 3) Собираем barsCount свечей и OI
+            $kline = $okxApiOb->getCandles($symbol, $timeFrame, $barsCount, true, 300);
+            if (empty($kline)) {
+                devlogs("No candles for {$symbol}", "{$marketCode}/oiBorder{$timeFrame}");
+                continue;
+            }
+            /*$kline = array_map(function($item) {
+                return array_map('floatval', $item);
+            }, $kline);*/
+
+            usort($kline, fn($a, $b) => $a[0] <=> $b[0]);
+            $priceData = array_column(($kline), 4, 0);
+
+            $oiData = [];
+            $batch = $okxApiOb->getOpenInterestHist($symbol, false, false, $timeFrame, $barsCount, true, 300)['data'] ?? [];
+            if (!empty($batch) && is_array($batch)) {
+                foreach ($batch as $item) {
+                    $oiData[(int)$item[0]] = (float)$item[1];
+                }
+            }
+
+            if (count($priceData) < 4 || count($oiData) < 4) {
+                devlogs("Not enough data for {$symbol}", "{$marketCode}/oiBorder{$timeFrame}");
+                continue;
+            }
+
+            // 4) Синхронизация по timestamp
+            $common = array_intersect_key($priceData, $oiData);
+            ksort($common);
+            $tsList = array_keys($common);
+
+            // 5) Загружаем старые события в ассоц. мапы по ключу 'startTimestamp'
+            $pumpMap = [];
+            $dumpMap = [];
+            if (!empty($existing[$symbol]['pumpEvents'])) {
+                foreach ($existing[$symbol]['pumpEvents'] as $ev) {
+                    $pumpMap[$ev['startTimestamp']] = $ev;
+                }
+            }
+            if (!empty($existing[$symbol]['dumpEvents'])) {
+                foreach ($existing[$symbol]['dumpEvents'] as $ev) {
+                    $dumpMap[$ev['startTimestamp']] = $ev;
+                }
+            }
+
+            $newUpOi = [];
+            $newDownOi = [];
+
+            // 7) Находим новые события и добавляем в мапы
+            for ($i = $oiWindow; $i + $priceFutureWindow < count($tsList); $i++) {
+                $tPrev = $tsList[$i - $oiWindow];
+                $tCurr = $tsList[$i];
+                $tFut = $tsList[$i + $priceFutureWindow];
+
+                $pctOi = ($oiData[$tCurr] - $oiData[$tPrev]) / max($oiData[$tPrev], 1) * 100;
+                $pctFut = ($priceData[$tFut] - $priceData[$tCurr]) / max($priceData[$tCurr], 1) * 100;
+
+                // pump
+                if ($pctOi > 0 && $pctFut >= $pumpThreshold) {
+                    $newUpOi[] = $pctOi;
+                    $startKey = $startTimestamp = strval($tPrev);
+                    if (!isset($pumpMap[$startKey])) {
+                        $pumpMap[$startKey] = [
+                            'startTimestamp' => $startTimestamp,
+                            'start' => date("H:i d.m", $tPrev / 1000),
+                            'end' => date("H:i d.m", $tFut / 1000),
+                            'oiChange' => round($pctOi, 3),
+                            'priceChange' => round($pctFut, 3),
+                        ];
+                    }
+                }
+                // dump
+                if ($pctOi < 0 && $pctFut <= $dumpThreshold) {
+                    $newDownOi[] = $pctOi;
+                    $startKey = $startTimestamp = strval($tPrev);
+                    if (!isset($dumpMap[$startKey])) {
+                        $dumpMap[$startKey] = [
+                            'startTimestamp' => $startTimestamp,
+                            'start' => date("H:i d.m", $tPrev / 1000),
+                            'end' => date("H:i d.m", $tFut / 1000),
+                            'oiChange' => round($pctOi, 3),
+                            'priceChange' => round($pctFut, 3),
+                        ];
+                    }
+                }
+            }
+
+            // 8) Обрезаем мапы до 50 элементов и приводим к списку
+            $pumpEvents = array_slice($pumpMap, -80, 80, true);
+            $dumpEvents = array_slice($dumpMap, -80, 80, true);
+
+            // 9) Считаем границы по всем накопленным событиям
+            $allUpOi = array_column($pumpEvents, 'oiChange');
+            $allDownOi = array_column($dumpEvents, 'oiChange');
+            $borderLong = !empty($allUpOi) ? array_sum($allUpOi) / count($allUpOi) : 0;
+            $borderShort = !empty($allDownOi) ? array_sum($allDownOi) / count($allDownOi) : 0;
+
+            // 10) Сохранение по символу
+            $res[$symbol] = [
+                'borderLong' => round($borderLong, 3),
+                'borderShort' => round($borderShort, 3),
+                'samplesUp' => count($allUpOi),
+                'samplesDown' => count($allDownOi),
+                'pumpEvents' => ($pumpEvents),
+                'dumpEvents' => ($dumpEvents),
+            ];
+
+            //if ($processed > 20) break;
+        }
+
+        // 11) Агрегированная статистика
+        $sumL = $cntL = $sumS = $cntS = 0;
+        foreach ($res as $d) {
+            if ($d['borderLong'] != 0) {
+                $sumL += $d['borderLong'];
+                $cntL++;
+            }
+            if ($d['borderShort'] != 0) {
+                $sumS += $d['borderShort'];
+                $cntS++;
+            }
+        }
+        $info = [
+            'avgBorderLong' => $cntL ? round($sumL / $cntL, 3) : 0,
+            'avgBorderShort' => $cntS ? round($sumS / $cntS, 3) : 0,
+            'countLong' => $cntL,
+            'countShort' => $cntS,
+        ];
+
+        // 12) Завершение и запись
+        devlogs("Processed {$processed} symbols", "{$marketCode}/oiBorder{$timeFrame}");
+        devlogs("End oiBorderExchange - " . date("d.m.y H:i:s"), "{$marketCode}/oiBorder{$timeFrame}");
+        devlogs("___________________________", "{$marketCode}/oiBorder{$timeFrame}");
+
+        $output = [
+            'TIMESTAMP' => time(),
+            'TIMEMARK' => date("d.m.y H:i:s"),
+            'RESPONSE' => $res,
+            'INFO' => $info,
+        ];
+        $resOutput = file_put_contents($filePath, json_encode($output));
+
+        $okxApiOb->closeConnection();
+        return $filePath;
+    }
+
+    public static function okxSummaryVolumeExchange(
+        $devMode = false,
+        $cacheTime = 240,
+        $useCache = false
+    ) {
+        $marketMode = 'okx';
+        $timeMark = date("d.m.y H:i:s");
+        devlogs("start -" . ' - ' . $timeMark, $marketMode . '/summaryVolumeExchange');
+
+        // проверяем не запускался ли только что обмен
+        if (!$devMode) {
+            $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/timestampVolume.json'), true);
+            if ($lastTimestapJson['TIMESTAMP'] && ((time() - $lastTimestapJson['TIMESTAMP']) < 150)) {
+                devlogs("end, timestamp dif -" . ' - ' . $timeMark, $marketMode . '/summaryVolumeExchange');
+                return false;
+            } else {
+                file_put_contents(
+                    $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/timestampVolume.json',
+                    json_encode(['TIMESTAMP' => time(), "TIMEMARK" => $timeMark])
+                );
+            }
+        }
+
+        // Загрузка существующих данных
+        $dataFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/summaryVolumeExchange.json';
+        $existingData = file_exists($dataFile) ?
+            json_decode(file_get_contents($dataFile), true)['RESPONSE_EXCHENGE'] ?? [] : [];
+
+        // Инициализация API
+        $okxApiOb = new \Maksv\Okx\OkxFutures();
+        $okxApiOb->openConnection();
+
+        // Получение списка символов
+        $exchangeSymbolsList = json_decode(
+            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/derivativeBaseCoin.json'),
+            true
+        )['RESPONSE_EXCHENGE'] ?? [];
+
+        $processedSymbols = 0;
+        foreach ($exchangeSymbolsList as $symbol) {
+            //if ($devMode && $processedSymbols >= 60) break;
+
+            if (
+                !isset($symbol['instId'])
+                || !is_string($symbol['instId'])
+                || $symbol['state'] !== 'live'
+                || !in_array($symbol['settleCcy'], ['USDT'])
+                || in_array($symbol['instId'], self::SYMBOLS_STOP_LIST1)
+                || in_array($symbol['instId'], self::SYMBOLS_STOP_LIST_MAIN)
+
+            ) {
+                $continueSymbols .= $symbol['instId'] . ', ';
+                // Удаляем прежние данные по этому символу, чтобы он не остался в $existingData
+                if ($existingData[$symbol['instId']]) {
+                    unset($existingData[$symbol['instId']]);
+                }
+                continue;
+            }
+
+            $symbolName = $symbol['instId'];
+            $currentData = $existingData[$symbolName]['resOkx'] ?? [];
+
+            // Получение новых сделок
+            $tradesHistoryResp = $okxApiOb->tradesHistory($symbolName, 1000, $useCache, $cacheTime);
+            $tradesHistoryList = $tradesHistoryResp['data'] ?? [];
+
+            $intervalData = [];
+            foreach ($tradesHistoryList as $tradeItem) {
+                $tradeTimestamp = (int)($tradeItem['ts'] / 1000);
+
+                // Расчет 5-минутного интервала:
+                $minutes = (int)date('i', $tradeTimestamp);
+                $roundedMinutes = floor($minutes / 5) * 5;
+                $intervalStart = strtotime(date(sprintf('Y-m-d H:%02d:00', $roundedMinutes), $tradeTimestamp));
+                $intervalDuration = 300; // 5 минут = 300 секунд
+
+                if (!isset($intervalData[$intervalStart])) {
+                    $intervalData[$intervalStart] = [
+                        'buyVolume' => 0,
+                        'sellVolume' => 0,
+                        'sumVolume' => 0,
+                        'startTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp($intervalStart * 1000),
+                        'startTime' => $intervalStart,
+                        'endTime' => $intervalStart + $intervalDuration,
+                        'endTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp(($intervalStart + $intervalDuration) * 1000)
+                    ];
+                }
+
+                $size = (float)$tradeItem['sz'];
+                $intervalData[$intervalStart][$tradeItem['side'] == 'sell' ? 'sellVolume' : 'buyVolume'] += $size;
+                $intervalData[$intervalStart]['sumVolume'] += $size;
+            }
+
+            // Слияние с существующими данными
+            $currentDataMap = [];
+            foreach ($currentData as $item) {
+                $currentDataMap[$item['startTime']] = $item;
+            }
+            foreach ($intervalData as $startTime => $newInterval) {
+                $newInterval['last_edit'] = date("d.m.y H:i:s");
+                if (isset($currentDataMap[$startTime])) {
+                    if (
+                        $newInterval['buyVolume'] > $currentDataMap[$startTime]['buyVolume']
+                        || $newInterval['sellVolume'] > $currentDataMap[$startTime]['sellVolume']
+                        || $newInterval['sumVolume'] > $currentDataMap[$startTime]['sumVolume']
+                    ) {
+                        $currentDataMap[$startTime] = $newInterval;
+                    }
+                } else {
+                    $currentDataMap[$startTime] = $newInterval;
+                }
+            }
+
+            // Конвертируем обратно в массив и сортируем по времени (от новых к старым)
+            $currentData = array_values($currentDataMap);
+            usort($currentData, function ($a, $b) {
+                return $b['startTime'] - $a['startTime'];
+            });
+            // Ограничиваем количество интервалов
+            $currentData = array_slice($currentData, 0, 302);
+            $currentData = \Maksv\TechnicalAnalysis::calculateDelta($currentData);
+
+            // Сохранение обновленных данных для текущего символа
+            $existingData[$symbolName] = [
+                'resBybit' => [],
+                'resBinance' => [],
+                'resOkx' => $currentData,
+                'resSummary' => []
+            ];
+
+            $processedSymbols++;
+
+            // Если обработали 50 символов, сохраняем текущие данные в файл
+            if ($processedSymbols % 50 == 0) {
+                $timeMark = date("d.m.y H:i:s");
+                $output = [
+                    "TIMEMARK" => $timeMark,
+                    "RESPONSE_EXCHENGE" => $existingData,
+                    "EXCHANGE_CODE" => $marketMode,
+                ];
+                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/summaryVolumeExchange.json', json_encode($output));
+                devlogs("save (processedSymbols " . $processedSymbols . " - " . $timeMark, $marketMode . '/summaryVolumeExchange');
+            }
+        }
+
+        // Финальная запись, если осталось меньше 50 символов в конце
+        $timeMark = date("d.m.y H:i:s");
+        $output = [
+            "TIMEMARK" => $timeMark,
+            "RESPONSE_EXCHENGE" => $existingData,
+            "EXCHANGE_CODE" => $marketMode,
+        ];
+        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/summaryVolumeExchange.json', json_encode($output));
+
+        $okxApiOb->closeConnection();
+
+        //devlogs("continueSymbols " . $continueSymbols, $marketMode . '/summaryVolumeExchange');
+        devlogs("end (cnt " . $processedSymbols . " - " . $timeMark, $marketMode . '/summaryVolumeExchange');
+        devlogs("______________________________", $marketMode . '/summaryVolumeExchange');
+
+        return true;
+    }
 }

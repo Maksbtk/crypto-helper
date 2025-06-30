@@ -94,6 +94,69 @@ class Bybit
         return $res;
     }
 
+    /**
+     * Возвращает 24h объём и оборот для фьючерсной или спот-пары.
+     *
+     * @param string $symbol     Пара без слеша, напр. 'BTCUSDT' или 'ETHUSDT'
+     * @param string $category   'spot' | 'linear' | 'inverse' и т.д.
+     * @return array             ['volume24h' => float, 'turnover24h' => float]
+     */
+    public function get24hVolume(string $symbol, string $category = 'linear'): array
+    {
+        $endpoint = "/v5/market/tickers";
+        $method   = "GET";
+        $params   = "category={$category}&symbol={$symbol}";
+
+        $raw = json_decode(
+            $this->httpReq($endpoint, $method, $params, "tickers", true, 120),
+            true
+        );
+
+        $list = $raw['result']['list'] ?? [];
+        if (empty($list) || !isset($list[0]['volume24h'], $list[0]['turnover24h'])) {
+            return ['volume24h' => 0.0, 'turnover24h' => 0.0];
+        }
+
+        return [
+            'volume24h'   => (float)$list[0]['volume24h'],
+            'turnover24h'=> (float)$list[0]['turnover24h'],
+        ];
+    }
+
+    /**
+     * Получить список тикеров (с объёмами, OI и т.п.) для заданной категории контрактов.
+     *
+     * @param string $category  'linear' | 'inverse'
+     * @return array            Список ['symbol'=>…, 'lastPrice'=>…, 'volume24h'=>…, 'turnover24h'=>…, 'openInterest'=>…, …]
+     */
+    public function getTickers(string $category = 'linear'): array
+    {
+        $endpoint = "/v5/market/tickers";
+        $method   = "GET";
+        $params   = "category=" . urlencode($category);
+
+        $raw = json_decode(
+            $this->httpReq($endpoint, $method, $params, "tickers", true, 120),
+            true
+        );
+
+        // В ответе Bybit данные лежат в result.list
+
+        $res = [];
+        foreach ($raw['result']['list'] as $item) {
+            $res['result'][$item['symbol']] = $item;
+        }
+
+        if (!$raw['result']['list']) {
+            $res = $raw;
+            $res['status'] = false;
+        } else {
+            $res['status'] = true;
+        }
+
+        return $res ?? ['status' => false];
+    }
+
     public function getServerTime()
     {
         $endpoint = "/v5/market/time";

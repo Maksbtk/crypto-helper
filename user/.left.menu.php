@@ -21,6 +21,13 @@ $aMenuLinks = Array(
         Array(),
         ""
     ),
+    Array(
+        "okx screener",
+        "/user/okxScreener/",
+        Array(),
+        Array(),
+        ""
+    ),
 	Array(
 		"bybit master",
 		"/user/bybitMaster/",
