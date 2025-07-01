@@ -81,7 +81,7 @@ class Exchange
         $existingDataSeparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
         $separateVolumes = $analyzeVolumeSignalRes ?? [];
 
-        $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfoDev();
+        $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
         $analyzeSymbols = $repeatSymbols = '';
 
         $oiBorderExchangeFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/15m/oiBorderExchange.json'; // '/upload/okxExchange/15m/oiBorderExchange.json';
@@ -130,7 +130,7 @@ class Exchange
                     $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
 
                 if ($cnt % 50 === 0)
-                    $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfoDev();
+                    $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
 
                 //dev $marketInfo['isLong'] = true; $marketInfo['risk'] = 5;
 
@@ -673,22 +673,30 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - PriceChartGenerator' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
-                    \Maksv\DataOperation::sendScreener($screenerData, '@infoCryptoHelperScreenerOkx');
-
-                    foreach ($screenerData['tempChartPath'] as $path)
-                        unlink($path);
-
-                    $screenerData['marketMLName'] = 'notFound';
                     if ($screenerData['isLong']){
                         $screenerData['marketMLName'] = 'longMl';
                     } else {
                         $screenerData['marketMLName'] = 'shortMl';
                     }
 
-                    $screenerData['tempChartPath'] = [];
-                    $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.61;
-                    $screenerData['mlMarketBoard'] = $mlMarketBoard = $marketInfo['mlMarketBoard'] ?? 0.65;
+                    $screenerData['resML']['marketMl'] = $marketMl = $marketInfo[$screenerData['marketMLName']]['probabilities'][1] ?? false;
+                    $screenerData['resML']['signalMl'] = $signalMl = $screenerData['actualMlModel']['probabilities'][1] ?? false;
+                    $screenerData['resML']['totalMl'] = $totalMl = false;
+                    if ($marketMl && $signalMl) {
+                        $screenerData['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
+                    }
 
+                    \Maksv\DataOperation::sendScreener($screenerData, true, '@infoCryptoHelperScreenerOkx');
+
+                    foreach ($screenerData['tempChartPath'] as $path)
+                        unlink($path);
+
+                    $screenerData['tempChartPath'] = [];
+                    $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.71;
+
+                    //после всех мутаций снимаем копию
+                    $res['screenerPump'][$symbolName] = $screenerData;
+                    
                     /*if (
                         $screenerData['actualMlModel']
                         && $screenerData['actualMlModel']['probabilities'][1] >= $mlBoard
@@ -710,7 +718,7 @@ class Exchange
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
                             $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
-                        \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperCornixTreadingBot');
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperCornixTreadingBot');
                     } else  {
                         devlogs(
                             'ML skip | ' . $marketInfo[$screenerData['marketMLName']]['probabilities'][1] . ' > ' . $mlMarketBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
@@ -744,6 +752,7 @@ class Exchange
         }
         $bybitApiOb->closeConnection();
         $binanceApiOb->closeConnection();
+        $okxApiOb->closeConnection();
         devlogs($marketInfo['infoText'], $marketMode . '/screener' . $interval);
         devlogs('repeatSymbols - ' . $repeatSymbols, $marketMode . '/screener' . $interval);
         devlogs('analyzeSymbols - ' . $analyzeSymbols, $marketMode . '/screener' . $interval);

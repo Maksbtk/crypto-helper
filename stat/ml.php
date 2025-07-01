@@ -267,8 +267,8 @@ if (!empty($_GET)) {
                         $symbolName = $sname ?? $strategy["symbolName"];
 
                         $candles = false;
-                        $savedCandles = $decoded["CANDLES_HIST"][$symbolName] ?? false;
-                        if ($savedCandles && is_array($savedCandles) && count($savedCandles) > 100) {
+                        $savedCandles = false;//$decoded["CANDLES_HIST"][$symbolName] ?? false;
+                        if ($savedCandles && is_array($savedCandles) && count($savedCandles) > 200) {
                             $candles = $savedCandles;
                         }
 
@@ -449,6 +449,7 @@ if (!empty($_GET)) {
                             $candlesUpdated = true;
                         }
 
+
                         $startRisk = round(abs($actualClosePrice - $sl) / $actualClosePrice * 100, 2);
                         // Если поле updated_sl присутствует и отличается от исходного SL – использовать его для расчета риска
                         if (isset($priceAnalysis['updated_sl']) && $priceAnalysis['updated_sl'] !== false) {
@@ -536,7 +537,7 @@ if (!empty($_GET)) {
                         unset($strategy['actualMacdDivergence']['extremes']);
 
 
-                        //dev
+                        //dev actual adx 1h
                         if (!$strategy['actualAdx1h']) {
                             // 1) Парсим строку в DateTime с указанием вашего часового пояса (Europe/Amsterdam)
                             $dateSignal = \DateTime::createFromFormat(
@@ -552,28 +553,40 @@ if (!empty($_GET)) {
                             $hoursBack = 200;
                             $startTime = ($dateSignal->getTimestamp() - $hoursBack * 3600) * 1000;
 
-                            // 4) Запрос к API Bybit с нужными параметрами
-                            $kline = $bybitApiOb->klineTimeV5(
-                                "linear",
-                                $symbolName,
-                                $startTime,
-                                $endTime,
-                                '1h',
-                                1000,
-                                true,
-                                3600
-                            );
+                            $klineList = [];
+                            if ($processedFilters['market'] == 'bybit') {
+                                // 4) Запрос к API Bybit с нужными параметрами
+                                $kline = $bybitApiOb->klineTimeV5(
+                                    "linear",
+                                    $symbolName,
+                                    $startTime,
+                                    $endTime,
+                                    '1h',
+                                    1000,
+                                    true,
+                                    36000
+                                );
 
-                            if (empty($kline['result']['list'])) {
-                                return [
-                                    'status' => false,
-                                    'message' => 'No data from API bybit'
-                                ];
+                                if (empty($kline['result']['list'])) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API bybit'
+                                    ];
+                                }
+                                usort($kline['result']['list'], fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline['result']['list'];
+                                // 5) Реверсим и готовим данные для расчёта ADX
+                            } else if ($processedFilters['market'] == 'binance') {
+                                $kline = $binanceApiOb->kline($symbolName, '1h', 1000, $startTime, $endTime, true, 36000);
+                                if (empty($kline) || !is_array($kline)) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API binance'
+                                    ];
+                                }
+                                usort($kline, fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline;
                             }
-                            usort($kline['result']['list'], fn($a, $b) => $a[0] <=> $b[0]);
-                            $klineList = $kline['result']['list'];
-                            // 5) Реверсим и готовим данные для расчёта ADX
-                            //$klineList = array_reverse($kline['result']['list']);
 
                             $candles1h = array_map(function ($k) {
                                 return [
@@ -590,7 +603,7 @@ if (!empty($_GET)) {
                             $adxData1h = \Maksv\TechnicalAnalysis::calculateADX($candles1h) ?? [];
                             $strategy['actualAdx1h'] = $adxData1h[array_key_last($adxData1h)] ?? null;
                         }
-                        //!-dev
+                        //!-dev actual adx 1h
 
                         // Формируем результирующий элемент массива
                         $finalResults[] = [
@@ -617,7 +630,7 @@ if (!empty($_GET)) {
                             'marketImpulsInfo' => $marketImpulsInfo,
                             'priceAnalysis' => $priceAnalysis,
                             'profit_percent_potential' => $profit_percent_potential,
-                            //'decoded' => $decoded
+                            'decoded' => $decoded
                         ];
                     }
                 };
@@ -649,7 +662,7 @@ if (!empty($_GET)) {
 
     //ml /
     global $USER;
-    if ($USER->IsAdmin()) {
+    //if ($USER->IsAdmin()) {
         //PROD model last train interval 01.05 - 08.06 bybit alerts
         //$collectAndStoreTrainData = \Maksv\MachineLearning\Assistant::collectAndStoreTrainData($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
         //$getTrainData = \Maksv\MachineLearning\Assistant::getTrainData() ?? [];
@@ -678,7 +691,7 @@ if (!empty($_GET)) {
         //65 65 count 125 (95\28) win 76% 129.1 $
         //67 65 count 14 (11\3) win 75.57% 2.1 $
 
-    }
+    //}
 
     $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
@@ -689,7 +702,6 @@ if (!empty($_GET)) {
 
 ?>
 
-<? if ($USER->IsAdmin()): ?>
     <div class="stat-wrapper">
         <!-- Форма с фильтрами -->
         <form method="GET" id="statsFilterForm" class="filter-form">
@@ -908,18 +920,20 @@ if (!empty($_GET)) {
                     <? $rpchSum = 0; ?>
                     <? $profitPercentSum = 0; ?>
                     <? $profitSum = 0; ?>
-                    <?
+
+
+                    <?/*
                     $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
-                    foreach ($exchangeBybitSymbolsList as $SymbolsListItem) {
-                     $allS[$SymbolsListItem['symbol']] = $SymbolsListItem;
+                    $symbList = [];
+                    foreach ($exchangeBybitSymbolsList as $item) {
+                        $symbList[$item['symbol']] = $item;
                     }
-                    ?>
+                    */?>
                     <? foreach ($finalResults as $result): ?>
 
-
-                        <?
-                        //if ($allS[$result["symbolName"]]['filterVal']['turnover24h'] <= 800000 /*|| $allS[$result["symbolName"]]['filterVal']['openInterestValue'] <= 500000*/) continue;
-                        ?>
+                        <?// if ($symbList[$result["symbolName"]]["filterVal"]['turnover24h'] < 9000000) continue; ?>
+                        <?// if ($symbList[$result["symbolName"]]["filterVal"]['openInterestValue'] < 5000000) continue; ?>
+                        <?// if ($symbList[$result["symbolName"]]["filterVal"]['marketCap'] < 5000000) continue; ?>
 
                         <? if ($result["startRisk"] >= $riskFilter) continue; ?>
                         <? if ($directionFilter && $result["direction"] != $directionFilter) continue; ?>
@@ -999,6 +1013,13 @@ if (!empty($_GET)) {
                             if ($predictMarket['prediction']['probabilities'][1] < floatval($mlMarketFilter)) continue;
                         }
                         ?>
+
+                        <?/*if (
+                                $predict['prediction']['probabilities'][1] < 0.65
+                                || $predictMarket['prediction']['probabilities'][1] < 0.65
+                                || ((($predict['prediction']['probabilities'][1] + $predictMarket['prediction']['probabilities'][1]) / 2) < 0.72)
+                        ) continue;*/?>
+
                         <? $cntSignals += 1; ?>
                         <? if ($result["profit"] > 0) {
                             $cntSignalsProfit++;
@@ -1058,7 +1079,8 @@ if (!empty($_GET)) {
                                 $winRate = 0;
 
                             ?>
-                            win <?= round($winRate, 2) ?>%
+                            win <?= round($winRate, 2) ?>%<br>
+                            <?=$profitSum * $leverege?> $
                         </td>
                         <td class="solid-border-top-td">leverege <?= $leverege ?></td>
                         <td class="solid-border-top-td"></td>
@@ -1076,12 +1098,11 @@ if (!empty($_GET)) {
         <? endif; ?>
     </div>
 
-    <div class="ai-analyze-wrapper">
+    <?/*<div class="ai-analyze-wrapper">
         <button class="btnAiAnalyzeBtn" id="btnAiAnalyze">Анализ ИИ</button>
         <button class="btnAiAnalyzeBtn" id="btnAiAnalyzeLosses" style="margin-left:10px;">Анализ убыточных</button>
         <div id="aiAnalyzeResult"></div>
-    </div>
-<? endif; ?>
+    </div>/*/?>
 <script>
     $(document).ready(function () {
         var finalResults = {

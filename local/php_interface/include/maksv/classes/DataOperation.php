@@ -203,7 +203,7 @@ class DataOperation
         return $sendRes;
     }
 
-    public static function sendScreener($res, $chatName = '@cryptoHelperAlerts')
+    public static function sendScreener($res, $additionalInfo = true, $chatName = '@cryptoHelperAlerts')
     {
         
         $tgBot = new \Maksv\Telegram\Request();
@@ -253,24 +253,30 @@ class DataOperation
         if ($res['SL'])
             $message .= 'Stop Loss: ' . $res['SL'] . "\n";
 
-        $message .= '_______________________' . "\n";
+        if ($additionalInfo) {
+            $message .= '_______________________' . "\n";
 
-       /* if ($res['recommendedEntry'])
-            $message .= 'Recommended entry: ' . $res['recommendedEntry'] .  "\n";*/
+             if ($res['recommendedEntry'])
+                 $message .= 'Recommended entry: ' . $res['recommendedEntry'] .  "\n";
 
-        if ($res['summaryOI'])
-            $message .= 'OI ' .  $res['summaryOI'] .  " | ";
+            if ($res['resML'])
+                $message .= 'ML ' . $res['resML']['totalMl'] . ' (' . $res['resML']['signalMl'] . '/' . $res['resML']['marketMl'] . ')' . "\n";
 
-        if ($res['summaryOIBybit'])
-            $message .= 'bybit ' .  $res['summaryOIBybit'] .  " | ";
+            if ($res['summaryOI'])
+                $message .= 'OI ' . $res['summaryOI'];
 
-        if ($res['summaryOIBinance'])
-            $message .= 'binance ' .  $res['summaryOIBinance'] . " | ";
+            if ($res['summaryOIBinance'])
+                $message .=  " | " . 'binance ' . $res['summaryOIBinance'];
 
-        if ($res['summaryOIOkx'])
-            $message .= 'okx ' .  $res['summaryOIOkx'] .  "\n";
+            if ($res['summaryOIBybit'])
+                $message .= " | " . 'bybit ' . $res['summaryOIBybit'];
+
+            if ($res['summaryOIOkx'])
+                $message .= " | " . 'okx ' . $res['summaryOIOkx'] . "\n";
 
 
+        }
+        
         // Если задан путь к графику, отправляем фото с подписью,
         // иначе отправляем обычное текстовое сообщение
         if ($res['tempChartPath'] && is_array($res['tempChartPath'])) {

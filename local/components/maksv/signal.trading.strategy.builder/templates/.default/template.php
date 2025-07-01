@@ -294,10 +294,12 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                             <td data-name="OI" <?if ($item['anomalyOI']):?>class="green-bg"<?endif;?>>
                                 <?=$item['lastPriceChange']?> / <?=$item['lastOpenInterest'];?>
                                 <br>
-                                <br>
+
                                 <?$summOi = $item['summaryOpenInterest'];?>
-                                bybit <?=$summOi['summaryOIBybit'];?><br>
-                                binance <?=$summOi['summaryOIBinance'];?>
+                                <br>OI Bybit <?=$summOi['summaryOIBybit'] ?? '-'?>
+                                <br>OI Binance <?=$summOi['summaryOIBinance'] ?? '-'?>
+                                <br>OI Okx <?=$summOi['summaryOIOkx'] ?? '-'?>
+
                             </td>
                         </tr>
                     <?endforeach;?>
@@ -378,10 +380,10 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                             <td data-name="OI" <?if ($item['anomalyOI']):?>class="red-bg"<?endif;?>>
                                 <?=$item['lastPriceChange']?> / <?=$item['lastOpenInterest'];?>
                                 <br>
-                                <br>
                                 <?$summOi = $item['summaryOpenInterest'];?>
-                                bybit <?=$summOi['summaryOIBybit'];?><br>
-                                binance <?=$summOi['summaryOIBinance'];?>
+                                <br>OI Bybit <?=$summOi['summaryOIBybit'] ?? '-'?>
+                                <br>OI Binance <?=$summOi['summaryOIBinance'] ?? '-'?>
+                                <br>OI Okx <?=$summOi['summaryOIOkx'] ?? '-'?>
                             </td>
                         </tr>
                     <?endforeach;?>

@@ -303,9 +303,9 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
 
                             <td data-name="summaryOI">
                                 <?=$item['priceChange']?>/<?=$item['summaryOI']?><br>
-                                <br>OI Bybit <?=$item['summaryOIBybit'] ?? 0?>
-                                <br>OI Binance <?=$item['summaryOIBinance'] ?? 0?>
-                                <br>OI Okx <?=$item['summaryOIOkx'] ?? 0?>
+                                <br>OI Bybit <?=$item['summaryOIBybit'] ?? '-'?>
+                                <br>OI Binance <?=$item['summaryOIBinance'] ?? '-'?>
+                                <br>OI Okx <?=$item['summaryOIOkx'] ?? '-'?>
                             </td>
 
                         </tr>
@@ -398,9 +398,9 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
 
                             <td data-name="summaryOI">
                                 <?=$item['priceChange']?>/<?=$item['summaryOI']?><br>
-                                <br>OI Bybit <?=$item['summaryOIBybit'] ?? 0?>
-                                <br>OI Binance <?=$item['summaryOIBinance'] ?? 0?>
-                                <br>OI Okx <?=$item['summaryOIOkx'] ?? 0?>
+                                <br>OI Bybit <?=$item['summaryOIBybit'] ?? '-'?>
+                                <br>OI Binance <?=$item['summaryOIBinance'] ?? '-'?>
+                                <br>OI Okx <?=$item['summaryOIOkx'] ?? '-'?>
                             </td>
 
                         </tr>

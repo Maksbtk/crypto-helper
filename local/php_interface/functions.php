@@ -73,22 +73,22 @@ function technicalExhc1d()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($hour, [3, 6, 9, 12, 15, 18, 21, 0]) && in_array($minute, [2, 3])) {
+    if (in_array($hour, [4]) && in_array($minute, [2, 3])) {
         //собираем инфу о монетках
         \Maksv\Bybit\Exchange::bybitExchange('1d', 33, -33);
     }
 
-    if (in_array($hour, [3]) && in_array($minute, [23, 24])) {
+    if (in_array($hour, [4]) && in_array($minute, [23, 24])) {
         //собираем инфу об oi
         \Maksv\Bybit\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5);
     }
 
-    if (in_array($hour, [4]) && in_array($minute, [3, 4])) {
+    if (in_array($hour, [5]) && in_array($minute, [3, 4])) {
         //собираем инфу об oi
         \Maksv\Binance\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5);
     }
 
-    if (in_array($hour, [4]) && in_array($minute, [3, 4])) {
+    if (in_array($hour, [5]) && in_array($minute, [3, 4])) {
         //собираем инфу об oi
         \Maksv\Okx\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5);
     }
@@ -214,8 +214,8 @@ function btcDOthersExchange()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($hour, [3, 7, 11, 15, 19, 23]) && in_array($minute, [0, 1]))
-       \Maksv\Bybit\Exchange::btcDOthersExchange();
+    //if (in_array($hour, [3, 7, 11, 15, 19, 23]) && in_array($minute, [0, 1]))
+       //\Maksv\Bybit\Exchange::btcDOthersExchange();
 
     return "btcDOthersExchange();";
 }

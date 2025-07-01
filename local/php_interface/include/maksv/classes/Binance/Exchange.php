@@ -414,8 +414,21 @@ class Exchange
         //получаем контракты, которые будем анализировать
         $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
         $exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+        $exchangeOkxSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/okxExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+
         $binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
         $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
+        $okxSymbolsList = array_column(
+            array_map(function($item) {
+                $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
+                return [
+                    $item['instId'],
+                    str_replace('-', '', $cleanId)
+                ];
+            }, $exchangeOkxSymbolsList),
+            1,
+            0
+        );
 
         if (!$binanceSymbolsList) {
             devlogs("err, binanceSymbolsList -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -429,6 +442,8 @@ class Exchange
         $bybitApiOb->openConnection();
         $binanceApiOb = new \Maksv\Binance\BinanceFutures();
         $binanceApiOb->openConnection();
+        $okxApiOb = new \Maksv\Okx\OkxFutures();
+        $okxApiOb->openConnection();
 
         $binanceScreenerIblockId = 7;
         $latestScreener = \Maksv\DataOperation::getLatestScreener($binanceScreenerIblockId);
@@ -519,7 +534,8 @@ class Exchange
                     '1d' => '30m',
                 ];
 
-                $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$interval]);
+                $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterestDev($symbolName, $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, $intervalsOImap[$interval]);
+                //$summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$interval]);
                 if (!$summaryOpenInterestOb['summaryOIBinance']) {
                     //devlogs('ERR ' . $symbolName . ' | err - oi ('.$summaryOpenInterestOb['summaryOI'].') ('.$summaryOpenInterestOb['summaryOIBybit'].')' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
                     //devlogs($summaryOpenInterestOb, $marketMode . '/screener'.$interval);
@@ -528,6 +544,7 @@ class Exchange
 
                 $summaryOIBinance = $screenerData['summaryOIBinance'] = $summaryOpenInterestOb['summaryOIBinance'] ?? 0;
                 $summaryOIBybit = $screenerData['summaryOIBybit'] = $summaryOpenInterestOb['summaryOIBybit'] ?? 0;
+                $summaryOIOkx = $screenerData['summaryOIOkx'] = $summaryOpenInterestOb['summaryOIOkx'] ?? 0;
                 $summaryOI = $screenerData['summaryOI'] = $summaryOpenInterestOb['summaryOI'] ?? 0;
 
                 //проверяем есть ли вычисленная граница открытого интереса
@@ -1035,36 +1052,47 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - PriceChartGenerator' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
-                    \Maksv\DataOperation::sendScreener($screenerData, '@infoCryptoHelperScreenerBinance');
-
-                    foreach ($screenerData['tempChartPath'] as $path)
-                        unlink($path);
-
-                    $screenerData['marketMLName'] = 'notFound';
                     if ($screenerData['isLong']){
                         $screenerData['marketMLName'] = 'longMl';
                     } else {
                         $screenerData['marketMLName'] = 'shortMl';
                     }
 
+                    $screenerData['resML']['marketMl'] = $marketMl = $marketInfo[$screenerData['marketMLName']]['probabilities'][1] ?? false;
+                    $screenerData['resML']['signalMl'] = $signalMl = $screenerData['actualMlModel']['probabilities'][1] ?? false;
+                    $screenerData['resML']['totalMl'] = $totalMl = false;
+                    if ($marketMl && $signalMl) {
+                        $screenerData['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
+                    }
+
+                    \Maksv\DataOperation::sendScreener($screenerData, true, '@infoCryptoHelperScreenerBinance');
+
+                    foreach ($screenerData['tempChartPath'] as $path)
+                        unlink($path);
+
                     $screenerData['tempChartPath'] = [];
-                    $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.61;
-                    $screenerData['mlMarketBoard'] = $mlMarketBoard = $marketInfo['mlMarketBoard'] ?? 0.65;
+                    $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.71;
+                    
+                    //после всех мутаций снимаем копию
+                    $res['screenerPump'][$symbolName] = $screenerData;
 
                     if (
-                        $screenerData['actualMlModel']
-                        && $screenerData['actualMlModel']['probabilities'][1] >= $mlBoard
-                        && $marketInfo[$screenerData['marketMLName']]
-                        && $marketInfo[$screenerData['marketMLName']]['probabilities'][1] >= $mlMarketBoard
+                        $marketMl
+                        && $signalMl
+                        && $totalMl
+                        && $marketMl > 0.65
+                        && $signalMl > 0.65
+                        && $totalMl >= $mlBoard
+                        //&& $interval != '5m'
                     ) {
                         devlogs(
-                            'ML approve | ' . $screenerData['actualMlModel']['probabilities'][1] . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            'ml approve | ' . $totalMl . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
 
                         //Prophet AI //сбор статистики
                         $screenerData['leverage'] = '5x';
-                        \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperProphetAi');
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperProphetAi');
 
                         //мой бот для торговли bybit // check ML
                         $screenerData['leverage'] = '10x';
@@ -1076,10 +1104,10 @@ class Exchange
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
                             $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
-                        \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperCornixTreadingBot');
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperCornixTreadingBot');
                     } else  {
                         devlogs(
-                            'ML skip | ' . $marketInfo[$screenerData['marketMLName']]['probabilities'][1] . ' > ' . $mlMarketBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            'ML skip | ' . $signalMl . ' ' . $marketMl . ' ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
                         $continueSymbols .= $symbol['symbol'] . ', ';
@@ -1110,6 +1138,7 @@ class Exchange
         }
         $bybitApiOb->closeConnection();
         $binanceApiOb->closeConnection();
+        $okxApiOb->closeConnection();
         devlogs($marketInfo['infoText'], $marketMode . '/screener' . $interval);
         devlogs('repeatSymbols - ' . $repeatSymbols, $marketMode . '/screener' . $interval);
         devlogs('analyzeSymbols - ' . $analyzeSymbols, $marketMode . '/screener' . $interval);

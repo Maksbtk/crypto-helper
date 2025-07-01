@@ -62,8 +62,21 @@ class Exchange
         //получаем контракты, которые будем анализировать
         $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
         $exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+        $exchangeOkxSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/okxExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+
         $binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
         $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
+        $okxSymbolsList = array_column(
+            array_map(function($item) {
+                $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
+                return [
+                    $item['instId'],
+                    str_replace('-', '', $cleanId)
+                ];
+            }, $exchangeOkxSymbolsList),
+            1,
+            0
+        );
 
         if (!$bybitSymbolsList) {
             devlogs("err, bybitSymbolsList -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -80,6 +93,8 @@ class Exchange
 
         $bybitApiOb = new \Maksv\Bybit\Bybit();
         $bybitApiOb->openConnection();
+        $okxApiOb = new \Maksv\Okx\OkxFutures();
+        $okxApiOb->openConnection();
         $binanceApiOb = new \Maksv\Binance\BinanceFutures();
         $binanceApiOb->openConnection();
 
@@ -168,7 +183,8 @@ class Exchange
                     '1d' => '30m',
                 ];
 
-                $summaryOpenInterestOb = self::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$interval]);
+                $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterestDev($symbolName, $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, $intervalsOImap[$interval]);
+                //$summaryOpenInterestOb = self::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$interval]);
                 if (!$summaryOpenInterestOb['summaryOI'] || !$summaryOpenInterestOb['summaryOIBybit']) {
                     //devlogs('ERR ' . $symbolName . ' | err - oi ('.$summaryOpenInterestOb['summaryOI'].') ('.$summaryOpenInterestOb['summaryOIBybit'].')' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
                     //devlogs($summaryOpenInterestOb, $marketMode . '/screener'.$interval);
@@ -177,6 +193,7 @@ class Exchange
 
                 $summaryOIBybit = $screenerData['summaryOIBybit'] = $summaryOpenInterestOb['summaryOIBybit'] ?? 0;
                 $summaryOIBinance = $screenerData['summaryOIBinance'] = $summaryOpenInterestOb['summaryOIBinance'] ?? 0;
+                $summaryOIOkx = $screenerData['summaryOIOkx'] = $summaryOpenInterestOb['summaryOIOkx'] ?? 0;
                 $summaryOI = $screenerData['summaryOI'] = $summaryOpenInterestOb['summaryOI'] ?? 0;
 
                 //проверяем есть ли вычисленная граница открытого интереса
@@ -211,12 +228,20 @@ class Exchange
                 }
                 $screenerData['oiLimits'] = ['longOiLimit' => $longOiLimit, 'shortOiLimit' => $shortOiLimit];
 
-                if (
+               /* if (
                     !($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1))
                     && !($summaryOI >= $longOiLimit)
                     && !($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
                 ) {
                     //devlogs('ERR ' . $symbolName . ' | err - OI' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
+                    continue;
+                }*/
+
+                if (
+                    !(($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
+                    && !(($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
+                ) {
+                    //devlogs('ERR ' . $symbolName . ' | err - OI 2' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
                     continue;
                 }
 
@@ -528,7 +553,7 @@ class Exchange
 
                 $maDistance = 2.5;
                 if (
-                    (($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1)) || ($summaryOI >= $longOiLimit))
+                    (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
                     && $btcInfo['isLong']
                     && $analyzeFastVolumeSignalRes['isLong']
                     && (
@@ -588,7 +613,7 @@ class Exchange
                     }
 
                 } else if (
-                    ($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
+                    (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
                     && $btcInfo['isShort']
                     && $analyzeFastVolumeSignalRes['isShort']
                     && (
@@ -677,38 +702,46 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - PriceChartGenerator' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
-                    \Maksv\DataOperation::sendScreener($screenerData, '@infoCryptoHelperScreener');
-
-                    foreach ($screenerData['tempChartPath'] as $path)
-                        unlink($path);
-
-                    $screenerData['marketMLName'] = 'notFound';
                     if ($screenerData['isLong']){
                         $screenerData['marketMLName'] = 'longMl';
                     } else {
                         $screenerData['marketMLName'] = 'shortMl';
                     }
 
+                    $screenerData['resML']['marketMl'] = $marketMl = $btcInfo[$screenerData['marketMLName']]['probabilities'][1] ?? false;
+                    $screenerData['resML']['signalMl'] = $signalMl = $screenerData['actualMlModel']['probabilities'][1] ?? false;
+                    $screenerData['resML']['totalMl'] = $totalMl = false;
+                    if ($marketMl && $signalMl) {
+                        $screenerData['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
+                    }
+
+                    \Maksv\DataOperation::sendScreener($screenerData, true, '@infoCryptoHelperScreener');
+
+                    foreach ($screenerData['tempChartPath'] as $path)
+                        unlink($path);
+
                     $screenerData['tempChartPath'] = [];
+                    $screenerData['resML']['mlBoard'] = $mlBoard = $btcInfo['mlBoard'] ?? 0.71;
 
-                    $screenerData['mlBoard'] = $mlBoard = $btcInfo['mlBoard'] ?? 0.61;
-                    $screenerData['mlMarketBoard'] = $mlMarketBoard = $btcInfo['mlMarketBoard'] ?? 0.65;
+                    //после всех мутаций снимаем копию
+                    $res['screenerPump'][$symbolName] = $screenerData;
+
                     if (
-                        $screenerData['actualMlModel']
-                        && $screenerData['actualMlModel']['probabilities'][1] >= $mlBoard
-                        && $btcInfo[$screenerData['marketMLName']]
-                        && $btcInfo[$screenerData['marketMLName']]['probabilities'][1] >= $mlMarketBoard
-                        && $interval != '5m'
-
+                        $marketMl
+                        && $signalMl
+                        && $totalMl
+                        && $marketMl > 0.65
+                        && $signalMl > 0.65
+                        && $totalMl >= $mlBoard
                     ) {
                         devlogs(
-                            'ml approve | ' . $screenerData['actualMlModel']['probabilities'][1] . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            'ml approve | ' . $totalMl . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
 
                         //Prophet AI //сбор статистики
                         $screenerData['leverage'] = '5x';
-                        \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperProphetAi');
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperProphetAi');
 
                         //мой бот для торговли bybit // check ML
                         $screenerData['leverage'] = '10x';
@@ -720,10 +753,10 @@ class Exchange
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
                             $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
-                        \Maksv\DataOperation::sendScreener($screenerData, '@cryptoHelperCornixTreadingBot');
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperCornixTreadingBot');
                     } else  {
                         devlogs(
-                            'skip bot  ' . $btcInfo[$screenerData['marketMLName']]['probabilities'][1] . ' > ' . $mlMarketBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            'ML skip | ' . $signalMl . ' ' . $marketMl . ' ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
                         $continueSymbols .= $symbol['symbol'] . ', ';
@@ -757,6 +790,7 @@ class Exchange
         }
         $bybitApiOb->closeConnection();
         $binanceApiOb->closeConnection();
+        $okxApiOb->closeConnection();
         devlogs($btcInfo['infoText'], $marketMode . '/screener' . $interval);
         devlogs('repeatSymbols - ' . $repeatSymbols, $marketMode . '/screener' . $interval);
         devlogs('analyzeSymbols - ' . $analyzeSymbols, $marketMode . '/screener' . $interval);
@@ -863,6 +897,61 @@ class Exchange
                 }
                 unset($bybitSymbolInfo);
             }
+            // 2) Получаем tickers (OI и объемы)
+            /*$tickersInfo = $bybitApiOb->getTickers('linear');
+            if (empty($tickersInfo) || !isset($tickersInfo['result']['list'])) {
+                devlogs('ERR | bybit tickers error', $marketCode . '/bybitExchange' . $timeFrame);
+            } else {
+                // Индексируем result.list по symbol для быстрого доступа
+                $tickersBySymbol = [];
+                foreach ($tickersInfo['result']['list'] as $t) {
+                    $tickersBySymbol[$t['symbol']] = $t;
+                }
+
+                // 3) Встраиваем OI и turnover
+                foreach ($exchangeBybitSymbolsList as &$bybitSymbolInfo) {
+                    $sym = $bybitSymbolInfo['symbol'];
+                    if (isset($tickersBySymbol[$sym])) {
+                        $info = $tickersBySymbol[$sym];
+                        $bybitSymbolInfo['filterVal'] = [
+                            'openInterestValue' => (float)$info['openInterestValue'],
+                            'turnover24h'       => (float)$info['turnover24h'],
+                        ];
+                    } else {
+                        $bybitSymbolInfo['filterVal'] = [
+                            'openInterestValue' => 0.0,
+                            'turnover24h'       => 0.0,
+                        ];
+                    }
+                }
+                unset($bybitSymbolInfo);
+            }*/
+
+            // 4) Собираем все уникальные базовые монеты
+            $allBaseCoins = array_unique(array_column($exchangeBybitSymbolsList, 'baseCoin'));
+
+            // 5) Запрашиваем капитализации батчами по 99 монет через CoinMarketCap
+            $cmc       = new \Maksv\Coinmarketcap\Request();
+            $capMap    = [];  // здесь накопим [SYMBOL => marketCap]
+            $chunks    = array_chunk($allBaseCoins, 99);
+            foreach ($chunks as $chunk) {
+                try {
+                    // getMarketCaps умеет принять массив
+                    $caps = $cmc->getMarketCaps($chunk, true, 3600);
+                    // объединяем
+                    $capMap = array_merge($capMap, $caps);
+                } catch (\RuntimeException $e) {
+                    // на случай ошибки просто пропускаем эти символы
+                    devlogs('CMC marketCap error: ' . $e->getMessage(), $marketCode . '/bybitExchange' . $timeFrame);
+                }
+            }
+
+            // 6) Встраиваем marketCap в каждый элемент
+            foreach ($exchangeBybitSymbolsList as &$bybitSymbolInfo) {
+                $base = $bybitSymbolInfo['baseCoin'];
+                $bybitSymbolInfo['filterVal']['marketCap'] = $capMap[$base] ?? 0.0;
+            }
+            unset($bybitSymbolInfo);
 
             $dataBybitInfo = [
                 'TIMEMARK' => $timeMark,
@@ -900,29 +989,6 @@ class Exchange
                 $exchangeBinanceSymbolsList = $exchangeSymbolsResp['result']['list'];
             }
 
-            //bybit получаем последние новости, чтобы узнать есть ли делистинговые монеты
-            $exchangeAnnouncements = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/announcement.json'), true)['RESPONSE_EXCHENGE'];
-            if (!$exchangeAnnouncements || $timeFrame == '1d') {
-                $getAnnouncement = $bybitApiOb->getAnnouncement();
-                if ($getAnnouncement['result']['list']) {
-                    $dataBybitNewsInfo = [
-                        "TIMEMARK" => $timeMark,
-                        "RESPONSE_EXCHENGE" => $getAnnouncement['result']['list'],
-                        "EXCHANGE_CODE" => 'bybit'
-                    ];
-                    file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/announcement.json', json_encode($dataBybitNewsInfo));
-                    $exchangeAnnouncements = $getAnnouncement['result']['list'];
-                }
-            }
-
-            //сразу анализируем новости, создаем массив делистинговых монет
-            $delistingAnnouncements = [];
-            foreach ($exchangeAnnouncements as $announcement) {
-                if (in_array('Derivatives', $announcement['tags']) && in_array('Delistings', $announcement['tags'])) {
-                    $delistingAnnouncements[] = $announcement['title'];
-                }
-            }
-
             if ($timeFrame == '1d') {
                 echo '<pre>'; var_dump('tech OK'); echo '</pre>';
                 return true;
@@ -943,6 +1009,28 @@ class Exchange
             0
         );
 
+        //bybit получаем последние новости, чтобы узнать есть ли делистинговые монеты
+        $exchangeAnnouncements = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/announcement.json'), true)['RESPONSE_EXCHENGE'];
+        if (!$exchangeAnnouncements || $timeFrame == '1d') {
+            $getAnnouncement = $bybitApiOb->getAnnouncement();
+            if ($getAnnouncement['result']['list']) {
+                $dataBybitNewsInfo = [
+                    "TIMEMARK" => $timeMark,
+                    "RESPONSE_EXCHENGE" => $getAnnouncement['result']['list'],
+                    "EXCHANGE_CODE" => 'bybit'
+                ];
+                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/announcement.json', json_encode($dataBybitNewsInfo));
+                $exchangeAnnouncements = $getAnnouncement['result']['list'];
+            }
+        }
+
+        //сразу анализируем новости, создаем массив делистинговых монет
+        $delistingAnnouncements = [];
+        foreach ($exchangeAnnouncements as $announcement) {
+            if (in_array('Derivatives', $announcement['tags']) && in_array('Delistings', $announcement['tags'])) {
+                $delistingAnnouncements[] = $announcement['title'];
+            }
+        }
 
         //переходим к анализу контрактов
         $countReq = $analysisSymbolCount = 0;
@@ -1050,11 +1138,13 @@ class Exchange
                     ];
 
                     //oi
-                    $summaryOpenInterestOb = self::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$timeFrame]);
+                    $summaryOpenInterestOb = self::getSummaryOpenInterestDev($symbolName, $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, $intervalsOImap[$timeFrame]);
+                    //$summaryOpenInterestOb = self::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$timeFrame]);
                     if (/*$summaryOpenInterestOb['summaryOI'] || */$summaryOpenInterestOb['summaryOIBybit']) {
 
                         $summaryOIBybit = $summaryOpenInterestOb['summaryOIBybit'];
                         $summaryOIBinance = $summaryOpenInterestOb['summaryOIBinance'];
+                        $summaryOIOkx = $summaryOpenInterestOb['summaryOIOkx'] ?? 0;
 
                         $openInterest = $summaryOI = $summaryOpenInterestOb['summaryOI'] ?? $summaryOpenInterestOb['summaryOIBybit'];
                         $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['summaryOpenInterest'] = $summaryOpenInterestOb;
@@ -1093,9 +1183,7 @@ class Exchange
                         if (
                             in_array($symbolName, ['BTCUSDT', 'ETHUSDT'])
                             || ($summaryOIBybit >= $longOiLimit)
-                            || ($summaryOI >= $longOiLimit)
                             || ($summaryOIBybit <= $shortOiLimit)
-                            || ($summaryOI <= $shortOiLimit)
                         ) {
                             $priceChange = $lastClosePrice = 0;
                             $barsCount = 802;
@@ -1473,7 +1561,7 @@ class Exchange
                                     $timeFrame == '15m'
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
-                                    && (($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1)) || ($summaryOI >= $longOiLimit))
+                                    && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
                                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                                     && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
@@ -1496,7 +1584,7 @@ class Exchange
                                     $timeFrame == '15m'
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
-                                    && ($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
+                                    && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
                                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                                     && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
@@ -1519,8 +1607,7 @@ class Exchange
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
                                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
-                                    && (($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1)) || ($summaryOI >= $longOiLimit))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
+                                    && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
@@ -1534,7 +1621,7 @@ class Exchange
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
                                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
-                                    && ($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
+                                    && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
                                     && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
@@ -1551,8 +1638,7 @@ class Exchange
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
                                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
-                                    && (($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1)) || ($summaryOI >= $longOiLimit))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
+                                    && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
@@ -1567,7 +1653,7 @@ class Exchange
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
                                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
-                                    && ($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
+                                    && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
                                     && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
@@ -1582,8 +1668,7 @@ class Exchange
                                     $actualMacd['isLong']
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
-                                    && (($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1)) || ($summaryOI >= $longOiLimit))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
+                                    && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
@@ -1598,7 +1683,7 @@ class Exchange
                                     $actualMacd['isShort']
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
-                                    && ($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
+                                    && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
                                     && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
@@ -2208,8 +2293,8 @@ class Exchange
         $marketImpulsBoard = 2500000000;
         //$marketImpulsBoard = 2900000000;
 
-        $res['mlBoard'] = 0.71;
-        $res['mlMarketBoard'] = 0.7;
+        $res['mlBoard'] = 0.72;
+        //$res['mlMarketBoard'] = 0.7;
 
         //market impuls macd 4h text
         $infoText .= 'impuls macd hist ' . formatBigNumber($marketImpulsInfo['actualImpulsMacd4h']['histogram']) . ' trend ' . ($marketImpulsInfo['actualImpulsMacd4h']['trend']['trendText'])
@@ -2322,8 +2407,6 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 3.8;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                /*$res['mlBoard'] = 0.65;
-                $res['mlMarketBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
@@ -2443,8 +2526,6 @@ class Exchange
             ) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.65;
-                $res['mlMarketBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m\n";
             }
 
@@ -2460,23 +2541,20 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx1h']['adx'] < 25) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $infoText .= 'risk ' . $res['risk'] . " down + low adx 1h (25)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 22) {
                 $res['risk'] = 3;
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (22)\n";
             }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 16) {
                 $res['risk'] = 3;
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (16)\n";
             }
@@ -2484,16 +2562,12 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 19 && $marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.75;
-                $res['mlMarketBoard'] = 0.70;*/
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 15) {
                 $res['risk'] = 2.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.76;
-                $res['mlMarketBoard'] = 0.73;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (15)\n";
             }
 
@@ -2542,8 +2616,6 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 3.8;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                /*$res['mlMarketBoard'] = 0.65;
-                $res['mlBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
@@ -2655,8 +2727,6 @@ class Exchange
             ) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.65;
-                $res['mlMarketBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m\n";
             }
 
@@ -2672,23 +2742,20 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx1h']['adx'] < 25) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $infoText .= 'risk ' . $res['risk'] . " down + low adx 1h (25)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 22) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (22)\n";
             }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 16) {
                 $res['risk'] = 3;
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (16)\n";
             }
@@ -2696,16 +2763,12 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 19 && $marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.75;
-                $res['mlMarketBoard'] = 0.73;*/
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 15) {
                 $res['risk'] = 2.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.76;
-                $res['mlMarketBoard'] = 0.73;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (15)\n";
             }
 
@@ -2794,7 +2857,7 @@ class Exchange
         $infoText .= "\nsignals:\n";
         $infoText .= 'Risk ' . ($res['risk'] ? $res['risk'] : '-') . "\n";
         $infoText .= 'ML board ' . ($res['mlBoard'] ? $res['mlBoard'] : '-') . "\n";
-        $infoText .= 'mML board ' . ($res['mlMarketBoard'] ? $res['mlMarketBoard'] : '-') . "\n";
+        //$infoText .= 'mML board ' . ($res['mlMarketBoard'] ? $res['mlMarketBoard'] : '-') . "\n";
         $infoText .= "\n";
 
         $res['infoText'] = $infoText;
@@ -2826,8 +2889,8 @@ class Exchange
         $marketImpulsBoard = 2500000000;
         //$marketImpulsBoard = 2900000000;
 
-        $res['mlBoard'] = 0.71;
-        $res['mlMarketBoard'] = 0.7;
+        $res['mlBoard'] = 0.72;
+        //$res['mlMarketBoard'] = 0.7;
 
         //market impuls macd 4h text
         $infoText .= 'impuls macd hist ' . formatBigNumber($marketImpulsInfo['actualImpulsMacd4h']['histogram']) . ' trend ' . ($marketImpulsInfo['actualImpulsMacd4h']['trend']['trendText'])
@@ -2940,8 +3003,6 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 4.5;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                /*$res['mlBoard'] = 0.65;
-                $res['mlMarketBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
@@ -3061,8 +3122,6 @@ class Exchange
             ) {
                 $res['risk'] = 3.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.65;
-                $res['mlMarketBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m\n";
             }
 
@@ -3078,23 +3137,20 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx1h']['adx'] < 25) {
                 $res['risk'] = 3.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $infoText .= 'risk ' . $res['risk'] . " down + low adx 1h (25)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 22) {
                 $res['risk'] = 3.5;
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (22)\n";
             }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 16) {
                 $res['risk'] = 3.5;
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (16)\n";
             }
@@ -3102,16 +3158,12 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 19 && $marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.75;
-                $res['mlMarketBoard'] = 0.70;*/
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 15) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.76;
-                $res['mlMarketBoard'] = 0.73;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (15)\n";
             }
 
@@ -3160,8 +3212,6 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 4.5;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                /*$res['mlMarketBoard'] = 0.65;
-                $res['mlBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
@@ -3273,8 +3323,6 @@ class Exchange
             ) {
                 $res['risk'] = 3.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.65;
-                $res['mlMarketBoard'] = 0.65;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m\n";
             }
 
@@ -3290,23 +3338,20 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx1h']['adx'] < 25) {
                 $res['risk'] = 3.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $infoText .= 'risk ' . $res['risk'] . " down + low adx 1h (25)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 22) {
                 $res['risk'] = 3.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (22)\n";
             }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 16) {
                 $res['risk'] = 3.5;
-                $res['mlBoard'] = 0.72;
-                $res['mlMarketBoard'] = 0.7;
+                $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (16)\n";
             }
@@ -3314,16 +3359,12 @@ class Exchange
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 19 && $marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.75;
-                $res['mlMarketBoard'] = 0.73;*/
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 15) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                /*$res['mlBoard'] = 0.76;
-                $res['mlMarketBoard'] = 0.73;*/
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (15)\n";
             }
 
@@ -3412,7 +3453,7 @@ class Exchange
         $infoText .= "\nsignals:\n";
         $infoText .= 'Risk ' . ($res['risk'] ? $res['risk'] : '-') . "\n";
         $infoText .= 'ML board ' . ($res['mlBoard'] ? $res['mlBoard'] : '-') . "\n";
-        $infoText .= 'mML board ' . ($res['mlMarketBoard'] ? $res['mlMarketBoard'] : '-') . "\n";
+        //$infoText .= 'mML board ' . ($res['mlMarketBoard'] ? $res['mlMarketBoard'] : '-') . "\n";
         $infoText .= "\n";
 
         $res['infoText'] = $infoText;
@@ -4660,6 +4701,14 @@ class Exchange
         return $res;
     }
 
+    protected static function calculateOIChange($data)
+    {
+        if (count($data) < 2) return 0;
+        $prev = reset($data)['openInterest'];
+        $actual = end($data)['openInterest'];
+        return $prev != 0 ? round((($actual - $prev) / $prev) * 100, 2) : 0;
+    }
+
     public static function getSummaryOpenInterestDev(
         $symbolName,
         $binanceApiOb,
@@ -4736,6 +4785,11 @@ class Exchange
                             'timestamp' => $timestamp,
                             'openInterest' => (float)$oiItem[1],
                         ];
+
+                        if ((float)$oiItem[1] == 0) {
+                            devlogs("Err okx oi process = 0  " . $okxSymbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+                            devlogs($oiItem, 'getSummaryOpenInterestDev');
+                        }
                     }
                 }
             }
@@ -4760,6 +4814,29 @@ class Exchange
         if ($allTimestamps)
             ksort($allTimestamps);
 
+        // --- Расчет изменения OI ---
+        $summaryOIBybit = self::calculateOIChange($resBybit['res']);
+        $summaryOIBinance = self::calculateOIChange($resBinance['res']);
+        $summaryOIOkx = self::calculateOIChange($resOkx['res']);
+
+        // Если изменение по бирже ровно ±100%, считаем данные «грязными» и их не учитываем:
+        if (abs($summaryOIBybit) === 100) {
+            $resBybit['res']   = [];
+            $summaryOIBybit    = 0;
+            devlogs("Err bybit 100  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+        }
+
+        if (abs($summaryOIBinance) === 100) {
+            $resBinance['res'] = [];
+            $summaryOIBinance  = 0;
+            devlogs("Err binance 100  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+        }
+        if (abs($summaryOIOkx) === 100) {
+            $resOkx['res']     = [];
+            $summaryOIOkx      = 0;
+            devlogs("Err okx 100  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+        }
+
         $resSummary = [];
         foreach ($allTimestamps as $timestamp) {
             $oiBybit = $resBybit['res'][$timestamp]['openInterest'] ?? 0;
@@ -4771,11 +4848,6 @@ class Exchange
                 'openInterest' => $oiBybit + $oiBinance + $oiOkx,
             ];
         }
-
-        // --- Расчет изменения OI ---
-        $summaryOIBybit = self::calculateOIChange($resBybit['res']);
-        $summaryOIBinance = self::calculateOIChange($resBinance['res']);
-        $summaryOIOkx = self::calculateOIChange($resOkx['res']);
         $summaryOI = self::calculateOIChange($resSummary);
 
         // --- Итоговый результат ---
@@ -5202,14 +5274,6 @@ class Exchange
             'candles' => $candles,
             'market' => $market
         ];
-    }
-
-    protected static function calculateOIChange($data)
-    {
-        if (count($data) < 2) return 0;
-        $prev = reset($data)['openInterest'];
-        $actual = end($data)['openInterest'];
-        return $prev != 0 ? round((($actual - $prev) / $prev) * 100, 2) : 0;
     }
 
     //анализ OI для поиска нужно лимита изменения
