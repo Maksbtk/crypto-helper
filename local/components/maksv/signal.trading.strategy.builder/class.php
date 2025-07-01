@@ -479,7 +479,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                     continue;*/
 
                 $diffHours = floatval(($now->getTimestamp() - $dateSignal->getTimestamp()) / 3600);
-                if ($diffHours <= 0.01) {
+                if ($diffHours <= 0.5) {
                     $signal['priceAnalysis'] = [
                         'status' => false,
                         'message' => 'Skipped, Signal too recent'

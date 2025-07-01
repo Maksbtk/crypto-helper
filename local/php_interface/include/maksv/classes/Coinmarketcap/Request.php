@@ -30,7 +30,7 @@ class Request
 
         if ($useCache && $cache->initCache($cacheTime, $cacheID)) {
             $response = $cache->getVars();
-            echo '<pre>'; var_dump('cache y'); echo '</pre>';
+            //echo '<pre>'; var_dump('cache y'); echo '</pre>';
 
         } elseif ($cache->startDataCache()) {
             $url     = $this->url . $endpoint . '?' . http_build_query($parameters);
@@ -142,6 +142,75 @@ class Request
     public function fearGreedLatest() {
         $endpoint = '/v3/fear-and-greed/latest';
         return json_decode($this->httpReq($endpoint, []),true);
+    }
+
+    /**
+     * Получить рыночную капитализацию текущей цены актива в USD.
+     *
+     * Этот метод использует эндпоинт /v1/cryptocurrency/quotes/latest,
+     * который доступен в бесплатном тарифе (до 10 000 запросов в месяц).
+     *
+     * @param string  $symbol     Символ актива (например, 'BTC' или 'ETH').
+     * @param bool    $useCache   Использовать кэш (Bitrix Data Cache)?
+     * @param int     $cacheTime  Время жизни кэша в секундах.
+     * @return float   Market Cap в USD, или 0 при ошибке.
+     * @throws \RuntimeException Если CMC вернул ошибку.
+     */
+    public function getMarketCap(string $symbol, bool $useCache = true, int $cacheTime = 3600): float
+    {
+        $endpoint   = '/v1/cryptocurrency/quotes/latest';
+        $parameters = [
+            'symbol'  => $symbol,
+            'convert' => 'USD',
+        ];
+
+        $json = $this->httpReq($endpoint, $parameters, $useCache, $cacheTime);
+        $data = json_decode($json, true);
+
+        // Проверяем наличие ошибок
+        if (empty($data['data'][$symbol]['quote']['USD']['market_cap'])) {
+            $err = $data['status']['error_message'] ?? 'no market_cap field';
+            throw new \RuntimeException("CMC getMarketCap error: $err");
+        }
+
+        return (float)$data['data'][$symbol]['quote']['USD']['market_cap'];
+    }
+
+    /**
+     * Получить капитализации сразу по массиву символов или строке символов через запятую.
+     *
+     * @param string|array $symbols     Например 'BTC,ETH,XRP' или ['BTC','ETH','XRP']
+     * @param bool   $useCache          Кешировать ли ответ?
+     * @param int    $cacheTime         TTL кеша в секундах
+     * @return array                    Ассоциативный массив ['BTC'=>cap, 'ETH'=>cap, …]
+     * @throws \RuntimeException       При ошибке запроса
+     */
+    public function getMarketCaps($symbols, bool $useCache = true, int $cacheTime = 300): array
+    {
+        if (is_array($symbols)) {
+            $symbols = implode(',', $symbols);
+        }
+        $endpoint   = '/v1/cryptocurrency/quotes/latest';
+        $parameters = [
+            'symbol'  => $symbols,
+            'convert' => 'USD',
+        ];
+
+        $json = $this->httpReq($endpoint, $parameters, $useCache, $cacheTime);
+        $data = json_decode($json, true);
+
+        if (empty($data['data']) || !is_array($data['data'])) {
+            $err = $data['status']['error_message'] ?? 'no data';
+            throw new \RuntimeException("CMC getMarketCaps error: $err");
+        }
+
+        $result = [];
+        foreach ($data['data'] as $sym => $info) {
+            $result[$sym] = isset($info['quote']['USD']['market_cap'])
+                ? (float)$info['quote']['USD']['market_cap']
+                : 0.0;
+        }
+        return $result;
     }
 
 }
