@@ -36,7 +36,7 @@ $categoriesMap = [
     ],
 ];
 
-$APPLICATION->SetPageProperty("title", "SML " . $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
+$APPLICATION->SetPageProperty("title", "stat ml " . $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
 $APPLICATION->SetTitle("SML" . $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
 
 global $USER;
@@ -101,8 +101,8 @@ $tfFilter = isset($_GET['tfFilter']) ? $_GET['tfFilter'] : false;
 $entryFilter = isset($_GET['entryFilter']) ? $_GET['entryFilter'] : 'y';
 $strategyFilter = isset($_GET['strategyFilter']) ? $_GET['strategyFilter'] : false;
 
-$mlFilter = isset($_GET['mlFilter']) ? $_GET['mlFilter'] : '0.51';
-$mlMarketFilter = isset($_GET['mlMarketFilter']) ? $_GET['mlMarketFilter'] : '0.51';
+$mlFilter = isset($_GET['mlFilter']) ? $_GET['mlFilter'] : 'n';
+//$mlMarketFilter = isset($_GET['mlMarketFilter']) ? $_GET['mlMarketFilter'] : '0.51';
 
 $updateTargetsFilter = isset($_GET['updateTargetsFilter']) ? $_GET['updateTargetsFilter'] : 'n';
 $updateMlFilter = isset($_GET['updateMlFilter']) ? $_GET['updateMlFilter'] : 'n';
@@ -194,6 +194,15 @@ if (!empty($_GET)) {
 
             $decoded = Json::decode($jsonContent);
 
+            /*$decoded["STRATEGIES"]['screenerDump'] = $decoded["STRATEGIES"]['screenerPump'];
+            $decoded["STRATEGIES"]['screenerPump'] = [];
+
+            $newJson = Json::encode(
+                $decoded,
+                JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+            );
+            file_put_contents($fullPath, $newJson);*/
+
             // Проверяем наличие ключа STRATEGIES в декодированном файле
             if (isset($decoded["STRATEGIES"])) {
                 $strategies = $decoded["STRATEGIES"];
@@ -227,7 +236,7 @@ if (!empty($_GET)) {
                     'updateMarketMlFilter' => $updateMarketMlFilter,
                 ];
                 // Функция для обработки стратегии – обрабатывает элементы массива стратегии
-                $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $bybitApiOb, $binanceApiOb, $okxApiOb, &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes) {
+                $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $bybitApiOb, $binanceApiOb, $okxApiOb, &$errors, &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes) {
                     // Значение направления: Pump -> long, Dump -> short
                     $direction = (stripos($typeKey, "Pump") !== false) ? "long" : "short";
                     $reverseDirection = (stripos($typeKey, "Pump") !== false) ? "short" : "long";
@@ -267,7 +276,7 @@ if (!empty($_GET)) {
                         $symbolName = $sname ?? $strategy["symbolName"];
 
                         $candles = false;
-                        $savedCandles = false;//$decoded["CANDLES_HIST"][$symbolName] ?? false;
+                        $savedCandles = $decoded["CANDLES_HIST"][$symbolName] ?? false;
                         if ($savedCandles && is_array($savedCandles) && count($savedCandles) > 200) {
                             $candles = $savedCandles;
                         }
@@ -630,6 +639,7 @@ if (!empty($_GET)) {
                             'marketImpulsInfo' => $marketImpulsInfo,
                             'priceAnalysis' => $priceAnalysis,
                             'profit_percent_potential' => $profit_percent_potential,
+                            'iblock_element_id' =>  $arItem['ID'],
                             'decoded' => $decoded
                         ];
                     }
@@ -840,20 +850,21 @@ if (!empty($_GET)) {
                     <? $strategyFilter = false; ?>
                 <? endif; ?>
 
-                <? /*<div class="form-group">
-                <label for="mlFilter">ml фильтр:</label>
-                <select name="mlFilter" id="entryFilter">
-                    <option value="n" <?=($mlFilter == 'n' ? "selected" : "")?>>Нет</option>
-                    <?foreach ($mlFilterAr as $mlVal):?>
-                        <option value="<?=$mlVal?>" <?=($mlFilter == $mlVal ? "selected" : "")?>><?=$mlVal?></option>
-                    <?endforeach;?>
-                </select>
-            </div>*/ ?>
-
                 <? $mlStep = 0.001; ?>
-                <div class="form-group">
+                <?/*<div class="form-group">
                     <label for="mlFilter">ml фильтр:</label>
                     <input type="number" name="mlFilter" id="mlFilter" step="<?= $mlStep ?>" value="<?= ($mlFilter) ?>">
+                </div>*/?>
+
+                <div class="form-group">
+                    <label for="mlFilter">ml фильтр:</label>
+                    <select name="mlFilter" id="mlFilter">
+                        <option value="n" <?= ($mlFilter == 'n' ? "selected" : "") ?>>нет</option>
+                        <? $mlFilterAr = range(0.65, 0.9, 0.01); ?>
+                        <? foreach ($mlFilterAr as $mlFilterArVal): ?>
+                            <option value="<?= $mlFilterArVal ?>" <?= ($mlFilter == $mlFilterArVal ? "selected" : "") ?>><?= $mlFilterArVal ?></option>
+                        <? endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -864,11 +875,11 @@ if (!empty($_GET)) {
                     </select>
                 </div>
 
-                <div class="form-group">
+                <?/*<div class="form-group">
                     <label for="mlMarketFilter">ml market фильтр:</label>
                     <input type="number" name="mlMarketFilter" id="mlMarketFilter" step="<?= $mlStep ?>"
                            value="<?= ($mlMarketFilter) ?>">
-                </div>
+                </div>*/?>
 
                 <div class="form-group">
                     <label for="updateMarketMlFilter">Перерасчет market ml:</label>
@@ -880,7 +891,7 @@ if (!empty($_GET)) {
 
                 <? if ($USER->IsAdmin()): ?>
                     <div class="form-group">
-                        <label for="updateTargetsFilter">Рассчитать TP, SL:</label>
+                        <label for="updateTargetsFilter">Перерасчет TP, SL:</label>
                         <select name="updateTargetsFilter" id="updateTargetsFilter">
                             <option value="n" <?= ($updateTargetsFilter == 'n' ? "selected" : "") ?>>Нет</option>
                             <option value="y" <?= ($updateTargetsFilter == 'y' ? "selected" : "") ?>>Да</option>
@@ -903,24 +914,26 @@ if (!empty($_GET)) {
                 <table border="1" cellspacing="0" cellpadding="5">
                     <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Direction</th>
-                        <th>Symbol info</th>
-                        <th>TP count</th>
-                        <th>Risk %</th>
-                        <th>RR ratio</th>
-                        <th>Profit %</th>
-                        <th>Profit $</th>
+                        <th>Дата</th>
+                        <th>Направление</th>
+                        <th>Инфо о сделке</th>
+                        <th>Количество TP</th>
+                        <th>Риск %</th>
+                        <th>RR соотношение</th>
+                        <th>Профит %</th>
+                        <th>Профит $</th>
                     </tr>
                     </thead>
                     <tbody>
                     <? $cntSignals = 0; ?>
+                    <? $cntOpenSignals = 0; ?>
+                    <? $cntClosedSignals = 0; ?>
                     <? $cntSignalsProfit = 0; ?>
                     <? $cntSignalsRisk = 0; ?>
                     <? $rpchSum = 0; ?>
                     <? $profitPercentSum = 0; ?>
+                    <? $normalizedRrProfitSum = 0; ?>
                     <? $profitSum = 0; ?>
-
 
                     <?/*
                     $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
@@ -929,8 +942,8 @@ if (!empty($_GET)) {
                         $symbList[$item['symbol']] = $item;
                     }
                     */?>
+                    <? $finalElIds = []; ?>
                     <? foreach ($finalResults as $result): ?>
-
                         <?// if ($symbList[$result["symbolName"]]["filterVal"]['turnover24h'] < 9000000) continue; ?>
                         <?// if ($symbList[$result["symbolName"]]["filterVal"]['openInterestValue'] < 5000000) continue; ?>
                         <?// if ($symbList[$result["symbolName"]]["filterVal"]['marketCap'] < 5000000) continue; ?>
@@ -956,11 +969,7 @@ if (!empty($_GET)) {
 
                         <? if (
                             $result['allInfo']['actualAdx']
-                            &&
-                            (
-                                $result['allInfo']['actualAdx']['adx'] < 16
-
-                            )
+                            && ($result['allInfo']['actualAdx']['adx'] < 23)
                         ) continue; ?>
 
                         <?
@@ -985,7 +994,7 @@ if (!empty($_GET)) {
                         if ($predict['prediction']['probabilities'][1] && $predict['prediction']['probabilities'][0]) {
                             $mlRelative = $predict['prediction']['probabilities'][1] / $predict['prediction']['probabilities'][0];
 
-                            if ($predict['prediction']['probabilities'][1] < floatval($mlFilter)) continue;
+                            //if ($predict['prediction']['probabilities'][1] < floatval($mlFilter)) continue;
                         }
                         ?>
 
@@ -1010,23 +1019,36 @@ if (!empty($_GET)) {
                         if ($predictMarket['prediction']['probabilities'][0] && $predictMarket['prediction']['probabilities'][1]) {
                             $mlMarketRelative = $predictMarket['prediction']['probabilities'][1] / $predictMarket['prediction']['probabilities'][0];
 
-                            if ($predictMarket['prediction']['probabilities'][1] < floatval($mlMarketFilter)) continue;
+                            //if ($predictMarket['prediction']['probabilities'][1] < floatval($mlMarketFilter)) continue;
                         }
                         ?>
 
-                        <?/*if (
-                                $predict['prediction']['probabilities'][1] < 0.65
-                                || $predictMarket['prediction']['probabilities'][1] < 0.65
-                                || ((($predict['prediction']['probabilities'][1] + $predictMarket['prediction']['probabilities'][1]) / 2) < 0.72)
-                        ) continue;*/?>
+                        <?
+                        $marketMl = $predictMarket['prediction']['probabilities'][1] ?? false;
+                        $signalMl = $predict['prediction']['probabilities'][1] ?? false;
+                        $totalMl = (($predict['prediction']['probabilities'][1] + $predictMarket['prediction']['probabilities'][1]) / 2) ?? false;
+                        if (
+                                $mlFilter != 'n'
+                                && (
+                                    $marketMl < 0.65
+                                    || $signalMl < 0.65
+                                    || ($totalMl < floatval($mlFilter))
+                                )
+                        ) continue;
+                        ?>
 
                         <? $cntSignals += 1; ?>
                         <? if ($result["profit"] > 0) {
                             $cntSignalsProfit++;
+                            $cntClosedSignals++;
                         } elseif ($result["profit"] < 0) {
                             $cntSignalsRisk++;
+                            $cntClosedSignals++;
+                        } else {
+                            $cntOpenSignals++;
                         } ?>
 
+                        <? $finalElIds[] = $result['iblock_element_id']; ?>
                         <? //$rpchSum += floatval($result["realized_percent_change"]); ?>
                         <? $profitPercentSum += floatval($result["profit_percent"]); ?>
                         <? $profitSum += floatval($result["profit"]); ?>
@@ -1041,17 +1063,12 @@ if (!empty($_GET)) {
                                 <? if ($result['strategy']): ?>
                                     <br><?= ($result['strategy']) ?>
                                 <? endif; ?>
-                                <? if ($predict && $predict['prediction']['probabilities']): ?>
+
+                                <? if ($totalMl && $signalMl && $marketMl): ?>
                                     <br>
-                                    ML: <?= $predict['prediction']['probabilities'][0] ?>
-                                    | <?= $predict['prediction']['probabilities'][1] ?> (<?= round($mlRelative, 1) ?>)
+                                    ML: <?=$totalMl?> (<?=$signalMl?>/<?=$marketMl?>)
                                 <? endif; ?>
 
-                                <? if ($predictMarket['prediction']['probabilities']): ?>
-                                    <br>
-                                    Market ML: <?= $predictMarket['prediction']['probabilities'][0] ?>
-                                    | <?= $predictMarket['prediction']['probabilities'][1] ?> (<?= round($mlMarketRelative, 1) ?>)
-                                <? endif; ?>
                             </td>
                             <td><?= ($result["tpCount"]) ?></td>
                             <td <? if ($result["startRisk"] >= 3): ?>class="solid-border-red-td"<? endif ?>><?= ($result["startRisk"] * $leverege) ?></td>
@@ -1059,6 +1076,7 @@ if (!empty($_GET)) {
                                 <?
                                 // Рассчитываем коэффициент для прибыли относительно риска 1
                                 $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
+                                $normalizedRrProfitSum += $normalizedRrProfit;
                                 $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
                                 ?>
                                 <?= ($rrRatioString) ?>
@@ -1071,30 +1089,62 @@ if (!empty($_GET)) {
                     <tfoot>
                     <tr>
                         <td class="solid-border-top-td">
-                            count <?= $cntSignals ?> (<?= $cntSignalsProfit ?>\<?= $cntSignalsRisk ?>)<br>
+                            всего <?=$cntSignals?><br>
+                            открытые <?=$cntOpenSignals?><br>
+                            закрытые <?= $cntClosedSignals ?> (<?= $cntSignalsProfit ?>\<?= $cntSignalsRisk ?>)<br>
+                        </td>
+                        <td class="solid-border-top-td">
                             <?
-                            if ($cntSignals !== 0)
-                                $winRate = $cntSignalsProfit / ($cntSignals / 100) ?? 0;
+                            if ($cntClosedSignals !== 0)
+                                $winRate = $cntSignalsProfit / ($cntClosedSignals / 100) ?? 0;
                             else
                                 $winRate = 0;
 
                             ?>
-                            win <?= round($winRate, 2) ?>%<br>
-                            <?=$profitSum * $leverege?> $
+                            винрейт <?= round($winRate, 2) ?>%<br>
+                            профит <?=round($profitSum * $leverege, 2);?> $
                         </td>
-                        <td class="solid-border-top-td">leverege <?= $leverege ?></td>
                         <td class="solid-border-top-td"></td>
                         <td class="solid-border-top-td"></td>
                         <td class="solid-border-top-td"></td>
-                        <td class="solid-border-top-td"></td>
+                        <td class="solid-border-top-td">
+                            <?
+                            if ($cntSignals !== 0)
+                                $sumRatioRR = round($normalizedRrProfitSum / $cntSignals, 2);
+                            else
+                                $sumRatioRR = 0;
+                            ?>
+                            1 / <?=$sumRatioRR?>
+                        </td>
                         <td class="solid-border-top-td"><?= $profitPercentSum * $leverege ?> %</td>
-                        <td class="solid-border-top-td"><?= $profitSum * $leverege ?> $</td>
+                        <td class="solid-border-top-td">
+                            <?=round($profitSum * $leverege, 2);?> $ <br>
+                        </td>
                     </tr>
                     </tfoot>
                 </table>
             </div>
         <? else: ?>
             <p>Требуется настройка фильтра</p>
+        <? endif; ?>
+
+        <? if (!empty($errors)): ?>
+            <div class="table-container" style="margin-top: 20px;">
+                <table border="1" cellspacing="0" cellpadding="5" class="error-table">
+                    <thead>
+                    <tr>
+                        <th style="display: flex;">Ошибки</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <? foreach ($errors as $keyErr => $err): ?>
+                        <tr>
+                            <td class="error-bg"><?=$keyErr+1?>. <?= $err ?></td>
+                        </tr>
+                    <? endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         <? endif; ?>
     </div>
 
@@ -1103,9 +1153,89 @@ if (!empty($_GET)) {
         <button class="btnAiAnalyzeBtn" id="btnAiAnalyzeLosses" style="margin-left:10px;">Анализ убыточных</button>
         <div id="aiAnalyzeResult"></div>
     </div>/*/?>
+
+<?
+/*global $DB;
+
+$sourceIblockId  = $exchangeIblockID;
+$sourceSectionId = $categoriesMap[$exchangeIblockID][$categorySectionID];
+$targetIblockId  = 9;
+$targetSectionId = 10;
+
+$res = CIBlockElement::GetList(
+    ["ID" => "ASC"],
+    ["IBLOCK_ID" => $sourceIblockId, "ID" => $finalElIds],
+    false,
+    false,
+    ["*", "PROPERTY_*"]
+);
+
+while ($element = $res->Fetch()) {
+    $originalDateCreate = $element['DATE_CREATE']; // например "2024-05-12 14:23:45"
+
+    // Собираем свойства
+    $properties = [];
+    $propRes = CIBlockElement::GetProperty(
+        $sourceIblockId,
+        $element['ID'],
+        ["sort" => "asc"],
+        ["CODE" => ""]
+    );
+    while ($prop = $propRes->Fetch()) {
+        if ($prop['PROPERTY_TYPE'] == 'F' && $prop['VALUE']) {
+            $fileId = $prop['VALUE'];
+            $fileArray = CFile::MakeFileArray($_SERVER['DOCUMENT_ROOT'].CFile::GetPath($fileId));
+            $properties[$prop['CODE']] = $fileArray;
+        } else {
+            $properties[$prop['CODE']] = $prop['VALUE'];
+        }
+    }
+
+    // Создаём элемент
+    $newElement = new CIBlockElement;
+    $arFields = [
+        "IBLOCK_ID"         => $targetIblockId,
+        "IBLOCK_SECTION_ID" => $targetSectionId,
+        "NAME"              => $element['NAME'] . ' ' . $marketMap[$exchangeIblockID],
+        "CODE"              => $element['CODE'],
+        "XML_ID"            => $element['XML_ID'],
+        "ACTIVE"            => $element['ACTIVE'],
+        "DATE_ACTIVE_FROM"  => $element['DATE_ACTIVE_FROM'],
+        "DATE_ACTIVE_TO"    => $element['DATE_ACTIVE_TO'],
+        "SORT"              => $element['SORT'],
+        "PREVIEW_TEXT"      => $element['PREVIEW_TEXT'],
+        "PREVIEW_TEXT_TYPE" => $element['PREVIEW_TEXT_TYPE'],
+        "DETAIL_TEXT"       => $element['DETAIL_TEXT'],
+        "DETAIL_TEXT_TYPE"  => $element['DETAIL_TEXT_TYPE'],
+        "TAGS"              => $element['TAGS'],
+        "PROPERTY_VALUES"   => $properties,
+    ];
+
+    $newId = $newElement->Add($arFields);
+    if (!$newId) {
+        echo "Ошибка при добавлении: " . $newElement->LAST_ERROR . "<br>";
+        continue;
+    }
+
+    // Приводим дату к формату БД и обновляем DATE_CREATE и TIMESTAMP_X
+    // Для MySQL с ядром Битрикс: CHAR_TO_DATE
+    $dbDate = $DB->CharToDateFunction($originalDateCreate, "FULL");
+    $DB->Query("
+        UPDATE b_iblock_element 
+        SET 
+            DATE_CREATE = {$dbDate}, 
+            TIMESTAMP_X  = {$dbDate} 
+        WHERE ID = ".intval($newId)
+    );
+
+    echo "Скопирован элемент {$element['ID']} → {$newId} (DATE_CREATE сохранён как {$originalDateCreate})<br>";
+}*/
+?>
 <script>
     $(document).ready(function () {
         var finalResults = {
+            a2_finalElements: <?=CUtil::PhpToJSObject($finalElements, false, false, true)?>,
+
             res: <?=CUtil::PhpToJSObject($finalResults, false, false, true)?>,
             selectedTpStrategy: <?=CUtil::PhpToJSObject($selectedTpStrategy, false, false, true)?>,
             collectAndStoreTrainData: <?=CUtil::PhpToJSObject($collectAndStoreTrainData, false, false, true)?>,

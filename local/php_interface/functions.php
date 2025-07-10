@@ -311,7 +311,7 @@ function clean_expire_cache($path = "") {
     $curentTime = time();
     /*if (defined("BX_CRONTAB") && BX_CRONTAB === true) $endTime = time() + 5; //Если на кроне, то работаем 5 секунд
     else $endTime = time() + 1; //Если на хитах, то не более секунды*/
-    $endTime = time() + 10;
+    $endTime = time() + 12;
     //Работаем со всем кешем
     $obCacheCleaner = new CFileCacheCleaner("all");
 

@@ -319,7 +319,7 @@ $bybitApiOb->closeConnection();*/
         0
     );
 
-    //$summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterestDev('ETHWUSDT', $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, '15m');
+    //$summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterestDev('BTCUSDT', $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, '15m');
 
     $intervals = [
         '15m' => 1080000,  // 17 минут
@@ -339,6 +339,8 @@ $bybitApiOb->closeConnection();*/
     $candlesHist = $okxApiOb->getCandlesHist('DOOD-USDT-SWAP', '5m', $startMs, $endMs, false, 120);*/
 
 
+    $checkMarketImpulsInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
+
     $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
     $okxApiOb->closeConnection();
@@ -347,8 +349,6 @@ $bybitApiOb->closeConnection();*/
     var devRes = {
         longV: <?=CUtil::PhpToJSObject($signals['long'], false, false, true)?>,
         shortV: <?=CUtil::PhpToJSObject($signals['short'], false, false, true)?>,
-        $summaryOpenInterestOb: <?=CUtil::PhpToJSObject($summaryOpenInterestOb, false, false, true)?>,
-        $oiHistRespOkx: <?=CUtil::PhpToJSObject($oiHistRespOkx, false, false, true)?>,
         $okxSymbolsList: <?=CUtil::PhpToJSObject($okxSymbolsList, false, false, true)?>,
     }
     console.log('devRes', devRes);

@@ -350,13 +350,13 @@ class DataOperation
         return $sendRes;
     }
 
-    public static function saveSignalToIblock($timeframe = '30m', $iblockCode = 'bybit', $sectionCode = 'master')
+    public static function saveSignalToIblock($timeframe = '30m', $iblockCode = 'bybit', $sectionCode = 'master', $fromMarket = false)
     {
         $opportunitiesPathMap[$iblockCode] = [
             'alerts' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
             'master' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
             'screener' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategy.json',
-            //'screener' => $_SERVER['DOCUMENT_ROOT'] . '/upload/screener/actualStrategy.json',/upload/bybitExchange/screener/15m
+            'screenerB' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategyBeta.json',
         ];
 
         $opportunitiesFileAr = \CFile::MakeFileArray($opportunitiesPathMap[$iblockCode][$sectionCode]);
@@ -365,7 +365,10 @@ class DataOperation
 
         if ($opportunitiesFileId && \CModule::IncludeModule("iblock")) {
 
-            $iblockMap = ['bybit' => 3, 'binance' => 7, 'okx' => 8];
+            if ($sectionCode == 'screenerB')
+                $iblockCode =  'betaForever';
+
+            $iblockMap = ['bybit' => 3, 'binance' => 7, 'okx' => 8, 'betaForever' => 9];
 
             $iblockSectionsMap['bybit'] = [
                 'master' => 5,
@@ -381,17 +384,27 @@ class DataOperation
                 'screener' => 9,
             ];
 
+            $iblockSectionsMap['betaForever'] = [
+                'screenerB' => 10,
+            ];
+
             $elementProperty = [
                 'STRATEGIES_FILE' => $opportunitiesFileId,
                 'TIMEFRAME' => $timeframe,
             ];
+
+
+            $nameEl = DataOperation::actualDateFormatted() . ' / ' . $timeframe;
+            if ($fromMarket) {
+                $nameEl = $nameEl . ' ' . $fromMarket;
+            }
 
             $el = new \CIBlockElement;
             $arLoadElementArray = [
                 //"MODIFIED_BY"    => $modifiedBy,
                 "IBLOCK_SECTION_ID" => $iblockSectionsMap[$iblockCode][$sectionCode],
                 "IBLOCK_ID" => $iblockMap[$iblockCode],
-                "NAME" => DataOperation::actualDateFormatted() . ' / ' . $timeframe,
+                "NAME" => $nameEl,
                 "ACTIVE" => 'Y',
                 "PROPERTY_VALUES" => $elementProperty,
             ];

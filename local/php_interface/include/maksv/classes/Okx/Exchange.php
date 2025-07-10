@@ -75,6 +75,10 @@ class Exchange
 
         $okxScreenerIblockId = 8;
         $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
+
+        $betaForeverScreenerIblockId = 9;
+        $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverScreenerIblockId);
+
         $analyzeCnt = $cnt = $cntSuccess = 0;
 
         $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/summaryVolumeExchange.json'; // '/upload/okxExchange/summaryVolumeExchange.json';
@@ -129,12 +133,17 @@ class Exchange
                 if ($cnt % 20 === 0)
                     $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
 
+                if ($cnt % 15 === 0)
+                    $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverScreenerIblockId);
+
                 if ($cnt % 50 === 0)
                     $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
 
                 //dev $marketInfo['isLong'] = true; $marketInfo['risk'] = 5;
 
                 $screenerData['latestScreener'] = $latestScreener;
+                $screenerData['latestScreenerBetaForever'] = $latestScreenerBetaForever;
+
                 if ($latestScreener[$symbolNameFormatted]) {
                     $repeatSymbols .= $symbolName . ',';
                     continue;
@@ -451,7 +460,10 @@ class Exchange
 
                 if (
                     $actualAdx
-                    && $actualAdx['adx'] < 16
+                    && (
+                        $actualAdx['adx'] < 20
+                        || ($actualAdx['adx'] < 26 && $actualAdx['adxDirection']['isDownDir'] === true)
+                    )
                 ) {
                     devlogs('CONTINUE ' . $symbolName . ' |  adx 15m ' . $actualAdx['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     continue;
@@ -526,7 +538,7 @@ class Exchange
                     && $analyzeFastVolumeSignalRes['isLong']
                     && (
                         $actualMacd['isLong']
-                        || ($actualImpulsMacd['isLong'] && $interval == '15m')
+                        || ($actualImpulsMacd['isLong'] && $interval == '30m')
                         || ($ma100['isLong'] && $interval == '15m')
                         || ($ma200['isLong'] && $interval == '15m')
                         || ($ma400['isLong'] && $interval == '15m')
@@ -587,7 +599,7 @@ class Exchange
                     && $analyzeFastVolumeSignalRes['isShort']
                     && (
                         $actualMacd['isShort']
-                        || ($actualImpulsMacd['isShort'] && $interval)
+                        || ($actualImpulsMacd['isShort'] && $interval != '30m')
                         || ($ma100['isShort'] && $interval == '15m')
                         || ($ma200['isShort'] && $interval == '15m')
                         || ($ma400['isShort'] && $interval == '15m')
@@ -675,8 +687,10 @@ class Exchange
 
                     if ($screenerData['isLong']){
                         $screenerData['marketMLName'] = 'longMl';
+                        $actualStrategyName = 'screenerPump';
                     } else {
                         $screenerData['marketMLName'] = 'shortMl';
+                        $actualStrategyName = 'screenerDump';
                     }
 
                     $screenerData['resML']['marketMl'] = $marketMl = $marketInfo[$screenerData['marketMLName']]['probabilities'][1] ?? false;
@@ -695,18 +709,25 @@ class Exchange
                     $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.71;
 
                     //после всех мутаций снимаем копию
-                    $res['screenerPump'][$symbolName] = $screenerData;
-                    
-                    /*if (
-                        $screenerData['actualMlModel']
-                        && $screenerData['actualMlModel']['probabilities'][1] >= $mlBoard
-                        && $marketInfo[$screenerData['marketMLName']]
-                        && $marketInfo[$screenerData['marketMLName']]['probabilities'][1] >= $mlMarketBoard
+                    $res[$actualStrategyName][$symbolName] = $screenerData;
+
+                    if (
+                        $marketMl
+                        && $signalMl
+                        && $totalMl
+                        && $marketMl > 0.65
+                        && $signalMl > 0.65
+                        && $totalMl >= $mlBoard
+                        && !$latestScreenerBetaForever[$symbolNameFormatted]
                     ) {
                         devlogs(
-                            'ML approve | ' . $screenerData['actualMlModel']['probabilities'][1] . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            'ml approve | ' . $totalMl . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
+
+                        //Prophet AI //сбор статистики
+                        $screenerData['leverage'] = '5x';
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperProphetAi');
 
                         //мой бот для торговли bybit // check ML
                         $screenerData['leverage'] = '10x';
@@ -719,13 +740,34 @@ class Exchange
                             $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperCornixTreadingBot');
+
+                        //сохраняем в beta forever
+                        $actualStrategyBeta = [
+                            "TIMEMARK" => date("d.m.y H:i:s"),
+                            "STRATEGIES" => $res,
+                            "INFO" => [
+                                'BTC_INFO' => $marketInfo,
+                            ],
+                            "EXCHANGE_CODE" => 'screener'
+                        ];
+
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategyBeta.json', json_encode($actualStrategyBeta));
+                        try {
+                            $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'screenerB', $marketMode);
+                            devlogs('screener beta forever write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        } catch (Exception $e) {
+                            $errText = 'ERR beta forever write - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
+                            \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screener' . $interval);
+                            devlogs($errText, $marketMode . '/screener' . $interval);
+                        }
+
                     } else  {
                         devlogs(
-                            'ML skip | ' . $marketInfo[$screenerData['marketMLName']]['probabilities'][1] . ' > ' . $mlMarketBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            'ML skip | ' . $signalMl . ' ' . $marketMl . ' ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
-                        $continueSymbols .= $symbolName . ', ';
-                    }*/
+                        $continueSymbols .= $symbol['symbol'] . ', ';
+                    }
 
                     $actualStrategy = [
                         "TIMEMARK" => date("d.m.y H:i:s"),
