@@ -166,8 +166,8 @@ class TechnicalAnalysis
 
         $currentPrice = end($closePrices);
         $prevPrice = $closePrices[array_key_last($closePrices) - 1];
-        //$isUptrend = $prevPrice > $sma;
-        $isUptrend = $ema > $sma;
+        $isUptrend = $prevPrice > $sma;
+        //$isUptrend = $ema > $sma;
 
         $isShort = ($previousEMA >= $previousSMA && $ema < $sma);
         $isLong  = ($previousEMA <= $previousSMA && $ema > $sma);
@@ -805,6 +805,29 @@ class TechnicalAnalysis
         return $result;
     }
 
+    /**
+     * Рассчитывает Stochastic RSI и генерирует торговые сигналы по пересечениям и зонам перекупленности/перепроданности.
+     *
+     * @param array $candles       Массив свечей в формате [ ['t'=>timestamp, 'o'=>open, 'h'=>high, 'l'=>low, 'c'=>close, …], … ].
+     * @param int   $rsiPeriod     Период расчёта RSI (по умолчанию 14).
+     * @param int   $stochPeriod   Период для расчёта стохастика по RSI (по умолчанию 14).
+     * @param int   $smoothK       Период сглаживания %K (по умолчанию 3).
+     * @param int   $smoothD       Период сглаживания %D (по умолчанию 3).
+     * @param float $stepKD        Минимальный дельта‑порог между %K и %D для учёта гистограммы (по умолчанию 2.5).
+     * @param float $stepK         Минимальный шаг изменения %K для сигнала (по умолчанию 3.0).
+     *
+     * @return array Массив записей вида:
+     *               [
+     *                 'close'   => float,    // цена закрытия свечи
+     *                 '%K'      => float,    // текущее значение %K
+     *                 '%prevK'  => float,    // предыдущее значение %K
+     *                 '%D'      => float,    // текущее значение %D
+     *                 '%prevD'  => float,    // предыдущее значение %D
+     *                 'hist'    => float,    // %K − %D
+     *                 'isLong'  => bool,     // сигнал на лонг
+     *                 'isShort' => bool,     // сигнал на шорт
+     *               ]
+     */
     public static function calculateStochasticRSI(
         array $candles,
         int $rsiPeriod = 14,
@@ -889,7 +912,7 @@ class TechnicalAnalysis
                 $curK > $curD &&     // %K выше прошл.%D
                 $curK > $prevK &&     // %K выше прошл.%D
                 $hist !== null &&
-                $hist >= $stepKD &&
+                $hist >= ($stepKD * 1.3) &&
                 $curK <= 79;
 
             $isHalfLong  = isset($prevK, $prevD, $curK, $curD) &&
@@ -913,7 +936,7 @@ class TechnicalAnalysis
                 $curK < $curD &&
                 $prevK < $prevD &&
                 $hist !== null &&
-                $hist <= -$stepKD &&
+                $hist <= (-$stepKD * 1.3) &&
                 $curK >= 21;
 
             $isHalfShort = isset($prevK, $prevD, $curK, $curD) &&

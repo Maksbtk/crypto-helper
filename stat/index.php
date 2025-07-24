@@ -23,7 +23,8 @@ $marketMap = [
 
 $categoriesMap = [
     9 => [
-        10 => 'screener',
+        10 => 'normal ml',
+        11 => 'high ml',
     ],
 ];
 
@@ -31,6 +32,7 @@ $categoriesMap = [
 $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
 $exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
 $exchangeOkxSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/okxExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
+$exchangeBingxSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bingxExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
 
 $binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
 $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
@@ -45,17 +47,28 @@ $okxSymbolsList = array_column(
     1,
     0
 );
+$bingxSymbolsList = array_column(
+    array_map(function($item) {
+        return [
+            $item['symbol'],
+            str_replace('-', '', $item['symbol'])
+        ];
+    }, $exchangeBingxSymbolsList),
+    1,
+    0
+);
 
 $dataSourceArr = [
     'bybit' => $bybitSymbolsList,
     'binance' => $binanceSymbolsList ,
-    'okx' => $okxSymbolsList
+    'okx' => $okxSymbolsList,
+    'bingx' => $bingxSymbolsList
 ];
 
 global $APPLICATION;
 
 $APPLICATION->SetPageProperty("title", "stat " . $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
-$APPLICATION->SetTitle("SML" . $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
+$APPLICATION->SetTitle("stat " . $marketMap[$exchangeIblockID] . ' ' . $categoriesMap[$exchangeIblockID][$categorySectionID]);
 
 global $USER;
 $errors = [];
@@ -78,6 +91,17 @@ $shiftSL = isset($_GET['shiftSL']) ? intval($_GET['shiftSL']) : false;  // пе�
 if ($tpCountGeneral > 0 && $tpCountGeneral <= $shiftSL) {
     $shiftSL = false;
     $errors[] = 'сдвиг стопа не соответствует настройке количества тейк профитов';
+}
+
+$portionWeight = [0.5, 0.5];
+if ($tpCountGeneral > 0) {
+    // Рассчитываем значение одной доли
+    $weightValue = 1 / $tpCountGeneral;
+
+    // Заполняем массив равными значениями
+    for ($i = 0; $i < $tpCountGeneral; $i++) {
+        $portionWeight[] = $weightValue;
+    }
 }
 
 $riskFilter = isset($_GET['riskFilter']) ? round(floatval($_GET['riskFilter']), 1) : 7;
@@ -183,6 +207,16 @@ if (!empty($_GET)) {
     $binanceApiOb->openConnection();
     $okxApiOb = new \Maksv\Okx\OkxFutures();
     $okxApiOb->openConnection();
+    $bingxApiOb = new \Maksv\Bingx\BingxFutures();
+    $bingxApiOb->openConnection();
+
+    $apiObAr = [
+        'bybitApiOb' => $bybitApiOb,
+        'binanceApiOb' => $binanceApiOb,
+        'okxApiOb' => $okxApiOb,
+        'bingxApiOb' => $bingxApiOb,
+    ];
+
     // Перебор результатов
     while ($arItem = $res->GetNext()) {
 
@@ -216,7 +250,7 @@ if (!empty($_GET)) {
                 if ($categorySectionID == 5) {
                     $keyPump = "masterPump";
                     $keyDump = "masterDump";
-                } elseif (in_array($categorySectionID, [7, 8, 9, 10])) {
+                } elseif (in_array($categorySectionID, [7, 8, 9, 10, 11])) {
                     $keyPump = "screenerPump";
                     $keyDump = "screenerDump";
                 } elseif (in_array($categorySectionID, [6])) {
@@ -227,6 +261,7 @@ if (!empty($_GET)) {
                     $keyDump = "";
                     $errors[] = 'не удалось найти ключ категории (' . $arItem['ID'] . '): ';
                 }
+
 
                 $market = $dataSource;
                 $processedFilters = [
@@ -240,7 +275,7 @@ if (!empty($_GET)) {
                     'updateMarketMlFilter' => $updateMarketMlFilter,
                 ];
                 // Функция для обработки стратегии – обрабатывает элементы массива стратегии
-                $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $bybitApiOb, $binanceApiOb, $okxApiOb,  &$errors,  &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes) {
+                $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $apiObAr,  &$errors,  &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes, &$portionWeight) {
                     // Значение направления: Pump -> long, Dump -> short
                     $direction = (stripos($typeKey, "Pump") !== false) ? "long" : "short";
                     $reverseDirection = (stripos($typeKey, "Pump") !== false) ? "short" : "long";
@@ -264,8 +299,16 @@ if (!empty($_GET)) {
                             $quote = 'USDT';
                             $base = substr($strategy["symbolName"], 0, -strlen($quote));
                             $symbolName =  $base . '-' . $quote . '-SWAP';
-                            //echo '<pre>'; var_dump($symbolName); echo '</pre>';
+                        } elseif ($processedFilters['market'] === 'bingx') {
+                            if (in_array($strategy['marketCode'], ['bybit','binance'])) {
+                                $symbolName = str_replace('USDT', '-USDT', $strategy['symbolName']);
+                                //$symbolName = str_replace(['-'], '', $strategy['symbolName']);
+                            } elseif ($strategy['marketCode'] === 'okx') {
+                                $symbolName = str_replace('USDT', '-USDT', $strategy['symbolName']);
+                                //$symbolName = str_replace('USDT', '-USDT-SWAP', $strategy['symbolName']);
+                            }
                         }
+                        //echo '<pre>'; var_dump($strategy['marketCode'] . ' - ' . $symbolName); echo '</pre>';
 
                         if ($processedFilters['market'] == 'n') {
                             $processedFilters['market'] = $strategy['marketCode'];
@@ -395,9 +438,7 @@ if (!empty($_GET)) {
                         // цены (функция возвращает массив с tp_count и realized_percent_change)
 
                         $priceAnalysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
-                            $bybitApiOb,
-                            $binanceApiOb,
-                            $okxApiOb,
+                            $apiObAr,
                             $symbolName,
                             $startTime,
                             $endTime,
@@ -441,22 +482,36 @@ if (!empty($_GET)) {
 
                         $riskPercent = round(abs($actualClosePrice - $slForRiskCalc) / $actualClosePrice * 100, 2);
 
-                        $profit_percent_potential = 0;
-                        $reachedTPPotential = $processedFilters['tpCountGeneral'];
-                        $portionWeightPotential = 1 / $processedFilters['tpCountGeneral'];
+                        if ($processedFilters['tpCountGeneral'] == 1) {
+                            $portionWeight = [1];
+                        } else if ($processedFilters['tpCountGeneral'] == 2) {
+                            $portionWeight = [0.65, 0.35];
+                        } else if ($processedFilters['tpCountGeneral'] == 3) {
+                            $portionWeight = [0.34, 0.33, 0.33];
+                        } else if ($processedFilters['tpCountGeneral'] == 4) {
+                            $portionWeight = [0.25, 0.25, 0.25, 0.25];
+                        } else if ($processedFilters['tpCountGeneral'] == 5) {
+                            $portionWeight = [0.20, 0.20, 0.20, 0.20, 0.20];
+                        }
+
+                        // potential Profit
+                        //$profit_percent_potential = 0;
+                        //$reachedTPPotential = $processedFilters['tpCountGeneral'];
+                        //$portionWeightPotential = 1 / $processedFilters['tpCountGeneral'];
                         $profit_percent_potential = 0;
                         // Берем первые $processedFilters['tpCountGeneral'] тейков
                         $tpHitAr = array_slice($tp, 0, $processedFilters['tpCountGeneral']);
-                        foreach ($tpHitAr as $tpPrice) {
+                        foreach ($tpHitAr as $key => $tpPrice) {
                             if ($direction == 'long') {
                                 $profitForTpPotential = (($tpPrice - $actualClosePrice) / $actualClosePrice) * 100;
                             } else { // для short
                                 $profitForTpPotential = (($actualClosePrice - $tpPrice) / $actualClosePrice) * 100;
                             }
-                            $profit_percent_potential += $profitForTpPotential * $portionWeightPotential;
+                            //$profit_percent_potential += $profitForTpPotential * $portionWeightPotential;
+                            $profit_percent_potential += $profitForTpPotential * $portionWeight[$key];
                         }
                         $profit_percent_potential = round($profit_percent_potential, 2);
-                        //* potential Profit
+                        //-! potential Profit
 
                         // Расчёт итоговой процентной прибыли (profit_percent) и прибыли в валютном выражении (profit)
                         $profit_percent = 0;
@@ -466,39 +521,52 @@ if (!empty($_GET)) {
                             // Если достигнуто больше или равно запланированному количеству тейков, считаем "полностью успешную" сделку.
                             if ($priceAnalysis["tp_count"] >= $processedFilters['tpCountGeneral']) {
                                 $reachedTP = $processedFilters['tpCountGeneral'];
-                                $portionWeight = 1 / $processedFilters['tpCountGeneral'];
+                                //$portionWeight = 1 / $processedFilters['tpCountGeneral'];
                                 $profit_percent = 0;
                                 // Берем первые $processedFilters['tpCountGeneral'] тейков
                                 $tpHitAr = array_slice($tp, 0, $processedFilters['tpCountGeneral']);
-                                foreach ($tpHitAr as $tpPrice) {
+                                foreach ($tpHitAr as $key => $tpPrice) {
                                     if ($direction == 'long') {
                                         $profitForTp = (($tpPrice - $actualClosePrice) / $actualClosePrice) * 100;
                                     } else { // для short
                                         $profitForTp = (($actualClosePrice - $tpPrice) / $actualClosePrice) * 100;
                                     }
-                                    $profit_percent += $profitForTp * $portionWeight;
+                                    //$profit_percent += $profitForTp * $portionWeight;
+                                    $profit_percent += $profitForTp * $portionWeight[$key];
                                 }
                                 $profit_percent = round($profit_percent, 2);
                             } else {
                                 // Если достигнуто меньше, чем запланировано (например, 2 из 3),
                                 // то вычисляем взвешенную прибыль для достигнутых тейков...
                                 $reachedTP = $priceAnalysis["tp_count"];
-                                $portionWeight = 1 / $processedFilters['tpCountGeneral'];
+                                //$portionWeight = 1 / $processedFilters['tpCountGeneral'];
                                 $profit_percent = 0;
                                 $tpHitAr = array_slice($tp, 0, $reachedTP);
-                                foreach ($tpHitAr as $tpPrice) {
+                                foreach ($tpHitAr as $key => $tpPrice) {
                                     if ($direction == 'long') {
                                         $profitForTp = (($tpPrice - $actualClosePrice) / $actualClosePrice) * 100;
                                     } else {
                                         $profitForTp = (($actualClosePrice - $tpPrice) / $actualClosePrice) * 100;
                                     }
-                                    $profit_percent += $profitForTp * $portionWeight;
+                                    //$profit_percent += $profitForTp * $portionWeight;
+                                    $profit_percent += $profitForTp * $portionWeight[$key];
                                 }
 
                                 // —————— Накладываем убыток по недостигнутой части только если стоп‑лосс был пробит:
-                                $unreached = $processedFilters['tpCountGeneral'] - $reachedTP;
+                               /* $unreached = $processedFilters['tpCountGeneral'] - $reachedTP;
                                 if ($priceAnalysis['sl_hit']) {
                                     $profit_percent += $unreached * (-$riskPercent * $portionWeight);
+                                }*/
+                                // Накладываем убыток по недостигнутым тейкам, если сработал SL
+                                if ($priceAnalysis['sl_hit']) {
+                                    // индекс первого «недостигнутого» тейка
+                                    $startIdx = $reachedTP;
+                                    $totalTps = $processedFilters['tpCountGeneral'];
+                                    for ($i = $startIdx; $i < $totalTps; $i++) {
+                                        // используем соответствующий вес для каждого недостигнутого тейка
+                                        $w = isset($portionWeight[$i]) ? $portionWeight[$i] : (1 / $totalTps);
+                                        $profit_percent += -$riskPercent * $w;
+                                    }
                                 }
                                 // ——————————————————————————————————————————————————————————————
 
@@ -578,10 +646,10 @@ if (!empty($_GET)) {
     $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
     $okxApiOb->closeConnection();
+    $bingxApiOb->closeConnection();
 } else {
     $errors[] = 'нет гет параметров';
 }
-
 ?>
 
 <div class="stat-wrapper">
@@ -589,10 +657,14 @@ if (!empty($_GET)) {
     <form method="GET" id="statsFilterForm" class="filter-form">
         <div class="filter-main">
             <div class="form-group">
-                <label for="exchange">Сигналы:</label>
-                <select name="exchange" id="exchange">
-                    <? foreach ($marketMap as $marketKey => $marketVal): ?>
-                        <option value="<?= $marketKey ?>" <?= ($exchangeIblockID == $marketKey ? "selected" : "") ?>><?= $marketVal ?></option>
+                <label for="category">Beta Forever:</label>
+                <select name="category" id="category">
+                    <?/* foreach ($marketMap as $marketKey => $marketVal): ?>
+                        <option value="<?= $marketKey ?>" <?= ($exchangeIblockID == $marketKey ? "selected" : "") ?>><?= $marketVal ?> <?=$categoriesMap[$marketKey][$categorySectionID]?></option>
+                    <? endforeach; */?>
+
+                    <? foreach ($categoriesMap[$exchangeIblockID] as $categoriesMapKey => $categoriesMapVal): ?>
+                        <option value="<?= $categoriesMapKey ?>" <?= ($categorySectionID == $categoriesMapKey ? "selected" : "") ?>><?= $categoriesMapVal ?> </option>
                     <? endforeach; ?>
                 </select>
             </div>
@@ -697,6 +769,7 @@ if (!empty($_GET)) {
                     <option value="n" <?= ($mlFilter == 'n' ? "selected" : "") ?>>нет</option>
                     <? $mlFilterAr = range(0.7, 0.85, 0.01); ?>
                     <? foreach ($mlFilterAr as $mlFilterArVal): ?>
+                        <?$mlFilterArVal = round($mlFilterArVal, 2);?>
                         <option value="<?= $mlFilterArVal ?>" <?= ($mlFilter == $mlFilterArVal ? "selected" : "") ?>><?= $mlFilterArVal ?></option>
                     <? endforeach; ?>
                 </select>
@@ -828,6 +901,15 @@ if (!empty($_GET)) {
                     ) continue;
                     ?>
 
+                    <?
+                    // Рассчитываем коэффициент для прибыли относительно риска 1
+                    $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
+                    $normalizedRrProfitSum += $normalizedRrProfit;
+                    $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
+
+                    //if ($normalizedRrProfit <= 0.1) continue
+                    ?>
+
                     <? $cntSignals += 1; ?>
                     <? if ($result["profit"] > 0) {
                         $cntSignalsProfit++;
@@ -861,12 +943,6 @@ if (!empty($_GET)) {
                         <td><?= ($result["tpCount"]) ?></td>
                         <td <? if ($result["startRisk"] >= 3): ?>class="solid-border-red-td"<? endif ?>><?= ($result["startRisk"] * $leverege) ?></td>
                         <td>
-                            <?
-                            // Рассчитываем коэффициент для прибыли относительно риска 1
-                            $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
-                            $normalizedRrProfitSum += $normalizedRrProfit;
-                            $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
-                            ?>
                             <?= ($rrRatioString) ?>
                         </td>
                         <td><?= ($result["profit_percent"] * $leverege) ?></td>
@@ -882,6 +958,13 @@ if (!empty($_GET)) {
                         закрытые <?= $cntClosedSignals ?> (<?= $cntSignalsProfit ?>\<?= $cntSignalsRisk ?>)<br>
                     </td>
                     <td class="solid-border-top-td">
+                        TP вес (<?
+                        $formattedWeights = [];
+                        foreach ($portionWeight as $weight) {
+                            $formattedWeights[] = $weight * 100 . '%';
+                        }
+                        echo implode(' | ', $formattedWeights);
+                        ?>)<br>
                         <?
                         if ($cntClosedSignals !== 0)
                             $winRate = $cntSignalsProfit / ($cntClosedSignals / 100) ?? 0;

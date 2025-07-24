@@ -47,12 +47,16 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
             'bybit' => 3,
             'binance' => 7,
             'okx' => 8,
+            'betaForever' => 9,
         ];
 
         $arParams["IBLOCK_ID"] = $iblockIdMap[$arParams["MARKET_CODE"]];
 
         if(!($arParams["MAIN_CODE"]))
             $arParams["MAIN_CODE"] = 'master';
+
+        if(!($arParams["BETA_SECTION_CODE"]))
+            $arParams["BETA_SECTION_CODE"] = 'normal_ml';
 
         if($arParams["PROFIT_FILTER"] == 'Y')
             $arParams["PROFIT_FILTER"] = true;
@@ -78,6 +82,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         $binanceApiOb->openConnection();
         $okxApiOb = new \Maksv\Okx\OkxFutures();
         $okxApiOb->openConnection();
+        $bingxApiOb = new \Maksv\Bingx\BingxFutures();
+        $bingxApiOb->openConnection();
 
         $res['success'] = false;
         $err = false;
@@ -333,6 +339,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         $bybitApiOb->closeConnection();
         $binanceApiOb->closeConnection();
         $okxApiOb->closeConnection();
+        $bingxApiOb->closeConnection();
         return $res;
     }
 
@@ -368,6 +375,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         else
             $SECTION_CODE = $this->arParams['MAIN_CODE'];
 
+        if ($this->arParams["MARKET_CODE"] == 'betaForever')
+            $SECTION_CODE = $this->arParams['BETA_SECTION_CODE'];
 
         $filter = [
             'IBLOCK_ID' => $this->arParams["IBLOCK_ID"],
@@ -463,6 +472,15 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         $binanceApiOb->openConnection();
         $okxApiOb = new \Maksv\Okx\OkxFutures();
         $okxApiOb->openConnection();
+        $bingxApiOb = new \Maksv\Bingx\BingxFutures();
+        $bingxApiOb->openConnection();
+
+        $apiObAr = [
+            'bybitApiOb' => $bybitApiOb,
+            'binanceApiOb' => $binanceApiOb,
+            'okxApiOb' => $okxApiOb,
+            'bingxApiOb' => $bingxApiOb,
+        ];
 
         // Проверяем только masterPump и masterDump $this->arParams['MAIN_CODE']
         foreach ([$this->arParams['MAIN_CODE'] . 'Pump', $this->arParams['MAIN_CODE'] . 'Dump'] as $type) {
@@ -539,10 +557,9 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                     $cacheTtl = 90 * 24 * 3600; // n месяц
                 }
 
+                $marketCode =  $signal['marketCode'] ?? $this->arParams["MARKET_CODE"];
                 $analysis = \Maksv\Bybit\Exchange::analyzeSymbolPriceChange(
-                    $bybitApiOb,
-                    $binanceApiOb,
-                    $okxApiOb,
+                    $apiObAr,
                     $symbolName,
                     $startTime,
                     $endTime,
@@ -553,7 +570,8 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                     false,
                     $cacheTtl,
                     [],
-                    $this->arParams["MARKET_CODE"]);
+                    $marketCode
+                    );
 
                 // Добавляем результаты анализа в сигнал
                 $signal['priceAnalysis'] = $analysis;
@@ -562,6 +580,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
         $bybitApiOb->closeConnection();
         $binanceApiOb->closeConnection();
         $okxApiOb->closeConnection();
+        $bingxApiOb->closeConnection();
 
     }
     

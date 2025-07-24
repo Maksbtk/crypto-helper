@@ -1,6 +1,8 @@
 <?php
 namespace Maksv\MachineLearning;
 
+use OpenApi\StaticAnalyser;
+
 class Assistant
 {
     public function __construct(string $host = 'http://127.0.0.1:8000'){}
@@ -767,5 +769,56 @@ class Assistant
         }
 
         return $results;
+    }
+
+    /**
+     * Пытается перезапустить ML‑сервис в папке /public_html/ml
+     *
+     * @return array {
+     *   @var bool   success  — true, если все команды отработали без ошибок
+     *   @var string[] output — массив строк вывода всех команд
+     * }
+     */
+    public static function restartMlService(): array
+    {
+        // Папка с ML‑сервисом
+        $dir = rtrim($_SERVER['DOCUMENT_ROOT'], '/')
+            . '/ml'; //  /home/c/cz06737izol/crypto/public_html/ml
+
+        // 2) Команды:
+        //    - заходим в директорию
+        //    - пытаемся убить старую сессию, но любая ошибка игнорируется
+        //    - делаем start.sh исполняемым
+        //    - запускаем detached tmux
+        $commands = [
+            "cd " . escapeshellarg($dir),
+            "tmux kill-session -t mlservice 2>/dev/null || true",
+            "chmod +x start.sh",
+            "tmux new -d -s mlservice './start.sh'",
+        ];
+
+        $report = [];
+        $allOk  = true;
+
+        foreach ($commands as $cmd) {
+            exec($cmd . ' 2>&1', $out, $code);
+            $report[] = [
+                'cmd'    => $cmd,
+                'return' => $code,
+                'output' => $out,
+            ];
+            // если что‑то сломалось — фиксируем и выходим
+            if ($code !== 0) {
+                $allOk = false;
+                break;
+            }
+            // чистим буфер вывода для следующей итерации
+            $out = [];
+        }
+
+        return [
+            'success' => $allOk,
+            'report'  => $report,
+        ];
     }
 }

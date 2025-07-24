@@ -8,6 +8,13 @@ $aMenuLinks = Array(
 		"" 
 	),
     Array(
+        "beta forever",
+        "/user/betaForever/",
+        Array(),
+        Array(),
+        ""
+    ),
+    Array(
         "bybit screener",
         "/user/bybitScreener/",
         Array(),
@@ -29,8 +36,8 @@ $aMenuLinks = Array(
         ""
     ),
 	Array(
-		"bybit master",
-		"/user/bybitMaster/",
+		"alfa bybit",
+		"/user/alfaBybit/",
 		Array(), 
 		Array(), 
 		"" 

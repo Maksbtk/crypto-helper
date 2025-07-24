@@ -15,24 +15,24 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['OMP_NUM_THREADS']      = '1'
 
 # === Параметры ===
-SYMBOL      = 'OTHERS'  # Total Market Cap Excluding Top 10 на TradingView
+SYMBOL      = 'TOTAL3'      # Total Market Cap Excluding BTC & ETH на TradingView
 EXCHANGE    = 'CRYPTOCAP'
 NUM_BARS    = 402
 INTERVALS   = {
-    '4h':  Interval.in_4_hour,
     '15m': Interval.in_15_minute,
     '5m':  Interval.in_5_minute,
     '1h':  Interval.in_1_hour,
+    '4h':  Interval.in_4_hour,
 }
 
 # Ретрай-конфиг
-MAX_RETRIES   = 6       # макс. число попыток в fetch_data
-BASE_DELAY    = 1.5     # базовая пауза (сек) в экспоненциальном бэкоффе
-JITTER_FACTOR = 0.7     # флуктуация паузы ±30%
+MAX_RETRIES   = 5       # макс. число попыток
+BASE_DELAY    = 1.0     # базовая пауза (сек) для эксп. бэкоффа
+JITTER_FACTOR = 0.3     # флуктуация паузы ±30%
 
 # Пути
-OUTPUT_JSON = '/home/c/cz06737izol/crypto/public_html/upload/traydingviewExchange/total_ex_top10.json'
-LOG_DIR     = '/home/c/cz06737izol/crypto/public_html/devlogs/traydingview/others'
+OUTPUT_JSON = '/home/c/cz06737izol/crypto/public_html/upload/traydingviewExchange/total3.json'
+LOG_DIR     = '/home/c/cz06737izol/crypto/public_html/devlogs/traydingview/total3'
 
 # Создаём директории, если их нет
 os.makedirs(os.path.dirname(OUTPUT_JSON), exist_ok=True)
@@ -49,11 +49,11 @@ def log(message: str):
 def fetch_data(interval, tf_name):
     """
     Возвращаем список свечей или пустой список.
-    Применяем экспоненциальный бэкофф, джиттер и пересоздание сессии при SSL-ошибках.
+    Экспоненциальный бэкофф, джиттер, пересоздание сессии при SSL-таймаутах.
     """
     log(f"  -> fetch_data start for {tf_name}")
     attempt = 0
-    tv = TvDatafeed()  # каждый fetch_data начинает с новой сессии
+    tv = TvDatafeed()
 
     while attempt < MAX_RETRIES:
         attempt += 1
@@ -67,14 +67,13 @@ def fetch_data(interval, tf_name):
             if df is None or df.empty:
                 log(f"     attempt {attempt}: пустой DataFrame для {tf_name}")
             else:
-                # Успешно получили данные
                 df = df.reset_index()
                 df['datetime'] = df['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
                 return df.to_dict(orient='records')
 
         except ssl.SSLError as e:
             log(f"     attempt {attempt}: SSL timeout для {tf_name}: {e}")
-            tv = TvDatafeed()  # пересоздаём клиента
+            tv = TvDatafeed()  # пересоздаём клиент
 
         except Exception as e:
             log(f"     attempt {attempt}: ошибка для {tf_name}: {e}")
@@ -92,11 +91,10 @@ def fetch_data(interval, tf_name):
 
 def main():
     try:
-        log('Process started')
+        log('Process started for TOTAL3')
         now = datetime.now()
         timestamp   = int(now.timestamp())
         server_time = now.strftime('%Y-%m-%d %H:%M:%S')
-
         result = {
             'timestamp': timestamp,
             'server_time': server_time,
@@ -107,7 +105,7 @@ def main():
             log(f'Fetching {tf_name} data')
             candles = fetch_data(tf_interval, tf_name)
             result['data'][tf_name] = candles
-            time.sleep(0.5)  # пауза между разными таймфреймами
+            time.sleep(0.5)  # пауза между таймфреймами
 
         # Атомарная запись JSON
         dir_out = os.path.dirname(OUTPUT_JSON)

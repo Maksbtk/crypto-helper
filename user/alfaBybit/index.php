@@ -5,8 +5,8 @@ use Bitrix\Main\Page\Asset;
 
 define('NEED_AUTH', true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
-$APPLICATION->SetPageProperty("title", "bybit master");
-$APPLICATION->SetTitle("bybit master");
+$APPLICATION->SetPageProperty("title", "alfa bybit");
+$APPLICATION->SetTitle("alfa bybit");
 
 global $USER;
 $application = Application::getInstance();
