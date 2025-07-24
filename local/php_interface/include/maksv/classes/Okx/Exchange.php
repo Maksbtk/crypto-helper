@@ -31,9 +31,12 @@ class Exchange
         }
         devlogs("start -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
-        if ($interval == '15m') {
-            sleep(15);
-            devlogs('sleep 15' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+        if ($interval != '15m') {
+            sleep(55);
+            devlogs('sleep 55' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+        } else {
+            sleep(45);
+            devlogs('sleep 45' . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
         }
 
         //получаем контракты, которые будем анализировать
@@ -76,8 +79,9 @@ class Exchange
         $okxScreenerIblockId = 8;
         $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
 
-        $betaForeverScreenerIblockId = 9;
-        $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverScreenerIblockId);
+        $betaForeverIblockId = 9;
+        $betaForeverSectionCode = 'normal_ml';
+        $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverIblockId, $betaForeverSectionCode);
 
         $analyzeCnt = $cnt = $cntSuccess = 0;
 
@@ -134,9 +138,9 @@ class Exchange
                     $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
 
                 if ($cnt % 15 === 0)
-                    $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverScreenerIblockId);
+                    $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverIblockId, $betaForeverSectionCode);
 
-                if ($cnt % 50 === 0)
+                if ($cnt % 40 === 0)
                     $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
 
                 //dev $marketInfo['isLong'] = true; $marketInfo['risk'] = 5;
@@ -144,10 +148,10 @@ class Exchange
                 $screenerData['latestScreener'] = $latestScreener;
                 $screenerData['latestScreenerBetaForever'] = $latestScreenerBetaForever;
 
-                if ($latestScreener[$symbolNameFormatted]) {
+                /*if ($latestScreener[$symbolNameFormatted]) {
                     $repeatSymbols .= $symbolName . ',';
                     continue;
-                }
+                }*/
 
                 if (
                     $symbol['state'] !== 'live'
@@ -187,27 +191,27 @@ class Exchange
 
                     $borderLong = floatval($oiBorderExchangeList[$symbolName]['borderLong']) ?? 0;
                     $avgBorderLong = floatval($oiBorderExchangeInfo['avgBorderLong']) ?? 0;
-                    if ($borderLong && $borderLong > 0.3)
+                    if ($borderLong && $borderLong > 0.25)
                         $longOiLimit = $borderLong;
-                    elseif ($avgBorderLong && $avgBorderLong > 0.3)
+                    elseif ($avgBorderLong && $avgBorderLong > 0.25)
                         $longOiLimit = $avgBorderLong;
 
                     $borderShort = floatval($oiBorderExchangeList[$symbolName]['borderShort']);
                     $avgBorderShort = floatval($oiBorderExchangeInfo['avgBorderShort']);
-                    if ($borderShort && $borderShort < -0.3)
+                    if ($borderShort && $borderShort < -0.25)
                         $shortOiLimit = $borderShort;
-                    elseif ($avgBorderShort && $avgBorderShort < -0.3)
+                    elseif ($avgBorderShort && $avgBorderShort < -0.25)
                         $shortOiLimit = $avgBorderShort;
 
                     if ($longOiLimit < 0.7)
-                        $longOiLimit = $longOiLimit * 1.5;
+                        $longOiLimit = $longOiLimit * 1.4;
                     else if ($longOiLimit < 1)
                         $longOiLimit = $longOiLimit * 1.2;
 
                     if ($shortOiLimit > -0.7)
-                        $shortOiLimit = $shortOiLimit * 1.7;
+                        $shortOiLimit = $shortOiLimit * 1.6;
                     else if ($shortOiLimit > -1)
-                        $shortOiLimit = $shortOiLimit * 1.2;;
+                        $shortOiLimit = $shortOiLimit * 1.2;
 
                 }
                 $screenerData['oiLimits'] = ['longOiLimit' => $longOiLimit, 'shortOiLimit' => $shortOiLimit];
@@ -465,7 +469,7 @@ class Exchange
                         || ($actualAdx['adx'] < 26 && $actualAdx['adxDirection']['isDownDir'] === true)
                     )
                 ) {
-                    devlogs('CONTINUE ' . $symbolName . ' |  adx 15m ' . $actualAdx['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    //devlogs('CONTINUE ' . $symbolName . ' |  adx 15m ' . $actualAdx['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     continue;
                 }
 
@@ -512,8 +516,8 @@ class Exchange
                         || ($actualAdx1h['adx'] < 26 && $actualAdx1h['adxDirection']['isDownDir'] === true)
                     )
                 ) {
-                    $continueSymbols .= $symbolName . ', ';
-                    devlogs('CONTINUE ' . $symbolName . ' |  adx 1h ' . $actualAdx1h['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    //$continueSymbols .= $symbolName . ', ';
+                    //devlogs('CONTINUE ' . $symbolName . ' |  adx 1h ' . $actualAdx1h['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     continue;
                 }
 
@@ -538,7 +542,7 @@ class Exchange
                     && $analyzeFastVolumeSignalRes['isLong']
                     && (
                         $actualMacd['isLong']
-                        || ($actualImpulsMacd['isLong'] && $interval == '30m')
+                        || ($actualImpulsMacd['isLong'] && $interval != '30m')
                         || ($ma100['isLong'] && $interval == '15m')
                         || ($ma200['isLong'] && $interval == '15m')
                         || ($ma400['isLong'] && $interval == '15m')
@@ -700,17 +704,52 @@ class Exchange
                         $screenerData['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
                     }
 
-                    \Maksv\DataOperation::sendScreener($screenerData, true, '@infoCryptoHelperScreenerOkx');
-
-                    foreach ($screenerData['tempChartPath'] as $path)
-                        unlink($path);
-
-                    $screenerData['tempChartPath'] = [];
                     $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.71;
 
                     //после всех мутаций снимаем копию
                     $res[$actualStrategyName][$symbolName] = $screenerData;
 
+                    //screener
+                    if (
+                        !$latestScreener[$symbolNameFormatted]
+                        && $marketMl > 0.65
+                        && $signalMl > 0.65
+                    ) {
+                        \Maksv\DataOperation::sendScreener($screenerData, true, '@infoCryptoHelperScreenerOkx');
+
+                        $actualStrategy = [
+                            "TIMEMARK" => date("d.m.y H:i:s"),
+                            "STRATEGIES" => $res,
+                            "INFO" => [
+                                'BTC_INFO' => $marketInfo,
+                            ],
+                            "EXCHANGE_CODE" => 'screener'
+                        ];
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategy.json', json_encode($actualStrategy));
+                        try {
+                            $writeRes = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'screener');
+                            devlogs('screener write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        } catch (Exception $e) {
+                            devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        }
+
+                    }  else  {
+                        devlogs(
+                            ' main skip latestScreener  | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            $marketMode . '/screener' . $interval
+                        );
+                    }
+
+
+                    foreach ($screenerData['tempChartPath'] as $path)
+                        unlink($path);
+
+                    $screenerData['tempChartPath'] = [];
+
+                    //после всех мутаций снимаем копию
+                    $res[$actualStrategyName][$symbolName] = $screenerData;
+
+                    //normal ml
                     if (
                         $marketMl
                         && $signalMl
@@ -726,11 +765,11 @@ class Exchange
                         );
 
                         //Prophet AI //сбор статистики
-                        $screenerData['leverage'] = '5x';
+                        $screenerData['leverage'] = '10X';
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperProphetAi');
 
                         //мой бот для торговли bybit // check ML
-                        $screenerData['leverage'] = '10x';
+                        $screenerData['leverage'] = '12X';
                         if ($screenerData['isLong'])
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
                         else
@@ -739,7 +778,7 @@ class Exchange
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
                             $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
-                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperCornixTreadingBot');
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperBetaForever');
 
                         //сохраняем в beta forever
                         $actualStrategyBeta = [
@@ -748,12 +787,12 @@ class Exchange
                             "INFO" => [
                                 'BTC_INFO' => $marketInfo,
                             ],
-                            "EXCHANGE_CODE" => 'screener'
+                            "EXCHANGE_CODE" => 'normal_ml'
                         ];
 
                         file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategyBeta.json', json_encode($actualStrategyBeta));
                         try {
-                            $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'screenerB', $marketMode);
+                            $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'normal_ml', $marketMode);
                             devlogs('screener beta forever write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         } catch (Exception $e) {
                             $errText = 'ERR beta forever write - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
@@ -763,27 +802,68 @@ class Exchange
 
                     } else  {
                         devlogs(
-                            'ML skip | ' . $signalMl . ' ' . $marketMl . ' ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            'ML skip | total ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
                         );
                         $continueSymbols .= $symbol['symbol'] . ', ';
                     }
 
-                    $actualStrategy = [
-                        "TIMEMARK" => date("d.m.y H:i:s"),
-                        "STRATEGIES" => $res,
-                        "INFO" => [
-                            'BTC_INFO' => $marketInfo,
-                        ],
-                        "EXCHANGE_CODE" => 'screener'
-                    ];
-                    file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategy.json', json_encode($actualStrategy));
-                    try {
-                        $writeRes = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'screener');
-                        devlogs('screener write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                    } catch (Exception $e) {
-                        devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    //high ml
+                    $screenerData = $res[$actualStrategyName][$symbolName];
+
+                    if (
+                        $marketMl
+                        && $signalMl
+                        && $totalMl
+                        && $marketMl > 0.65
+                        && $signalMl > 0.65
+                        && $totalMl >= 0.79
+                        && !$latestScreenerBetaForever[$symbolNameFormatted]
+                    ) {
+                        devlogs(
+                            'high ml approve | ' . $totalMl . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            $marketMode . '/screener' . $interval
+                        );
+
+                        $screenerData['leverage'] = '20X';
+
+                        if ($screenerData['isLong'])
+                            $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
+                        else
+                            $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $shortTpCount);
+
+                        if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
+                            $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
+
+                        \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperBetaForeverHigh');
+
+                        //сохраняем в beta forever
+                        $actualStrategyBetaHigh = [
+                            "TIMEMARK" => date("d.m.y H:i:s"),
+                            "STRATEGIES" => $res,
+                            "INFO" => [
+                                'BTC_INFO' => $marketInfo,
+                            ],
+                            "EXCHANGE_CODE" => 'high_ml'
+                        ];
+
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategyBetaHigh.json', json_encode($actualStrategyBetaHigh));
+                        try {
+                            $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'high_ml', $marketMode);
+                            devlogs('screener beta forever high write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        } catch (Exception $e) {
+                            $errText = 'ERR beta forever high write - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
+                            \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screener' . $interval);
+                            devlogs($errText, $marketMode . '/screener' . $interval);
+                        }
+
+                    } else  {
+                        devlogs(
+                            'high ml skip | total ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                            $marketMode . '/screener' . $interval
+                        );
                     }
+
                 }
 
                 /*if ($devMode && $cnt >= 50)
@@ -972,8 +1052,8 @@ class Exchange
             }
 
             // 8) Обрезаем мапы до 50 элементов и приводим к списку
-            $pumpEvents = array_slice($pumpMap, -80, 80, true);
-            $dumpEvents = array_slice($dumpMap, -80, 80, true);
+            $pumpEvents = array_slice($pumpMap, -100, 100, true);
+            $dumpEvents = array_slice($dumpMap, -100, 100, true);
 
             // 9) Считаем границы по всем накопленным событиям
             $allUpOi = array_column($pumpEvents, 'oiChange');

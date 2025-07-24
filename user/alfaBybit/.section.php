@@ -1,5 +1,5 @@
 <?
-$sSectionName = "bybit master";
+$sSectionName = "alfa bybit";
 $arDirProperties = Array(
 
 );

@@ -233,8 +233,8 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?if ($item['calculateRiskTargetsWithATR']['tpMultipliers']):?>
                                     <br>atr m: <?=implode(', ',$item['calculateRiskTargetsWithATR']['tpMultipliers'])?>
                                 <?endif;?>
-                                <?if ($item['actualMlModel']['probabilities'][1]):?>
-                                    <br>ML tp prob: <?=$item['actualMlModel']['probabilities'][1];?> %
+                                <?if ($item['resML']['totalMl']):?>
+                                    <br>ML: <?=$item['resML']['totalMl'];?> (<?=$item['resML']['signalMl'];?>/<?=$item['resML']['marketMl'];?>)
                                 <?endif;?>
                             </td>
                             <td data-name="targets">
@@ -320,8 +320,8 @@ Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v=2",
                                 <?if ($item['calculateRiskTargetsWithATR']['tpMultipliers']):?>
                                     <br>atr m: <?=implode(', ',$item['calculateRiskTargetsWithATR']['tpMultipliers'])?>
                                 <?endif;?>
-                                <?if ($item['actualMlModel']['probabilities'][1]):?>
-                                    <br>ML tp prob: <?=$item['actualMlModel']['probabilities'][1];?> %
+                                <?if ($item['resML']['totalMl']):?>
+                                    <br>ML: <?=$item['resML']['totalMl'];?> (<?=$item['resML']['signalMl'];?>/<?=$item['resML']['marketMl'];?>)
                                 <?endif;?>
                             </td>
                             <td data-name="targets">

@@ -298,6 +298,9 @@ $bybitApiOb->closeConnection();*/
     $binanceApiOb->openConnection();
     $okxApiOb = new \Maksv\Okx\OkxFutures();
     $okxApiOb->openConnection();
+    $bingxApiOb = new \Maksv\Bingx\BingxFutures();
+    $bingxApiOb->openConnection();
+
     $cmc = new \Maksv\Coinmarketcap\Request();
 
     //получаем контракты, которые будем анализировать
@@ -338,18 +341,20 @@ $bybitApiOb->closeConnection();*/
     $endMs      = ($creationTs + 48*3600) * 1000;          // +48 часов
     $candlesHist = $okxApiOb->getCandlesHist('DOOD-USDT-SWAP', '5m', $startMs, $endMs, false, 120);*/
 
-
-    $checkMarketImpulsInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
+    //$getKlines = $bingxApiOb->getKlines("WIF-USDT",'5m', 100,null, null, false);
+    //$getFuturesContracts = $bingxApiOb->getFuturesContracts();
+    //$tradesHistoryResp = $bingxApiOb->tradesHistory('AVAX-USDT', 1000);
 
     $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
     $okxApiOb->closeConnection();
+    $bingxApiOb->closeConnection();
     ?>
 <script>
     var devRes = {
         longV: <?=CUtil::PhpToJSObject($signals['long'], false, false, true)?>,
         shortV: <?=CUtil::PhpToJSObject($signals['short'], false, false, true)?>,
-        $okxSymbolsList: <?=CUtil::PhpToJSObject($okxSymbolsList, false, false, true)?>,
+        //$rsOi: <?//=CUtil::PhpToJSObject($rsOi, false, false, true)?>,
     }
     console.log('devRes', devRes);
 </script>

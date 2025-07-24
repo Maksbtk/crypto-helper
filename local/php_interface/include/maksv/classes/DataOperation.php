@@ -11,7 +11,7 @@ class DataOperation
     
     public static function sendErrorInfoMessage($text, $path = '', $space = '',  $chatName = '@cryptoHelperErrors' ) {
         $message = '';
-        $message .= "‼ ERROR " .  "\n\n";
+        $message .= "exception " .  "\n\n";
         $message.= $text. "\n\n";
 
         if ($path) $message.= 'path - ' . $path . "\n";
@@ -25,7 +25,6 @@ class DataOperation
 
     public static function sendInfoMessage($actualOpportunities = [], $timeFrame = '30m', $btcInfo = [], $cntInfo = [], $isScreener = false, $market = 'BYBIT')
     {
-        
         $tgBot = new \Maksv\Telegram\Request();
 
         $message = $market . ' | ';
@@ -136,20 +135,20 @@ class DataOperation
                     $message .= '✅EP: ' . $symbol['actualClosePrice'] . " | ";
 
                 if ($symbol['actualClosePrice'])
-                    $message .= '‼Sl: ' . $symbol['SL'] . ' | ';
+                    $message .= '‼Sl: ' . $symbol['SL'] . "\n";
 
                 if ($symbol['TP']) {
                     $message .= '🎯TP: ';
                     foreach ($symbol['TP'] as $tp) {
-                        $message .= $tp . ' ';
+                        $message .= $tp . ' | ';
                     }
-                    $message .= '| ';
+                    //$message .= "\n";
                 }
 
-                if ($symbol['strategy'])
-                    $message .= $symbol['strategy'] . ' | ';
+                if ($symbol['resML']['totalMl'])
+                    $message .= 'ML ' . $symbol['resML']['totalMl'] . ' (' . $symbol['resML']['signalMl'] . '/' . $symbol['resML']['marketMl'] . ')' . "\n";
 
-                $message .= ' <a href="https://infocrypto-helper.ru/user/bybitSignals/?analysis='.$symbol['symbolName'].'">🔎</a>' . "\n";
+                $message .=  "\n";
                 
                 $cnt++;
             }
@@ -170,20 +169,20 @@ class DataOperation
                     $message .= '✅EP: ' . $symbol['actualClosePrice'] . " | ";
 
                 if ($symbol['actualClosePrice'])
-                    $message .= '‼Sl: ' . $symbol['SL'] . ' | ';
+                    $message .= '‼Sl: ' . $symbol['SL'] . "\n";
 
                 if ($symbol['TP']) {
                     $message .= '🎯TP: ';
                     foreach ($symbol['TP'] as $tp) {
                         $message .= $tp . ' ';
                     }
-                    $message .= '| ';
+                    //$message .= "\n";
                 }
 
-                if ($symbol['strategy'])
-                    $message .= $symbol['strategy'] . ' | ';
+                if ($symbol['resML']['totalMl'])
+                    $message .= 'ML ' . $symbol['resML']['totalMl'] . ' (' . $symbol['resML']['signalMl'] . '/' . $symbol['resML']['marketMl'] . ')' . "\n";
 
-                $message .= ' <a href="https://infocrypto-helper.ru/user/bybitSignals/?analysis='.$symbol['symbolName'].'">🔎</a>' . "\n";
+                $message .=  "\n";
 
                 $cnt++;
             }
@@ -211,9 +210,9 @@ class DataOperation
         $islong = '🔴';
         if ($res['isLong']) {
             $islong = '🟢';
-            $directionText = 'long';
+            $directionText = 'Long';
         } else {
-            $directionText = 'short';
+            $directionText = 'Short';
         }
 
         $quote = "USDT";
@@ -235,14 +234,14 @@ class DataOperation
         $message .= '⏰ Timeframe: ' . $intervalsMap[$res['interval']] . "\n";
 
         if ($res['leverage'])
-            $message .= '💰 leverage: cross ' . $res['leverage'] . "\n\n";
+            $message .= '💰 Leverage: Сross (' . $res['leverage'] . ")\n\n";
         else
-            $message .= '💰 leverage: cross 5x'. "\n\n";
+            $message .= '💰 Leverage: Сross (5X)'. "\n\n";
 
         $message .= '✅ Entry Target: ' . $res['actualClosePrice'] . ' (Entry as market)' . "\n\n";
 
         if ($res['TP'] && is_array($res['TP']))  {
-            $message .= "🎯 Profit Targets:\n";
+            $message .= "🎯 Take-Profit Targets:\n";
             foreach ($res['TP'] as $key => $tpVal) {
                 $message .= $key+1 . ') ' . $tpVal . "\n";
             }
@@ -251,7 +250,7 @@ class DataOperation
         //$message = '🎯 Profit Targets: ' . $res['$actualClosePrice'] . "\n\n";
 
         if ($res['SL'])
-            $message .= 'Stop Loss: ' . $res['SL'] . "\n";
+            $message .= 'Stop Target: ' . $res['SL'] . "\n";
 
         if ($additionalInfo) {
             $message .= '_______________________' . "\n";
@@ -356,7 +355,8 @@ class DataOperation
             'alerts' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
             'master' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
             'screener' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategy.json',
-            'screenerB' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategyBeta.json',
+            'normal_ml' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategyBeta.json',
+            'high_ml' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategyBetaHigh.json',
         ];
 
         $opportunitiesFileAr = \CFile::MakeFileArray($opportunitiesPathMap[$iblockCode][$sectionCode]);
@@ -365,7 +365,7 @@ class DataOperation
 
         if ($opportunitiesFileId && \CModule::IncludeModule("iblock")) {
 
-            if ($sectionCode == 'screenerB')
+            if ($sectionCode == 'normal_ml' || $sectionCode == 'high_ml')
                 $iblockCode =  'betaForever';
 
             $iblockMap = ['bybit' => 3, 'binance' => 7, 'okx' => 8, 'betaForever' => 9];
@@ -385,7 +385,8 @@ class DataOperation
             ];
 
             $iblockSectionsMap['betaForever'] = [
-                'screenerB' => 10,
+                'normal_ml' => 10,
+                'high_ml' => 11,
             ];
 
             $elementProperty = [
