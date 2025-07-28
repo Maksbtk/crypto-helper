@@ -572,7 +572,7 @@ class Exchange
                     && (
                         $actualMacd['isLong']
                         || ($actualImpulsMacd['isLong'] && $interval != '30m')
-                        || ($ma100['isLong'] && $interval == '15m')
+                        //|| ($ma100['isLong'] && $interval == '15m')
                         || ($ma200['isLong'] && $interval == '15m')
                         || ($ma400['isLong'] && $interval == '15m')
                     )
@@ -632,7 +632,7 @@ class Exchange
                     && (
                         $actualMacd['isShort']
                         || ($actualImpulsMacd['isShort'] && $interval != '30m')
-                        || ($ma100['isShort'] && $interval == '15m')
+                        //|| ($ma100['isShort'] && $interval == '15m')
                         || ($ma200['isShort'] && $interval == '15m')
                         || ($ma400['isShort'] && $interval == '15m')
                     )
@@ -715,10 +715,13 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - PriceChartGenerator' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
+                    $screenerData['resML']['mlBoard'] = $mlBoard =  0.71;
                     if ($screenerData['isLong']){
+                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.73; // 0.72
                         $screenerData['marketMLName'] = 'longMl';
                         $actualStrategyName = 'screenerPump';
                     } else {
+                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.77; // 0.72
                         $screenerData['marketMLName'] = 'shortMl';
                         $actualStrategyName = 'screenerDump';
                     }
@@ -729,7 +732,6 @@ class Exchange
                     if ($marketMl && $signalMl) {
                         $screenerData['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
                     }
-                    $screenerData['resML']['mlBoard'] = $mlBoard = $btcInfo['mlBoard'] ?? 0.71;
 
                     //после всех мутаций снимаем копию
                     $res[$actualStrategyName][$symbolName] = $screenerData;
@@ -784,6 +786,7 @@ class Exchange
                         && $marketMl > 0.65
                         && $signalMl > 0.65
                         && $totalMl >= $mlBoard
+                        //&& !$latestScreener[$symbolName]
                         && !$latestScreenerBetaForever[$symbolName]
                         //&& $interval != '5m'
                     ) {
@@ -797,7 +800,7 @@ class Exchange
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperProphetAi');
 
                         //мой бот для торговли bybit // check ML
-                        $screenerData['leverage'] = '12X';
+                        $screenerData['leverage'] = '10X';
                         if ($screenerData['isLong'])
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
                         else
@@ -845,6 +848,7 @@ class Exchange
                         && $marketMl > 0.65
                         && $signalMl > 0.65
                         && $totalMl >= 0.79
+                        //&& !$latestScreener[$symbolName]
                         && !$latestScreenerBetaForever[$symbolName]
                     ) {
                         devlogs(
@@ -852,7 +856,7 @@ class Exchange
                             $marketMode . '/screener' . $interval
                         );
 
-                        $screenerData['leverage'] = '20X';
+                        $screenerData['leverage'] = '10X';
 
                         if ($screenerData['isLong'])
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
@@ -1775,7 +1779,7 @@ class Exchange
                                 //alerts, master MacdI, !divergence, direct, MAfar
                                 if (
                                     $actualImpulsMacd['isLong']
-                                    && $timeFrame != '30m'
+                                    //&& $timeFrame != '30m'
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
                                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
@@ -1791,7 +1795,7 @@ class Exchange
 
                                 if (
                                     $actualImpulsMacd['isShort']
-                                    && $timeFrame != '30m'
+                                    //&& $timeFrame != '30m'
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
                                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
@@ -2157,8 +2161,8 @@ class Exchange
                 return $res;
             }
             // кеш так и не появился — возвращаем ошибку
-            $err = "Не получили cache, идем в api tw - {$symbol}";
-            \Maksv\DataOperation::sendErrorInfoMessage($err, $backtraceStr, $devlogsCode);
+            //$err = "Не получили cache, идем в api tw - {$symbol}";
+            //\Maksv\DataOperation::sendErrorInfoMessage($err, $backtraceStr, $devlogsCode);
             //return ['err' => [$err]];
         }
         
@@ -2718,7 +2722,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 1h\n";
             }*/
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 6000000000) {
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 5000000000) {
                 $res['risk'] = 3.5;
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
@@ -2798,7 +2802,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m ma 200 close\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 6500000000) {
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 6000000000) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 1h\n";
@@ -2808,13 +2812,6 @@ class Exchange
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " low impuls hist\n";
-            }
-
-            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
-                $res['risk'] = 3;
-                $res['mlBoard'] = 0.73;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " down trend\n";
             }
 
             if (
@@ -2861,6 +2858,20 @@ class Exchange
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.73;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " down trend\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= 4900000000) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.73;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
@@ -2923,7 +2934,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > $marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < ($marketStrongImpulsMacdVal * 1.5)) { //btc. (others board ~ 2 900 000 000)
+            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > $marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < ($marketStrongImpulsMacdVal)) {
                 $res['risk'] = 2;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";
@@ -2946,7 +2957,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -6000000000) {
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -5000000000) {
                 $res['risk'] = 3.5;
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
@@ -3020,7 +3031,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 1h stoch trend\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -6500000000) {
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -6000000000) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 1h\n";
@@ -3030,13 +3041,6 @@ class Exchange
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " low impuls hist\n";
-            }
-
-            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
-                $res['risk'] = 3;
-                $res['mlBoard'] = 0.74;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " up trend\n";
             }
 
             if (
@@ -3083,6 +3087,20 @@ class Exchange
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.74;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " up trend\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= -4900000000) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.73;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
@@ -3147,7 +3165,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < -($marketStrongImpulsMacdVal * 1.5)) { //btc. (others board ~ 2 900 000 000)
+            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < -($marketStrongImpulsMacdVal)) { 
                 $res['risk'] = 2;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";
@@ -3467,13 +3485,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low impuls hist\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
-                $res['risk'] = 3;
-                $res['mlBoard'] = 0.73;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " down trend\n";
-            }
-
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 22
                 || ($marketImpulsInfo['actualAdx5m']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx5m']['adx'] < 27)
@@ -3512,6 +3523,20 @@ class Exchange
                 $res['risk'] = 2.8;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.73;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " down trend\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= 13000000000) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.73;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
             }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
@@ -3581,7 +3606,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > $marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < ($marketStrongImpulsMacdVal * 1.5)) { //btc. (others board ~ 2 900 000 000)
+            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > $marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < ($marketStrongImpulsMacdVal)) { //btc. (others board ~ 2 900 000 000)
                 $res['risk'] = 2;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";
@@ -3690,19 +3715,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low impuls hist\n";
             }
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
-                $res['risk'] = 2.4;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " 1h ma 100 close\n";
-            }
-
-            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
-                $res['risk'] = 3;
-                $res['mlBoard'] = 0.74;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " up trend\n";
-            }
-
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 22
                 || ($marketImpulsInfo['actualAdx5m']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx5m']['adx'] < 27)
@@ -3741,6 +3753,27 @@ class Exchange
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
+
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
+                $res['risk'] = 2.4;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 1h ma 100 close\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.74;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " up trend\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= -13000000000) {
+                $res['risk'] = 2.5;
+                $res['mlBoard'] = 0.73;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
+            }
+
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
                 $res['risk'] = 2.4;
@@ -3804,7 +3837,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < -($marketStrongImpulsMacdVal * 1.5)) { //btc. (others board ~ 2 900 000 000)
+            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < -($marketStrongImpulsMacdVal)) { //btc. (others board ~ 2 900 000 000)
                 $res['risk'] = 2;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";

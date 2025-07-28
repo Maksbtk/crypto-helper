@@ -1,4 +1,6 @@
 <?php
+@ini_set('memory_limit', '1536M');
+
 //require_once ($_SERVER['DOCUMENT_ROOT'].'/local/php_interface/include/belleyou/autoload.php');
 use Bitrix\Main\Loader;
 use \Bitrix\Main,

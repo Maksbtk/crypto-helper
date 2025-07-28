@@ -182,4 +182,75 @@ label.info {
     font-size: 14px;
   }
 }
-</style>
+
+
+/* charts */
+/* Селектор переключения */
+.tf-selector {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.tf-selector select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+/* обёртка, растягивается во всю ширину */
+.chart-wrapper {
+  width: 100%;         /* подстраивается под 100% родителя */
+  max-width: none;     /* обнуляем прежний max-width */
+  padding: 0 5px;      /* ваши боковые отступы */
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.chart-wrapper.full-bleed {
+  width: calc(100vw - 10px); /* 100% вьюпорта минус 2*5px */
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+}
+
+/* сам контейнер графика фиксированной высоты, но полной ширины */
+.chart-container {
+  margin: 0px 0px 40px 0px;
+  position: relative;
+  width: 100%;
+  height: 300px;
+}
+
+.chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.tf-selector {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.tf-selector label {
+  margin-right: 8px;
+  font-size: 14px;
+  color: #333;
+}
+.tf-selector select {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: border-color .2s;
+}
+.tf-selector select:focus {
+  border-color: #22caec;
+  outline: none;
+}
+
+
+

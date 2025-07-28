@@ -543,7 +543,7 @@ class Exchange
                     && (
                         $actualMacd['isLong']
                         || ($actualImpulsMacd['isLong'] && $interval != '30m')
-                        || ($ma100['isLong'] && $interval == '15m')
+                        //|| ($ma100['isLong'] && $interval == '15m')
                         || ($ma200['isLong'] && $interval == '15m')
                         || ($ma400['isLong'] && $interval == '15m')
                     )
@@ -604,7 +604,7 @@ class Exchange
                     && (
                         $actualMacd['isShort']
                         || ($actualImpulsMacd['isShort'] && $interval != '30m')
-                        || ($ma100['isShort'] && $interval == '15m')
+                        //|| ($ma100['isShort'] && $interval == '15m')
                         || ($ma200['isShort'] && $interval == '15m')
                         || ($ma400['isShort'] && $interval == '15m')
                     )
@@ -689,10 +689,13 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - PriceChartGenerator' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
+                    $screenerData['mlBoard'] = $mlBoard = 0.71;
                     if ($screenerData['isLong']){
+                        $screenerData['mlBoard'] = $mlBoard = 0.74; //0.71
                         $screenerData['marketMLName'] = 'longMl';
                         $actualStrategyName = 'screenerPump';
                     } else {
+                        $screenerData['mlBoard'] = $mlBoard = 0.74; //0.71
                         $screenerData['marketMLName'] = 'shortMl';
                         $actualStrategyName = 'screenerDump';
                     }
@@ -703,8 +706,6 @@ class Exchange
                     if ($marketMl && $signalMl) {
                         $screenerData['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
                     }
-
-                    $screenerData['mlBoard'] = $mlBoard = $marketInfo['mlBoard'] ?? 0.71;
 
                     //после всех мутаций снимаем копию
                     $res[$actualStrategyName][$symbolName] = $screenerData;
@@ -757,6 +758,7 @@ class Exchange
                         && $marketMl > 0.65
                         && $signalMl > 0.65
                         && $totalMl >= $mlBoard
+                        //&& !$latestScreener[$symbolNameFormatted]
                         && !$latestScreenerBetaForever[$symbolNameFormatted]
                     ) {
                         devlogs(
@@ -769,7 +771,7 @@ class Exchange
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperProphetAi');
 
                         //мой бот для торговли bybit // check ML
-                        $screenerData['leverage'] = '12X';
+                        $screenerData['leverage'] = '10X';
                         if ($screenerData['isLong'])
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
                         else
@@ -817,7 +819,8 @@ class Exchange
                         && $totalMl
                         && $marketMl > 0.65
                         && $signalMl > 0.65
-                        && $totalMl >= 0.79
+                        && $totalMl >= 0.80
+                        //&& !$latestScreener[$symbolNameFormatted]
                         && !$latestScreenerBetaForever[$symbolNameFormatted]
                     ) {
                         devlogs(
@@ -825,7 +828,7 @@ class Exchange
                             $marketMode . '/screener' . $interval
                         );
 
-                        $screenerData['leverage'] = '20X';
+                        $screenerData['leverage'] = '10X';
 
                         if ($screenerData['isLong'])
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $longTpCount);
