@@ -11,7 +11,12 @@ define('NEED_AUTH', true);
 
 require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/header.php");
 
-Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/maksv-statPage.css?v=1");
+Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/stat-page.css?v=3");
+
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js?v=3", true);
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js?v=3", true);
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js?v=3", true);
+Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/stat-page.js?v=3", true);
 
 $exchangeIblockID = isset($_GET['exchange']) ? intval($_GET['exchange']) : 9;
 $categorySectionID = isset($_GET['category']) ? intval($_GET['category']) : 10;
@@ -37,7 +42,7 @@ $exchangeBingxSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROO
 $binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
 $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
 $okxSymbolsList = array_column(
-    array_map(function($item) {
+    array_map(function ($item) {
         $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
         return [
             $item['instId'],
@@ -48,7 +53,7 @@ $okxSymbolsList = array_column(
     0
 );
 $bingxSymbolsList = array_column(
-    array_map(function($item) {
+    array_map(function ($item) {
         return [
             $item['symbol'],
             str_replace('-', '', $item['symbol'])
@@ -60,7 +65,7 @@ $bingxSymbolsList = array_column(
 
 $dataSourceArr = [
     'bybit' => $bybitSymbolsList,
-    'binance' => $binanceSymbolsList ,
+    'binance' => $binanceSymbolsList,
     'okx' => $okxSymbolsList,
     'bingx' => $bingxSymbolsList
 ];
@@ -149,6 +154,15 @@ $updateTargetsFilter = isset($_GET['updateTargetsFilter']) ? $_GET['updateTarget
 $updateMlFilter = isset($_GET['updateMlFilter']) ? $_GET['updateMlFilter'] : 'n';
 $updateMarketMlFilter = isset($_GET['updateMarketMlFilter']) ? $_GET['updateMarketMlFilter'] : 'n';
 
+$chartIntervalAr = [
+    'hour' => '1 час',
+    '4hour' => '4 часа',
+    'day' => '1 день',
+    '3day' => '3 дня',
+    'week' => '1 неделя',
+    'month' => '1 месяц',
+];
+$chartIntervalFilter = isset($_GET['chartIntervalFilter']) ? $_GET['chartIntervalFilter'] : 'day';
 
 // читаем из GET или ставим дефолт
 $startDateStr = isset($_GET['start_date'])
@@ -275,7 +289,7 @@ if (!empty($_GET)) {
                     'updateMarketMlFilter' => $updateMarketMlFilter,
                 ];
                 // Функция для обработки стратегии – обрабатывает элементы массива стратегии
-                $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $apiObAr,  &$errors,  &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes, &$portionWeight) {
+                $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $apiObAr, &$errors, &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes, &$portionWeight) {
                     // Значение направления: Pump -> long, Dump -> short
                     $direction = (stripos($typeKey, "Pump") !== false) ? "long" : "short";
                     $reverseDirection = (stripos($typeKey, "Pump") !== false) ? "short" : "long";
@@ -295,12 +309,12 @@ if (!empty($_GET)) {
                         } else if ($processedFilters['market'] == 'binance' && $strategy['marketCode'] == 'okx') {
                             $symbolName = $strategy["symbolName"];
 
-                        } else if ($processedFilters['market'] == 'okx' && (in_array($strategy['marketCode'] , ['bybit', 'binance']))) {
+                        } else if ($processedFilters['market'] == 'okx' && (in_array($strategy['marketCode'], ['bybit', 'binance']))) {
                             $quote = 'USDT';
                             $base = substr($strategy["symbolName"], 0, -strlen($quote));
-                            $symbolName =  $base . '-' . $quote . '-SWAP';
+                            $symbolName = $base . '-' . $quote . '-SWAP';
                         } elseif ($processedFilters['market'] === 'bingx') {
-                            if (in_array($strategy['marketCode'], ['bybit','binance'])) {
+                            if (in_array($strategy['marketCode'], ['bybit', 'binance'])) {
                                 $symbolName = str_replace('USDT', '-USDT', $strategy['symbolName']);
                                 //$symbolName = str_replace(['-'], '', $strategy['symbolName']);
                             } elseif ($strategy['marketCode'] === 'okx') {
@@ -313,8 +327,8 @@ if (!empty($_GET)) {
                         if ($processedFilters['market'] == 'n') {
                             $processedFilters['market'] = $strategy['marketCode'];
                         } else if (
-                                $processedFilters['dataSourceArr'][$processedFilters['market']]
-                                && !in_array($strategy["symbolName"], $processedFilters['dataSourceArr'][$processedFilters['market']])) {
+                            $processedFilters['dataSourceArr'][$processedFilters['market']]
+                            && !in_array($strategy["symbolName"], $processedFilters['dataSourceArr'][$processedFilters['market']])) {
                             $errors[] = 'торговый контракт отсутствует в выбранном источнике данных | ' . $arItem['ID'] . ' | ' . $symbolName;
                             continue;
                         }
@@ -452,7 +466,7 @@ if (!empty($_GET)) {
                             $processedFilters['market']
                         );
 
-                        if ($priceAnalysis['status'] === false){
+                        if ($priceAnalysis['status'] === false) {
                             $errors[] = 'не удалось рассчитать доходность сигнала из за проблем с апи ' . $priceAnalysis['message'] . '  id ' . $arItem['ID'] . ' | ' . $symbolName;
                             //continue;
                         }
@@ -464,13 +478,13 @@ if (!empty($_GET)) {
                         $rpch = floatval(isset($priceAnalysis["realized_percent_change"]) ? $priceAnalysis["realized_percent_change"] : 0);
 
                         //сохраняем сечки в бд
-                       /* $threeDaysMs = 3 * 24 * 3600 * 1000;
-                        $hasOldCandles = !empty($decoded["CANDLES_HIST"][$symbolName]);
-                        if (($now - $startTime) > $threeDaysMs && !$hasOldCandles) {
-                            // сохраняем полученные свечи в память
-                            $decoded["CANDLES_HIST"][$symbolName] = $priceAnalysis['candles'];
-                            $candlesUpdated = true;
-                        }*/
+                        /* $threeDaysMs = 3 * 24 * 3600 * 1000;
+                         $hasOldCandles = !empty($decoded["CANDLES_HIST"][$symbolName]);
+                         if (($now - $startTime) > $threeDaysMs && !$hasOldCandles) {
+                             // сохраняем полученные свечи в память
+                             $decoded["CANDLES_HIST"][$symbolName] = $priceAnalysis['candles'];
+                             $candlesUpdated = true;
+                         }*/
 
                         $startRisk = round(abs($actualClosePrice - $sl) / $actualClosePrice * 100, 2);
                         // Если поле updated_sl присутствует и отличается от исходного SL – использовать его для расчета риска
@@ -553,10 +567,10 @@ if (!empty($_GET)) {
                                 }
 
                                 // —————— Накладываем убыток по недостигнутой части только если стоп‑лосс был пробит:
-                               /* $unreached = $processedFilters['tpCountGeneral'] - $reachedTP;
-                                if ($priceAnalysis['sl_hit']) {
-                                    $profit_percent += $unreached * (-$riskPercent * $portionWeight);
-                                }*/
+                                /* $unreached = $processedFilters['tpCountGeneral'] - $reachedTP;
+                                 if ($priceAnalysis['sl_hit']) {
+                                     $profit_percent += $unreached * (-$riskPercent * $portionWeight);
+                                 }*/
                                 // Накладываем убыток по недостигнутым тейкам, если сработал SL
                                 if ($priceAnalysis['sl_hit']) {
                                     // индекс первого «недостигнутого» тейка
@@ -607,7 +621,8 @@ if (!empty($_GET)) {
                             'marketImpulsInfo' => $marketImpulsInfo,
                             'priceAnalysis' => $priceAnalysis,
                             'profit_percent_potential' => $profit_percent_potential,
-                            'decoded' => $decoded
+                            'tpCountGeneral' => $processedFilters['tpCountGeneral'],
+                            //'decoded' => $decoded
                         ];
                     }
                 };
@@ -640,8 +655,8 @@ if (!empty($_GET)) {
     //ml /
     global $USER;
 
-    $predictRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-    $predictMarketRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb, true) ?? [];
+    //$predictRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //$predictMarketRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb, true) ?? [];
 
     $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
@@ -659,9 +674,9 @@ if (!empty($_GET)) {
             <div class="form-group">
                 <label for="category">Beta Forever:</label>
                 <select name="category" id="category">
-                    <?/* foreach ($marketMap as $marketKey => $marketVal): ?>
+                    <? /* foreach ($marketMap as $marketKey => $marketVal): ?>
                         <option value="<?= $marketKey ?>" <?= ($exchangeIblockID == $marketKey ? "selected" : "") ?>><?= $marketVal ?> <?=$categoriesMap[$marketKey][$categorySectionID]?></option>
-                    <? endforeach; */?>
+                    <? endforeach; */ ?>
 
                     <? foreach ($categoriesMap[$exchangeIblockID] as $categoriesMapKey => $categoriesMapVal): ?>
                         <option value="<?= $categoriesMapKey ?>" <?= ($categorySectionID == $categoriesMapKey ? "selected" : "") ?>><?= $categoriesMapVal ?> </option>
@@ -769,14 +784,14 @@ if (!empty($_GET)) {
                     <option value="n" <?= ($mlFilter == 'n' ? "selected" : "") ?>>нет</option>
                     <? $mlFilterAr = range(0.7, 0.85, 0.01); ?>
                     <? foreach ($mlFilterAr as $mlFilterArVal): ?>
-                        <?$mlFilterArVal = round($mlFilterArVal, 2);?>
+                        <? $mlFilterArVal = round($mlFilterArVal, 2); ?>
                         <option value="<?= $mlFilterArVal ?>" <?= ($mlFilter == $mlFilterArVal ? "selected" : "") ?>><?= $mlFilterArVal ?></option>
                     <? endforeach; ?>
                 </select>
             </div>
-
         </div>
 
+        <input type="hidden" id="chartIntervalFilter" name="chartIntervalFilter" value="<?= $chartIntervalFilter ?>">
         <div class="button-footer">
             <div class="form-group">
                 <button type="submit">Фильтровать</button>
@@ -784,6 +799,41 @@ if (!empty($_GET)) {
         </div>
     </form>
     <br>
+    <? if (empty($finalResults)): ?>
+        <h3>Требуется настройка фильтра</h3>
+    <? endif; ?>
+
+    <div class="chart-wrapper">
+        <div class="tf-selector">
+            <label for="tfInterval"> </label>
+            <select id="tfInterval"><? //$chartIntervalAr[$chartIntervalFilter];?>
+                <? foreach ($chartIntervalAr as $intervalKey => $interval): ?>
+                    <option value="<?= $intervalKey ?>"
+                            <? if ($chartIntervalFilter == $intervalKey): ?>selected<? endif ?> ><?= $interval ?></option>
+                <? endforeach; ?>
+            </select>
+        </div>
+
+        <div class="chart-container">
+            <h4>Кривая баланса ($)</h4>
+            <canvas id="equityChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h4>Просадка (%)</h4>
+            <canvas id="drawdownChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h4>Винрейт (%)</h4>
+            <canvas id="winrateChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h4>Распределение доходности сделок (%)</h4>
+            <canvas id="histProfitChart"></canvas>
+        </div>
+    </div>
 
     <!-- Таблица с результатами -->
     <? if (!empty($finalResults)): ?>
@@ -811,6 +861,7 @@ if (!empty($_GET)) {
                 <? $profitPercentSum = 0; ?>
                 <? $normalizedRrProfitSum = 0; ?>
                 <? $profitSum = 0; ?>
+                <? $filteredResults = []; ?>
 
 
                 <? foreach ($finalResults as $result): ?>
@@ -842,6 +893,7 @@ if (!empty($_GET)) {
                             && $result['allInfo']['actualAdx']['adxDirection']['isDownDir'] === true
                         )
                     ) continue; ?>
+                    <?//if ($result['tpCountGeneral'] > 1) continue;?>
 
                     <?
                     //ml signal
@@ -925,6 +977,8 @@ if (!empty($_GET)) {
                     <? $profitPercentSum += floatval($result["profit_percent"]); ?>
                     <? $profitSum += floatval($result["profit"]); ?>
 
+                    <? $filteredResults[] = $result; ?>
+
                     <tr class="<? if ($result["profit"] < 0): ?>red-bg<? elseif ($result["profit"] > 0): ?>green-bg<? endif ?>">
                         <td><?= ($result["date"]) ?></td>
                         <td>
@@ -932,11 +986,11 @@ if (!empty($_GET)) {
                         </td>
                         <td>
                             <?= ($result["symbolName"]) ?>
-                            <br><?=strtoupper($result['allInfo']['marketCode']);?>
+                            <br><?= strtoupper($result['allInfo']['marketCode']); ?>
 
                             <? if ($totalMl && $signalMl && $marketMl): ?>
                                 <br>
-                                ML: <?=$totalMl?> (<?=$signalMl?>/<?=$marketMl?>)
+                                ML: <?= $totalMl ?> (<?= $signalMl ?>/<?= $marketMl ?>)
                             <? endif; ?>
 
                         </td>
@@ -952,12 +1006,12 @@ if (!empty($_GET)) {
                 </tbody>
                 <tfoot>
                 <tr>
-                    <td class="solid-border-top-td">
-                        всего <?=$cntSignals?><br>
-                        открытые <?=$cntOpenSignals?><br>
+                    <td class="solid-border-top-td" colspan="2">
+                        всего <?= $cntSignals ?><br>
+                        открытые <?= $cntOpenSignals ?><br>
                         закрытые <?= $cntClosedSignals ?> (<?= $cntSignalsProfit ?>\<?= $cntSignalsRisk ?>)<br>
                     </td>
-                    <td class="solid-border-top-td">
+                    <td class="solid-border-top-td" colspan="2">
                         TP вес (<?
                         $formattedWeights = [];
                         foreach ($portionWeight as $weight) {
@@ -973,10 +1027,9 @@ if (!empty($_GET)) {
 
                         ?>
                         винрейт <?= round($winRate, 2) ?>%<br>
-                        профит <?=round($profitSum * $leverege, 2)?> $
+                        профит <?= round($profitSum * $leverege, 2) ?> $
                     </td>
-                    <td class="solid-border-top-td"></td>
-                    <td class="solid-border-top-td"></td>
+
                     <td class="solid-border-top-td"></td>
                     <td class="solid-border-top-td">
                         <?
@@ -985,11 +1038,11 @@ if (!empty($_GET)) {
                         else
                             $sumRatioRR = 0;
                         ?>
-                        1 / <?=$sumRatioRR?>
+                        1 / <?= $sumRatioRR ?>
                     </td>
                     <td class="solid-border-top-td"><?= $profitPercentSum * $leverege ?> %</td>
                     <td class="solid-border-top-td">
-                        <?= round($profitSum * $leverege, 2)?> $ <br>
+                        <?= round($profitSum * $leverege, 2) ?> $ <br>
                     </td>
                 </tr>
                 </tfoot>
@@ -1010,7 +1063,7 @@ if (!empty($_GET)) {
                 <tbody>
                 <? foreach ($errors as $keyErr => $err): ?>
                     <tr>
-                        <td class="error-bg"><?=$keyErr+1?>. <?= $err ?></td>
+                        <td class="error-bg"><?= $keyErr + 1 ?>. <?= $err ?></td>
                     </tr>
                 <? endforeach; ?>
                 </tbody>
@@ -1018,100 +1071,97 @@ if (!empty($_GET)) {
         </div>
     <? endif; ?>
 </div>
-<?/*<div class="ai-analyze-wrapper">
+<? /*
+<div class="ai-analyze-wrapper">
         <button class="btnAiAnalyzeBtn" id="btnAiAnalyze">Анализ ИИ</button>
         <button class="btnAiAnalyzeBtn" id="btnAiAnalyzeLosses" style="margin-left:10px;">Анализ убыточных</button>
         <div id="aiAnalyzeResult"></div>
-    </div>/*/?>
+    </div>/
+*/ ?>
+<?php
+// 1) Формируем raw equity с нулевой точкой
+$equityPoints = [];
+$cumulative = 0;
+if (!$filteredResults) {
+    $filteredResults = [];
+} else {
+    //скипаем не сделки которые еще не отработали ни в одну сторону
+   /* $filteredResults = array_filter(
+        $filteredResults,
+        function($r) {
+            return isset($r['profit']) && floatval($r['profit']) != 0.0;
+        }
+    );*/
+}
+
+
+// Добавляем начальную точку на время фильтра
+if ($startDateStr) {
+    // конвертим 'YYYY-MM-DDTHH:MM' в 'DD.MM.YYYY HH:mm:ss'
+    $dt0 = (new \DateTime($startDateStr))->format('d.m.Y H:i:s');
+    $equityPoints[] = ['t' => $dt0, 'y' => 0];
+}
+
+foreach ($filteredResults as $trade) {
+    $cumulative += $trade['profit'] * $leverege;
+    $equityPoints[] = [
+        't' => $trade['date'],
+        'y' => round($cumulative, 2),
+    ];
+}
+
+// 2) Аггрегируем по часу (пример; для дня/недели/месяца — аналогично)
+$aggEquity = [];
+foreach ($equityPoints as $pt) {
+    $dt = \DateTime::createFromFormat('d.m.Y H:i:s', $pt['t']);
+    $key = $dt->format('Y-m-d H:00:00');
+    $aggEquity[$key] = ['t' => $key, 'y' => $pt['y']];
+}
+ksort($aggEquity);
+$aggEquityPoints = array_values($aggEquity);
+
+// 3) Считаем просадку уже по агрегированному ряду
+$drawdownPoints = [];
+$peak = null;
+foreach ($aggEquityPoints as $pt) {
+    $v = $pt['y'];
+    if ($peak === null || $v > $peak) {
+        $peak = $v;
+    }
+    $dd = ($v - $peak) / max($peak, 1) * 100;
+    $drawdownPoints[] = ['t' => $pt['t'], 'y' => round($dd, 2)];
+}
+
+
+$returnBuckets = [];  // просто массив значений
+foreach ($filteredResults as $trade) {
+    $returnBuckets[] = round($trade['profit_percent'] * $leverege, 2);
+}
+
+$winRateChartArr = array_map(fn($r) => [
+    't' => $r['date'],          // строка "DD.MM.YYYY HH:mm:ss"
+    'win' => $r['profit'] > 0 ? 1 : 0,
+], $filteredResults);
+?>
+
 <script>
+    var equityData = <?= json_encode($equityPoints, JSON_UNESCAPED_SLASHES) ?>;
+    var aggEquityPoints = <?= json_encode($aggEquityPoints, JSON_UNESCAPED_SLASHES) ?>;
+    var drawdownData = <?= json_encode($drawdownPoints, JSON_UNESCAPED_SLASHES) ?>;
+    var returnBuckets = <?= json_encode($returnBuckets, JSON_NUMERIC_CHECK) ?>;
+    var winRateChartArr = <?= json_encode($winRateChartArr, JSON_NUMERIC_CHECK) ?>;
+
     $(document).ready(function () {
         var finalResults = {
-            res: <?=CUtil::PhpToJSObject($finalResults, false, false, true)?>,
+            //res: <?//=CUtil::PhpToJSObject($finalResults, false, false, true)?>,
             selectedTpStrategy: <?=CUtil::PhpToJSObject($selectedTpStrategy, false, false, true)?>,
-
             errors: <?=CUtil::PhpToJSObject($errors, false, false, true)?>,
+            //drawdownData: drawdownData,
+            //equityData: equityData,
+            //aggEquityPoints: aggEquityPoints,
+            winRateChartArr: winRateChartArr,
         }
         console.log('finalResults', finalResults);
-
-        function sendAIAnalysis(filterFunc, promptIntro) {
-            var trades = finalResults.res.filter(filterFunc);
-            if (!trades.length) {
-                alert('Нет сделок для анализа');
-                return;
-            }
-            var payload = {
-                filters: {
-                    start_date: $('#start_date').val(),
-                    end_date: $('#end_date').val(),
-                    riskFilter: $('#riskFilter').val(),
-                    tpCountGeneral: $('#tpCountGeneral').val(),
-                    tpFilter: finalResults.selectedTpStrategy,
-                    direction: $('#directionFilter').val(),
-                    amountInTrade: $('#deposit').val(),
-                    tf: $('#tfFilter').val(),
-                    entry: $('#entryFilter').val(),
-                    strategy: $('#strategyFilter').val() || null,
-                    moveeSLafterReachingTP: $('#shiftSL').val() || 'не сдвигать SL',
-                },
-                trades: trades,
-                aiModel: 'deepseek',//'gpt',
-                promptIntro: promptIntro,
-            };
-
-            $('#aiAnalyzeResult').html('<em>Идёт запрос к ИИ…</em>');
-            $.ajax({
-                url: '/ajax/aiStatAnalyze.php',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(payload),
-                success: function (resp) {
-                    console.log('trades:', trades);
-                    console.log('Prompt:', resp.messages[1].content);
-
-                    if (resp.error) {
-                        $('#aiAnalyzeResult').html('<span style="color:red;">Ошибка: ' + resp.error + '</span>');
-                    } else {
-                        $('#aiAnalyzeResult').html(
-                            '<textarea readonly style="width:100%;height:300px;padding:10px;border:1px solid #ccc;border-radius:4px;">'
-                            + "\n" + resp.analysis
-                            + '</textarea>'
-                        );
-                    }
-                },
-                error: function () {
-                    $('#aiAnalyzeResult').html('<span style="color:red;">Серверная ошибка</span>');
-                }
-            });
-        }
-
-        $('#btnAiAnalyze').on('click', function () {
-            sendAIAnalysis(
-                function (trade) {
-                    return trade.profit !== 0;
-                },
-                'Анализ всех сделок:'
-            );
-        });
-
-        $('#btnAiAnalyzeLosses').on('click', function () {
-            sendAIAnalysis(
-                function (trade) {
-                    /*console.log('trade.profit', trade.profit < 0)*/
-                    return trade.profit < 0;
-                },
-                'Анализ убыточных сделок на основе технического анализа allInfo:'
-            );
-        });
-
-        // Если потребуется ajax-подгрузка формы, можно сделать так:
-        $("#statsFilterForm").on("submit", function (e) {
-            window.siteShowPrelouder();
-          
-        });
-
-        $('#exchange').change(function () {
-            $("#statsFilterForm").submit();
-        });
 
     });
 </script>

@@ -11,7 +11,11 @@ define('NEED_AUTH', true);
 
 require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/header.php");
 
-Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/maksv-statPage.css");
+Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/stat-page.css?v=3");
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js?v=3", true);
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js?v=3", true);
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js??v=3", true);
+Asset::getInstance()->addJs(SITE_TEMPLATE_PATH . "/js/stat-page.js?v=3", true);
 
 $exchangeIblockID = isset($_GET['exchange']) ? intval($_GET['exchange']) : 3;  // вариант пока только bybit (id инфоблока - 3)
 $categorySectionID = isset($_GET['category']) ? intval($_GET['category']) : 7;  // по умолчанию  (id=5)
@@ -119,6 +123,15 @@ $updateTargetsFilter = isset($_GET['updateTargetsFilter']) ? $_GET['updateTarget
 $updateMlFilter = isset($_GET['updateMlFilter']) ? $_GET['updateMlFilter'] : 'n';
 $updateMarketMlFilter = isset($_GET['updateMarketMlFilter']) ? $_GET['updateMarketMlFilter'] : 'n';
 
+$chartIntervalAr = [
+    'hour' => '1 час',
+    '4hour' => '4 часа',
+    'day' => '1 день',
+    '3day' => '3 дня',
+    'week' => '1 неделя',
+    'month' => '1 месяц',
+];
+$chartIntervalFilter = isset($_GET['chartIntervalFilter']) ? $_GET['chartIntervalFilter'] : 'day';
 
 // читаем из GET или ставим дефолт
 $startDateStr = isset($_GET['start_date'])
@@ -300,7 +313,7 @@ if (!empty($_GET)) {
 
                     // Перебираем каждый элемент массива стратегии
                     foreach ($strategyArray as $sname => $strategy) {
-                        
+
                         // Получаем символ
                         $symbolName = $sname ?? $strategy["symbolName"];
 
@@ -567,10 +580,10 @@ if (!empty($_GET)) {
                                 }
 
                                 // —————— Накладываем убыток по недостигнутой части только если стоп‑лосс был пробит:
-                               /* $unreached = $processedFilters['tpCountGeneral'] - $reachedTP;
-                                if ($priceAnalysis['sl_hit']) {
-                                    $profit_percent += $unreached * (-$riskPercent * $portionWeight);
-                                }*/
+                                /* $unreached = $processedFilters['tpCountGeneral'] - $reachedTP;
+                                 if ($priceAnalysis['sl_hit']) {
+                                     $profit_percent += $unreached * (-$riskPercent * $portionWeight);
+                                 }*/
                                 // Накладываем убыток по недостигнутым тейкам, если сработал SL
                                 if ($priceAnalysis['sl_hit']) {
                                     // индекс первого «недостигнутого» тейка
@@ -694,8 +707,9 @@ if (!empty($_GET)) {
                             'marketInfo' => $marketInfo,
                             'priceAnalysis' => $priceAnalysis,
                             'profit_percent_potential' => $profit_percent_potential,
-                            'iblock_element_id' =>  $arItem['ID'],
-                            'decoded' => $decoded
+                            'iblock_element_id' => $arItem['ID'],
+                            'tpCountGeneral' => $processedFilters['tpCountGeneral'],
+                            //'decoded' => $decoded
                         ];
                     }
                 };
@@ -728,33 +742,35 @@ if (!empty($_GET)) {
     //ml /
     global $USER;
     //if ($USER->IsAdmin()) {
-        //PROD model last train interval 01.05 - 08.06 bybit alerts
-        //$collectAndStoreTrainData = \Maksv\MachineLearning\Assistant::collectAndStoreTrainData($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        //$getTrainData = \Maksv\MachineLearning\Assistant::getTrainData() ?? [];
-        //$trainRes = \Maksv\MachineLearning\Assistant::trainRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        //$trainRes = \Maksv\MachineLearning\Assistant::trainFromFile() ?? [];
-        //$predictRes = \Maksv\MachineLearning\Assistant::predictRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        $predictRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        $predictMarketRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb, true) ?? [];
-
-        //1
-        //65 65 count 125 (95\28) win 76% 129.1 $  15
-        // 72 65 count 34 (30\4) win 88.24% 97$  30
-
-        //2
-        //67 65 count 14 (11\3) win 75.57% 2.1 $  15
-        // 75 75 count 4 (3\1) win 75% 4.1$ 30
+    //PROD model last train interval 01.05 - 08.06 bybit alerts
+    //$collectAndStoreTrainData = \Maksv\MachineLearning\Assistant::collectAndStoreTrainData($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //$getTrainData = \Maksv\MachineLearning\Assistant::getTrainData() ?? [];
+    //$trainRes = \Maksv\MachineLearning\Assistant::trainRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //$trainRes = \Maksv\MachineLearning\Assistant::trainFromFile() ?? [];
+    //$predictRes = \Maksv\MachineLearning\Assistant::predictRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
 
 
-        //DEV model last train interval 01.05 - 08.06 bybit alerts
-        //$collectAndStoreTrainData = \Maksv\MachineLearning\AssistantDev::collectAndStoreTrainData($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        //$getTrainData = \Maksv\MachineLearning\AssistantDev::getTrainData() ?? [];
-        //$trainRes = \Maksv\MachineLearning\AssistantDev::trainRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        //$trainRes = \Maksv\MachineLearning\AssistantDev::trainFromFile() ?? [];
-        //$predictRes = \Maksv\MachineLearning\AssistantDev::predictRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        //$predictRes = \Maksv\MachineLearning\AssistantDev::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-        //65 65 count 125 (95\28) win 76% 129.1 $
-        //67 65 count 14 (11\3) win 75.57% 2.1 $
+    //$predictRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //$predictMarketRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb, true) ?? [];
+
+    //1
+    //65 65 count 125 (95\28) win 76% 129.1 $  15
+    // 72 65 count 34 (30\4) win 88.24% 97$  30
+
+    //2
+    //67 65 count 14 (11\3) win 75.57% 2.1 $  15
+    // 75 75 count 4 (3\1) win 75% 4.1$ 30
+
+
+    //DEV model last train interval 01.05 - 08.06 bybit alerts
+    //$collectAndStoreTrainData = \Maksv\MachineLearning\AssistantDev::collectAndStoreTrainData($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //$getTrainData = \Maksv\MachineLearning\AssistantDev::getTrainData() ?? [];
+    //$trainRes = \Maksv\MachineLearning\AssistantDev::trainRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //$trainRes = \Maksv\MachineLearning\AssistantDev::trainFromFile() ?? [];
+    //$predictRes = \Maksv\MachineLearning\AssistantDev::predictRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //$predictRes = \Maksv\MachineLearning\AssistantDev::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    //65 65 count 125 (95\28) win 76% 129.1 $
+    //67 65 count 14 (11\3) win 75.57% 2.1 $
 
     //}
 
@@ -768,465 +784,508 @@ if (!empty($_GET)) {
 
 ?>
 
-    <div class="stat-wrapper">
-        <!-- Форма с фильтрами -->
-        <form method="GET" id="statsFilterForm" class="filter-form">
-            <div class="filter-main">
-                <div class="form-group">
-                    <label for="exchange">Биржа:</label>
-                    <select name="exchange" id="exchange">
-                        <? foreach ($marketMap as $marketKey => $marketVal): ?>
-                            <option value="<?= $marketKey ?>" <?= ($exchangeIblockID == $marketKey ? "selected" : "") ?>><?= $marketVal ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="category">Категория:</label>
-                    <select name="category" id="category">
-                        <? foreach ($categoriesMap[intval($exchangeIblockID)] as $mapKey => $mapVal): ?>
-                            <option value="<?= $mapKey ?>" <?= ($categorySectionID == $mapKey ? "selected" : "") ?>><?= $mapVal ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
+<div class="stat-wrapper">
+    <!-- Форма с фильтрами -->
+    <form method="GET" id="statsFilterForm" class="filter-form">
+        <div class="filter-main">
+            <div class="form-group">
+                <label for="exchange">Биржа:</label>
+                <select name="exchange" id="exchange">
+                    <? foreach ($marketMap as $marketKey => $marketVal): ?>
+                        <option value="<?= $marketKey ?>" <?= ($exchangeIblockID == $marketKey ? "selected" : "") ?>><?= $marketVal ?></option>
+                    <? endforeach; ?>
+                </select>
             </div>
-
-            <div class="filter-date">
-                <div class="form-group">
-                    <label for="start_date">Дата начала:</label>
-                    <input type="datetime-local" name="start_date" id="start_date" value="<?= ($startDateStr) ?>">
-                </div>
-                <div class="form-group">
-                    <label for="end_date">Дата окончания:</label>
-                    <input type="datetime-local" name="end_date" id="end_date" value="<?= ($endDateStr) ?>">
-                    <? /*<label class="info" for="start_date">Диапазон не более 7 дней</label>*/ ?>
-                </div>
+            <div class="form-group">
+                <label for="category">Категория:</label>
+                <select name="category" id="category">
+                    <? foreach ($categoriesMap[intval($exchangeIblockID)] as $mapKey => $mapVal): ?>
+                        <option value="<?= $mapKey ?>" <?= ($categorySectionID == $mapKey ? "selected" : "") ?>><?= $mapVal ?></option>
+                    <? endforeach; ?>
+                </select>
             </div>
+        </div>
 
-            <div class="filter-trader">
-                <div class="form-group">
-                    <label for="tpCountGeneral">Количество TP:</label>
-                    <select name="tpCountGeneral" id="tpCountGeneral">
-                        <? $tpCountGeneralAr = [1, 2, 3, 4, 5]; ?>
-                        <option value="0" <?= ($tpCountGeneral === false ? "selected" : "") ?>>default</option>
-                        <? foreach ($tpCountGeneralAr as $tpCountGen): ?>
-                            <option value="<?= $tpCountGen ?>" <?= ($tpCountGeneral == $tpCountGen ? "selected" : "") ?>><?= $tpCountGen ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="deposit">Сумма в сделке $:</label>
-                    <input type="number" name="deposit" id="deposit" value="<?= ($deposit) ?>">
-                </div>
-                <div class="form-group">
-                    <label for="leverege">Плечо:</label>
-                    <select name="leverege" id="leverege">
-                        <? $leveregeValAr = [1, 5, 10, 15, 20]; ?>
-                        <? foreach ($leveregeValAr as $lev): ?>
-                            <option value="<?= $lev ?>" <?= ($leverege == $lev ? "selected" : "") ?>><?= $lev ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="shiftSL">Сдвиг SL в безубыток после достижения TP:</label>
-                    <select name="shiftSL" id="shiftSL">
-                        <option value="" <?= ($shiftSL == false ? "selected" : "") ?>>Не двигать</option>
-                        <option value="1" <?= ($shiftSL == 1 ? "selected" : "") ?>>1</option>
-                        <option value="2" <?= ($shiftSL == 2 ? "selected" : "") ?>>2</option>
-                    </select>
-                </div>
+        <div class="filter-date">
+            <div class="form-group">
+                <label for="start_date">Дата начала:</label>
+                <input type="datetime-local" name="start_date" id="start_date" value="<?= ($startDateStr) ?>">
             </div>
+            <div class="form-group">
+                <label for="end_date">Дата окончания:</label>
+                <input type="datetime-local" name="end_date" id="end_date" value="<?= ($endDateStr) ?>">
+                <? /*<label class="info" for="start_date">Диапазон не более 7 дней</label>*/ ?>
+            </div>
+        </div>
 
-            <div class="filter-footer">
-                <div class="form-group">
-                    <label for="riskFilter">Фильтр по риску, %:</label>
-                    <select name="riskFilter" id="riskFilter">
-                        <? $riskFilterAr = range(2, 10, 0.5); ?>
-                        <? foreach ($riskFilterAr as $riskFilterVal): ?>
-                            <option value="<?= $riskFilterVal ?>" <?= ($riskFilter == $riskFilterVal ? "selected" : "") ?>><?= $riskFilterVal ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="tpFilter">Множители ATR</label>
-                    <select name="tpFilter" id="tpFilter">
-                        <? //echo '<pre>'; var_dump($tpFilter); echo '</pre>'; ?>
-                        <? //echo '<pre>'; var_dump($tpKey); echo '</pre>'; ?>
-                        <? foreach ($tpStrategyAr as $tpKey => $tpStrategyVal): ?>
-                            <option value="<?= $tpKey ?>" <?= ($tpFilter == $tpKey ? "selected" : "") ?>><?= $tpStrategyVal['NAME'] ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="riskFilter">long/short:</label>
-                    <select name="directionFilter" id="directionFilter">
-                        <? $directionFilterAr = ['long', 'short']; ?>
-                        <option value="" <?= ($directionFilter ? "selected" : "") ?>>Все</option>
-                        <? foreach ($directionFilterAr as $directionFilterVal): ?>
-                            <option value="<?= $directionFilterVal ?>" <?= ($directionFilter == $directionFilterVal ? "selected" : "") ?>><?= $directionFilterVal ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="tfFilter">timeframe:</label>
-                    <select name="tfFilter" id="tfFilter">
-                        <? $tfFilterAr = ['5m', '15m', '30m']; ?>
-                        <option value="" <?= ($tfFilter ? "selected" : "") ?>>Все</option>
-                        <? foreach ($tfFilterAr as $tfFilterArVal): ?>
-                            <option value="<?= $tfFilterArVal ?>" <?= ($tfFilter == $tfFilterArVal ? "selected" : "") ?>><?= $tfFilterArVal ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="entryFilter">Вход по рынку:</label>
-                    <select name="entryFilter" id="entryFilter">
-                        <option value="n" <?= ($entryFilter == 'n' ? "selected" : "") ?>>Нет</option>
-                        <option value="y" <?= ($entryFilter == 'y' ? "selected" : "") ?>>Да</option>
-                    </select>
-                </div>
-                <?
-                $strategyFilterAr = [];
-                foreach ($finalResults as $result) {
-                    if ($result['strategy'])
-                        $strategyFilterAr[] = $result['strategy'];
+        <div class="filter-trader">
+            <div class="form-group">
+                <label for="tpCountGeneral">Количество TP:</label>
+                <select name="tpCountGeneral" id="tpCountGeneral">
+                    <? $tpCountGeneralAr = [1, 2, 3, 4, 5]; ?>
+                    <option value="0" <?= ($tpCountGeneral === false ? "selected" : "") ?>>default</option>
+                    <? foreach ($tpCountGeneralAr as $tpCountGen): ?>
+                        <option value="<?= $tpCountGen ?>" <?= ($tpCountGeneral == $tpCountGen ? "selected" : "") ?>><?= $tpCountGen ?></option>
+                    <? endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="deposit">Сумма в сделке $:</label>
+                <input type="number" name="deposit" id="deposit" value="<?= ($deposit) ?>">
+            </div>
+            <div class="form-group">
+                <label for="leverege">Плечо:</label>
+                <select name="leverege" id="leverege">
+                    <? $leveregeValAr = [1, 5, 10, 15, 20]; ?>
+                    <? foreach ($leveregeValAr as $lev): ?>
+                        <option value="<?= $lev ?>" <?= ($leverege == $lev ? "selected" : "") ?>><?= $lev ?></option>
+                    <? endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="shiftSL">Сдвиг SL в безубыток после достижения TP:</label>
+                <select name="shiftSL" id="shiftSL">
+                    <option value="" <?= ($shiftSL == false ? "selected" : "") ?>>Не двигать</option>
+                    <option value="1" <?= ($shiftSL == 1 ? "selected" : "") ?>>1</option>
+                    <option value="2" <?= ($shiftSL == 2 ? "selected" : "") ?>>2</option>
+                </select>
+            </div>
+        </div>
 
-                }
-                $strategyFilterAr = array_unique($strategyFilterAr);
-                ?>
-                <? if ($strategyFilterAr): ?>
-                    <div class="form-group">
-                        <label for="strategyFilter">Стратегия:</label>
-                        <select name="strategyFilter" id="strategyFilter">
-                            <option value="" <?= ($strategyFilter ? "selected" : "") ?>>Все</option>
-                            <? foreach ($strategyFilterAr as $strategyFilterVal): ?>
-                                <option value="<?= $strategyFilterVal ?>" <?= ($strategyFilter == $strategyFilterVal ? "selected" : "") ?>><?= $strategyFilterVal ?></option>
-                            <? endforeach; ?>
-                        </select>
-                    </div>
-                <? else: ?>
-                    <? $strategyFilter = false; ?>
-                <? endif; ?>
+        <div class="filter-footer">
+            <div class="form-group">
+                <label for="riskFilter">Фильтр по риску, %:</label>
+                <select name="riskFilter" id="riskFilter">
+                    <? $riskFilterAr = range(2, 10, 0.5); ?>
+                    <? foreach ($riskFilterAr as $riskFilterVal): ?>
+                        <option value="<?= $riskFilterVal ?>" <?= ($riskFilter == $riskFilterVal ? "selected" : "") ?>><?= $riskFilterVal ?></option>
+                    <? endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tpFilter">Множители ATR</label>
+                <select name="tpFilter" id="tpFilter">
+                    <? //echo '<pre>'; var_dump($tpFilter); echo '</pre>'; ?>
+                    <? //echo '<pre>'; var_dump($tpKey); echo '</pre>'; ?>
+                    <? foreach ($tpStrategyAr as $tpKey => $tpStrategyVal): ?>
+                        <option value="<?= $tpKey ?>" <?= ($tpFilter == $tpKey ? "selected" : "") ?>><?= $tpStrategyVal['NAME'] ?></option>
+                    <? endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="riskFilter">long/short:</label>
+                <select name="directionFilter" id="directionFilter">
+                    <? $directionFilterAr = ['long', 'short']; ?>
+                    <option value="" <?= ($directionFilter ? "selected" : "") ?>>Все</option>
+                    <? foreach ($directionFilterAr as $directionFilterVal): ?>
+                        <option value="<?= $directionFilterVal ?>" <?= ($directionFilter == $directionFilterVal ? "selected" : "") ?>><?= $directionFilterVal ?></option>
+                    <? endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tfFilter">timeframe:</label>
+                <select name="tfFilter" id="tfFilter">
+                    <? $tfFilterAr = ['5m', '15m', '30m']; ?>
+                    <option value="" <?= ($tfFilter ? "selected" : "") ?>>Все</option>
+                    <? foreach ($tfFilterAr as $tfFilterArVal): ?>
+                        <option value="<?= $tfFilterArVal ?>" <?= ($tfFilter == $tfFilterArVal ? "selected" : "") ?>><?= $tfFilterArVal ?></option>
+                    <? endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="entryFilter">Вход по рынку:</label>
+                <select name="entryFilter" id="entryFilter">
+                    <option value="n" <?= ($entryFilter == 'n' ? "selected" : "") ?>>Нет</option>
+                    <option value="y" <?= ($entryFilter == 'y' ? "selected" : "") ?>>Да</option>
+                </select>
+            </div>
+            <?
+            $strategyFilterAr = [];
+            foreach ($finalResults as $result) {
+                if ($result['strategy'])
+                    $strategyFilterAr[] = $result['strategy'];
 
-                <? $mlStep = 0.001; ?>
-                <?/*<div class="form-group">
+            }
+            $strategyFilterAr = array_unique($strategyFilterAr);
+            ?>
+            <? if ($strategyFilterAr): ?>
+                <div class="form-group">
+                    <label for="strategyFilter">Стратегия:</label>
+                    <select name="strategyFilter" id="strategyFilter">
+                        <option value="" <?= ($strategyFilter ? "selected" : "") ?>>Все</option>
+                        <? foreach ($strategyFilterAr as $strategyFilterVal): ?>
+                            <option value="<?= $strategyFilterVal ?>" <?= ($strategyFilter == $strategyFilterVal ? "selected" : "") ?>><?= $strategyFilterVal ?></option>
+                        <? endforeach; ?>
+                    </select>
+                </div>
+            <? else: ?>
+                <? $strategyFilter = false; ?>
+            <? endif; ?>
+
+            <? $mlStep = 0.001; ?>
+            <? /*<div class="form-group">
                     <label for="mlFilter">ml фильтр:</label>
                     <input type="number" name="mlFilter" id="mlFilter" step="<?= $mlStep ?>" value="<?= ($mlFilter) ?>">
-                </div>*/?>
+                </div>*/ ?>
 
 
-                <div class="form-group">
-                    <label for="mlFilter">ml фильтр:</label>
-                    <select name="mlFilter" id="mlFilter">
-                        <option value="n" <?= ($mlFilter == 'n' ? "selected" : "") ?>>нет</option>
-                        <? $mlFilterAr = range(0.65, 0.9, 0.01); ?>
-                        <? foreach ($mlFilterAr as $mlFilterArVal): ?>
-                            <?$mlFilterArVal = round($mlFilterArVal, 2);?>
-                            <option value="<?= $mlFilterArVal ?>" <?= (floatval($mlFilter) ==  $mlFilterArVal ? "selected" : "") ?>><?= $mlFilterArVal ?></option>
-                        <? endforeach; ?>
-                    </select>
-                </div>
+            <div class="form-group">
+                <label for="mlFilter">ml фильтр:</label>
+                <select name="mlFilter" id="mlFilter">
+                    <option value="n" <?= ($mlFilter == 'n' ? "selected" : "") ?>>нет</option>
+                    <? $mlFilterAr = range(0.65, 0.9, 0.01); ?>
+                    <? foreach ($mlFilterAr as $mlFilterArVal): ?>
+                        <? $mlFilterArVal = round($mlFilterArVal, 2); ?>
+                        <option value="<?= $mlFilterArVal ?>" <?= (floatval($mlFilter) == $mlFilterArVal ? "selected" : "") ?>><?= $mlFilterArVal ?></option>
+                    <? endforeach; ?>
+                </select>
+            </div>
 
-                <div class="form-group">
-                    <label for="updateMlFilter">Перерасчет ml:</label>
-                    <select name="updateMlFilter" id="updateMlFilter">
-                        <option value="n" <?= ($updateMlFilter == 'n' ? "selected" : "") ?>>Нет</option>
-                        <option value="y" <?= ($updateMlFilter == 'y' ? "selected" : "") ?>>Да</option>
-                    </select>
-                </div>
+            <div class="form-group">
+                <label for="updateMlFilter">Перерасчет ml:</label>
+                <select name="updateMlFilter" id="updateMlFilter">
+                    <option value="n" <?= ($updateMlFilter == 'n' ? "selected" : "") ?>>Нет</option>
+                    <option value="y" <?= ($updateMlFilter == 'y' ? "selected" : "") ?>>Да</option>
+                </select>
+            </div>
 
-                <?/*<div class="form-group">
+            <? /*<div class="form-group">
                     <label for="mlMarketFilter">ml market фильтр:</label>
                     <input type="number" name="mlMarketFilter" id="mlMarketFilter" step="<?= $mlStep ?>"
                            value="<?= ($mlMarketFilter) ?>">
-                </div>*/?>
+                </div>*/ ?>
 
+            <div class="form-group">
+                <label for="updateMarketMlFilter">Перерасчет market ml:</label>
+                <select name="updateMarketMlFilter" id="updateMarketMlFilter">
+                    <option value="n" <?= ($updateMarketMlFilter == 'n' ? "selected" : "") ?>>Нет</option>
+                    <option value="y" <?= ($updateMarketMlFilter == 'y' ? "selected" : "") ?>>Да</option>
+                </select>
+            </div>
+
+            <? if ($USER->IsAdmin()): ?>
                 <div class="form-group">
-                    <label for="updateMarketMlFilter">Перерасчет market ml:</label>
-                    <select name="updateMarketMlFilter" id="updateMarketMlFilter">
-                        <option value="n" <?= ($updateMarketMlFilter == 'n' ? "selected" : "") ?>>Нет</option>
-                        <option value="y" <?= ($updateMarketMlFilter == 'y' ? "selected" : "") ?>>Да</option>
+                    <label for="updateTargetsFilter">Перерасчет TP, SL:</label>
+                    <select name="updateTargetsFilter" id="updateTargetsFilter">
+                        <option value="n" <?= ($updateTargetsFilter == 'n' ? "selected" : "") ?>>Нет</option>
+                        <option value="y" <?= ($updateTargetsFilter == 'y' ? "selected" : "") ?>>Да</option>
                     </select>
                 </div>
+            <? endif; ?>
+        </div>
 
-                <? if ($USER->IsAdmin()): ?>
-                    <div class="form-group">
-                        <label for="updateTargetsFilter">Перерасчет TP, SL:</label>
-                        <select name="updateTargetsFilter" id="updateTargetsFilter">
-                            <option value="n" <?= ($updateTargetsFilter == 'n' ? "selected" : "") ?>>Нет</option>
-                            <option value="y" <?= ($updateTargetsFilter == 'y' ? "selected" : "") ?>>Да</option>
-                        </select>
-                    </div>
-                <? endif; ?>
+        <input type="hidden" id="chartIntervalFilter" name="chartIntervalFilter" value="day">
+        <div class="button-footer">
+            <div class="form-group">
+                <button type="submit">Фильтровать</button>
             </div>
+        </div>
+    </form>
+    <br>
+    <? if (empty($finalResults)): ?>
+        <h3>Требуется настройка фильтра</h3>
+    <? endif; ?>
+    <div class="chart-wrapper">
+        <div class="tf-selector">
+            <label for="tfInterval"> </label>
+            <select id="tfInterval"><? //$chartIntervalAr[$chartIntervalFilter];?>
+                <? foreach ($chartIntervalAr as $intervalKey => $interval): ?>
+                    <option value="<?= $intervalKey ?>"
+                            <? if ($chartIntervalFilter == $intervalKey): ?>selected<? endif ?> ><?= $interval ?></option>
+                <? endforeach; ?>
+            </select>
+        </div>
 
-            <div class="button-footer">
-                <div class="form-group">
-                    <button type="submit">Фильтровать</button>
-                </div>
-            </div>
-        </form>
-        <br>
+        <div class="chart-container">
+            <h4>Кривая баланса ($)</h4>
+            <canvas id="equityChart"></canvas>
+        </div>
 
-        <!-- Таблица с результатами -->
-        <? if (!empty($finalResults)): ?>
-            <div class="table-container">
-                <table border="1" cellspacing="0" cellpadding="5">
-                    <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Направление</th>
-                        <th>Инфо о сделке</th>
-                        <th>Количество TP</th>
-                        <th>Риск %</th>
-                        <th>RR соотношение</th>
-                        <th>Профит %</th>
-                        <th>Профит $</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <? $cntSignals = 0; ?>
-                    <? $cntOpenSignals = 0; ?>
-                    <? $cntClosedSignals = 0; ?>
-                    <? $cntSignalsProfit = 0; ?>
-                    <? $cntSignalsRisk = 0; ?>
-                    <? $rpchSum = 0; ?>
-                    <? $profitPercentSum = 0; ?>
-                    <? $normalizedRrProfitSum = 0; ?>
-                    <? $profitSum = 0; ?>
+        <div class="chart-container">
+            <h4>Просадка (%)</h4>
+            <canvas id="drawdownChart"></canvas>
+        </div>
 
-                    <?/*
+        <div class="chart-container">
+            <h4>Винрейт (%)</h4>
+            <canvas id="winrateChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h4>Распределение доходности сделок (%)</h4>
+            <canvas id="histProfitChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Таблица с результатами -->
+    <? if (!empty($finalResults)): ?>
+        <div class="table-container">
+            <table border="1" cellspacing="0" cellpadding="5">
+                <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Направление</th>
+                    <th>Инфо о сделке</th>
+                    <th>Количество TP</th>
+                    <th>Риск %</th>
+                    <th>RR соотношение</th>
+                    <th>Профит %</th>
+                    <th>Профит $</th>
+                </tr>
+                </thead>
+                <tbody>
+                <? $cntSignals = 0; ?>
+                <? $cntOpenSignals = 0; ?>
+                <? $cntClosedSignals = 0; ?>
+                <? $cntSignalsProfit = 0; ?>
+                <? $cntSignalsRisk = 0; ?>
+                <? $rpchSum = 0; ?>
+                <? $profitPercentSum = 0; ?>
+                <? $normalizedRrProfitSum = 0; ?>
+                <? $profitSum = 0; ?>
+                <? $filteredResults = []; ?>
+
+                <? /*
                     $exchangeBybitSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
                     $symbList = [];
                     foreach ($exchangeBybitSymbolsList as $item) {
                         $symbList[$item['symbol']] = $item;
                     }
-                    */?>
-                    <? $finalElIds = []; ?>
-                    <? foreach ($finalResults as $result): ?>
-                        <?// if ($symbList[$result["symbolName"]]["filterVal"]['turnover24h'] < 9000000) continue; ?>
-                        <?// if ($symbList[$result["symbolName"]]["filterVal"]['openInterestValue'] < 5000000) continue; ?>
-                        <?// if ($symbList[$result["symbolName"]]["filterVal"]['marketCap'] < 5000000) continue; ?>
+                    */ ?>
+                <? $finalElIds = []; ?>
+                <? foreach ($finalResults as $result): ?>
+                    <? // if ($symbList[$result["symbolName"]]["filterVal"]['turnover24h'] < 9000000) continue; ?>
+                    <? // if ($symbList[$result["symbolName"]]["filterVal"]['openInterestValue'] < 5000000) continue; ?>
+                    <? // if ($symbList[$result["symbolName"]]["filterVal"]['marketCap'] < 5000000) continue; ?>
 
-                        <? if ($result["startRisk"] >= $riskFilter) continue; ?>
-                        <? if ($directionFilter && $result["direction"] != $directionFilter) continue; ?>
-                        <? if ($tfFilter && $result["tf"] != $tfFilter) continue; ?>
-                        <? if ($strategyFilter && $result["strategy"] != $strategyFilter) continue; ?>
+                    <? if ($result["startRisk"] >= $riskFilter) continue; ?>
+                    <? if ($directionFilter && $result["direction"] != $directionFilter) continue; ?>
+                    <? if ($tfFilter && $result["tf"] != $tfFilter) continue; ?>
+                    <? if ($strategyFilter && $result["strategy"] != $strategyFilter) continue; ?>
 
-                        <? if ($entryFilter == 'n' && !$result["entry_touched"]) continue; ?>
+                    <? if ($entryFilter == 'n' && !$result["entry_touched"]) continue; ?>
 
-                        <? if (
-                            $result['allInfo']['actualAdx1h']
-                            &&
-                            (
-                                $result['allInfo']['actualAdx1h']['adx'] < 20
-                                || (
-                                    $result['allInfo']['actualAdx1h']['adx'] < 26
-                                    && $result['allInfo']['actualAdx1h']['adxDirection']['isDownDir'] === true
-                                )
+                    <? if (
+                        $result['allInfo']['actualAdx1h']
+                        &&
+                        (
+                            $result['allInfo']['actualAdx1h']['adx'] < 20
+                            || (
+                                $result['allInfo']['actualAdx1h']['adx'] < 26
+                                && $result['allInfo']['actualAdx1h']['adxDirection']['isDownDir'] === true
                             )
-                        ) continue; ?>
+                        )
+                    ) continue; ?>
 
-                        <? if (
-                            $result['allInfo']['actualAdx']
-                            && ($result['allInfo']['actualAdx']['adx'] < 23)
-                        ) continue; ?>
+                    <? if (
+                        $result['allInfo']['actualAdx']
+                        && ($result['allInfo']['actualAdx']['adx'] < 23)
+                    ) continue; ?>
 
-                        <?
-                        //ml signal
-                        //if (!$predict && $result['allInfo']['actualMlModel'])
+                    <?
+                    //ml signal
+                    //if (!$predict && $result['allInfo']['actualMlModel'])
 
-                        $predict['prediction'] = $result['allInfo']['actualMlModel'];
-                        if ($updateMlFilter == 'y') {
-                            $dt = \DateTime::createFromFormat(
-                                'd.m.Y H:i:s',
-                                $result["date"],
-                                new \DateTimeZone('Europe/Amsterdam')
-                            );
-                            $signalTimestamp = $dt->getTimestamp();
-                            $predict = $predictRes[$result["symbolName"] . '_' . $signalTimestamp] ?? false;
+                    $predict['prediction'] = $result['allInfo']['actualMlModel'];
+                    if ($updateMlFilter == 'y') {
+                        $dt = \DateTime::createFromFormat(
+                            'd.m.Y H:i:s',
+                            $result["date"],
+                            new \DateTimeZone('Europe/Amsterdam')
+                        );
+                        $signalTimestamp = $dt->getTimestamp();
+                        $predict = $predictRes[$result["symbolName"] . '_' . $signalTimestamp] ?? false;
 
-                            /* if (!$predict && $result['allInfo']['actualMlModel'])
-                                 $predict['prediction'] = $result['allInfo']['actualMlModel'];*/
-                        }
+                        /* if (!$predict && $result['allInfo']['actualMlModel'])
+                             $predict['prediction'] = $result['allInfo']['actualMlModel'];*/
+                    }
 
-                        //ml signal filter
-                        if ($predict['prediction']['probabilities'][1] && $predict['prediction']['probabilities'][0]) {
-                            $mlRelative = $predict['prediction']['probabilities'][1] / $predict['prediction']['probabilities'][0];
+                    //ml signal filter
+                    if ($predict['prediction']['probabilities'][1] && $predict['prediction']['probabilities'][0]) {
+                        $mlRelative = $predict['prediction']['probabilities'][1] / $predict['prediction']['probabilities'][0];
 
-                            //if ($predict['prediction']['probabilities'][1] < floatval($mlFilter)) continue;
-                        }
-                        ?>
+                        //if ($predict['prediction']['probabilities'][1] < floatval($mlFilter)) continue;
+                    }
+                    ?>
 
-                        <?
-                        // ml market
-                        $mlMarketRelative = 0;
+                    <?
+                    // ml market
+                    $mlMarketRelative = 0;
 
-                        $predictMarket['prediction'] = $result['marketMl'];
-                        if ($updateMarketMlFilter == 'y') {
-                            $dt = \DateTime::createFromFormat(
-                                'd.m.Y H:i:s',
-                                $result["date"],
-                                new \DateTimeZone('Europe/Amsterdam')
-                            );
-                            $signalTimestamp = $dt->getTimestamp();
-                            $predictMarket = $predictMarketRes[$result["symbolName"] . '_' . $signalTimestamp] ?? false;
+                    $predictMarket['prediction'] = $result['marketMl'];
+                    if ($updateMarketMlFilter == 'y') {
+                        $dt = \DateTime::createFromFormat(
+                            'd.m.Y H:i:s',
+                            $result["date"],
+                            new \DateTimeZone('Europe/Amsterdam')
+                        );
+                        $signalTimestamp = $dt->getTimestamp();
+                        $predictMarket = $predictMarketRes[$result["symbolName"] . '_' . $signalTimestamp] ?? false;
 
 
-                        }
+                    }
 
-                        if ($predictMarket['prediction']['probabilities'][0] && $predictMarket['prediction']['probabilities'][1]) {
-                            $mlMarketRelative = $predictMarket['prediction']['probabilities'][1] / $predictMarket['prediction']['probabilities'][0];
+                    if ($predictMarket['prediction']['probabilities'][0] && $predictMarket['prediction']['probabilities'][1]) {
+                        $mlMarketRelative = $predictMarket['prediction']['probabilities'][1] / $predictMarket['prediction']['probabilities'][0];
 
-                            //if ($predictMarket['prediction']['probabilities'][1] < floatval($mlMarketFilter)) continue;
-                        }
-                        ?>
+                        //if ($predictMarket['prediction']['probabilities'][1] < floatval($mlMarketFilter)) continue;
+                    }
+                    ?>
 
-                        <?
-                        $marketMl = $predictMarket['prediction']['probabilities'][1] ?? false;
-                        $signalMl = $predict['prediction']['probabilities'][1] ?? false;
-                        $totalMl = (($predict['prediction']['probabilities'][1] + $predictMarket['prediction']['probabilities'][1]) / 2) ?? false;
-                        if (
-                                $mlFilter != 'n'
-                                && (
-                                    $marketMl < 0.65
-                                    || $signalMl < 0.65
-                                    || ($totalMl < floatval($mlFilter))
-                                )
-                        ) continue;
+                    <?
+                    $marketMl = $predictMarket['prediction']['probabilities'][1] ?? false;
+                    $signalMl = $predict['prediction']['probabilities'][1] ?? false;
+                    $totalMl = (($predict['prediction']['probabilities'][1] + $predictMarket['prediction']['probabilities'][1]) / 2) ?? false;
+                    if (
+                        $mlFilter != 'n'
+                        && (
+                            $marketMl < 0.65
+                            || $signalMl < 0.65
+                            || ($totalMl < floatval($mlFilter))
+                        )
+                    ) continue;
 
-                        /*if ($mlFilter != 'n' && ($marketMl < 0.67 || $signalMl < 0.67)) continue;
+                    /*if ($mlFilter != 'n' && ($marketMl < 0.67 || $signalMl < 0.67)) continue;
 
-                        if (
-                            $mlFilter != 'n'
-                            && (
-                                !($marketMl > floatval($mlFilter))
-                                || !($signalMl > floatval($mlFilter))
-                            )
-                        ) continue;*/
-                        ?>
+                    if (
+                        $mlFilter != 'n'
+                        && (
+                            !($marketMl > floatval($mlFilter))
+                            || !($signalMl > floatval($mlFilter))
+                        )
+                    ) continue;*/
+                    ?>
+                    <?//if ($result['tpCountGeneral'] > 1) continue;?>
 
-                        <? $cntSignals += 1; ?>
-                        <? if ($result["profit"] > 0) {
-                            $cntSignalsProfit++;
-                            $cntClosedSignals++;
-                        } elseif ($result["profit"] < 0) {
-                            $cntSignalsRisk++;
-                            $cntClosedSignals++;
-                        } else {
-                            $cntOpenSignals++;
-                        } ?>
+                    <? $cntSignals += 1; ?>
+                    <? if ($result["profit"] > 0) {
+                        $cntSignalsProfit++;
+                        $cntClosedSignals++;
+                    } elseif ($result["profit"] < 0) {
+                        $cntSignalsRisk++;
+                        $cntClosedSignals++;
+                    } else {
+                        $cntOpenSignals++;
+                    } ?>
 
-                        <? $finalElIds[] = $result['iblock_element_id']; ?>
-                        <? //$rpchSum += floatval($result["realized_percent_change"]); ?>
-                        <? $profitPercentSum += floatval($result["profit_percent"]); ?>
-                        <? $profitSum += floatval($result["profit"]); ?>
+                    <? $finalElIds[] = $result['iblock_element_id']; ?>
+                    <? //$rpchSum += floatval($result["realized_percent_change"]); ?>
+                    <? $profitPercentSum += floatval($result["profit_percent"]); ?>
+                    <? $profitSum += floatval($result["profit"]); ?>
+                    <? $filteredResults[] = $result; ?>
 
-                        <tr class="<? if ($result["profit"] < 0): ?>red-bg<? elseif ($result["profit"] > 0): ?>green-bg<? endif ?>">
-                            <td><?= ($result["date"]) ?></td>
-                            <td>
-                                <?= ($result["direction"]) ?> <?= ($result['tf']) ?><br>
-                            </td>
-                            <td>
-                                <?= ($result["symbolName"]) ?>
-                                <? if ($result['strategy']): ?>
-                                    <br><?= ($result['strategy']) ?>
-                                <? endif; ?>
-
-                                <? if ($totalMl && $signalMl && $marketMl): ?>
-                                    <br>
-                                    ML: <?=$totalMl?> (<?=$signalMl?>/<?=$marketMl?>)
-                                <? endif; ?>
-
-                            </td>
-                            <td><?= ($result["tpCount"]) ?></td>
-                            <td <? if ($result["startRisk"] >= 3): ?>class="solid-border-red-td"<? endif ?>><?= ($result["startRisk"] * $leverege) ?></td>
-                            <td>
-                                <?
-                                // Рассчитываем коэффициент для прибыли относительно риска 1
-                                $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
-                                $normalizedRrProfitSum += $normalizedRrProfit;
-                                $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
-                                ?>
-                                <?= ($rrRatioString) ?>
-                            </td>
-                            <td><?= ($result["profit_percent"] * $leverege) ?></td>
-                            <td><?= ($result["profit"] * $leverege) ?></td>
-                        </tr>
-                    <? endforeach; ?>
-                    </tbody>
-                    <tfoot>
-                    <tr>
-                        <td class="solid-border-top-td">
-                            всего <?=$cntSignals?><br>
-                            открытые <?=$cntOpenSignals?><br>
-                            закрытые <?= $cntClosedSignals ?> (<?= $cntSignalsProfit ?>\<?= $cntSignalsRisk ?>)<br>
+                    <tr class="<? if ($result["profit"] < 0): ?>red-bg<? elseif ($result["profit"] > 0): ?>green-bg<? endif ?>">
+                        <td><?= ($result["date"]) ?></td>
+                        <td>
+                            <?= ($result["direction"]) ?> <?= ($result['tf']) ?><br>
                         </td>
-                        <td class="solid-border-top-td">
-                            TP вес (<?
-                            $formattedWeights = [];
-                            foreach ($portionWeight as $weight) {
-                                $formattedWeights[] = $weight * 100 . '%';
-                            }
-                            echo implode(' | ', $formattedWeights);
-                            ?>)<br>
+                        <td>
+                            <?= ($result["symbolName"]) ?>
+                            <? if ($result['strategy']): ?>
+                                <br><?= ($result['strategy']) ?>
+                            <? endif; ?>
+
+                            <? if ($totalMl && $signalMl && $marketMl): ?>
+                                <br>
+                                ML: <?= $totalMl ?> (<?= $signalMl ?>/<?= $marketMl ?>)
+                            <? endif; ?>
+
+                            <? if ($result['tpCountGeneral']): ?>
+                                <br>
+                                Recommended TP count: <?=$result['tpCountGeneral']?>
+                            <? endif; ?>
+
+                        </td>
+                        <td><?= ($result["tpCount"]) ?></td>
+                        <td <? if ($result["startRisk"] >= 3): ?>class="solid-border-red-td"<? endif ?>><?= ($result["startRisk"] * $leverege) ?></td>
+                        <td>
                             <?
-                            if ($cntClosedSignals !== 0)
-                                $winRate = $cntSignalsProfit / ($cntClosedSignals / 100) ?? 0;
-                            else
-                                $winRate = 0;
-
+                            // Рассчитываем коэффициент для прибыли относительно риска 1
+                            $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
+                            $normalizedRrProfitSum += $normalizedRrProfit;
+                            $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
                             ?>
-                            винрейт <?= round($winRate, 2) ?>%<br>
-                            профит <?=round($profitSum * $leverege, 2)?> $
+                            <?= ($rrRatioString) ?>
                         </td>
-                        <td class="solid-border-top-td"></td>
-                        <td class="solid-border-top-td"></td>
-                        <td class="solid-border-top-td"></td>
-                        <td class="solid-border-top-td">
-                            <?
-                            if ($cntSignals !== 0)
-                                $sumRatioRR = round($normalizedRrProfitSum / $cntSignals, 2);
-                            else
-                                $sumRatioRR = 0;
-                            ?>
-                            1 / <?=$sumRatioRR?>
-                        </td>
-                        <td class="solid-border-top-td"><?= $profitPercentSum * $leverege ?> %</td>
-                        <td class="solid-border-top-td">
-                            <?=round($profitSum * $leverege, 2);?> $ <br>
-                        </td>
+                        <td><?= ($result["profit_percent"] * $leverege) ?></td>
+                        <td><?= ($result["profit"] * $leverege) ?></td>
                     </tr>
-                    </tfoot>
-                </table>
-            </div>
-        <? else: ?>
-            <p>Требуется настройка фильтра</p>
-        <? endif; ?>
+                <? endforeach; ?>
+                </tbody>
+                <tfoot>
+                <tr>
+                    <td class="solid-border-top-td">
+                        всего <?= $cntSignals ?><br>
+                        открытые <?= $cntOpenSignals ?><br>
+                        закрытые <?= $cntClosedSignals ?> (<?= $cntSignalsProfit ?>\<?= $cntSignalsRisk ?>)<br>
+                    </td>
+                    <td class="solid-border-top-td">
+                        TP вес (<?
+                        $formattedWeights = [];
+                        foreach ($portionWeight as $weight) {
+                            $formattedWeights[] = $weight * 100 . '%';
+                        }
+                        echo implode(' | ', $formattedWeights);
+                        ?>)<br>
+                        <?
+                        if ($cntClosedSignals !== 0)
+                            $winRate = $cntSignalsProfit / ($cntClosedSignals / 100) ?? 0;
+                        else
+                            $winRate = 0;
 
-        <? if (!empty($errors)): ?>
-            <div class="table-container" style="margin-top: 20px;">
-                <table border="1" cellspacing="0" cellpadding="5" class="error-table">
-                    <thead>
+                        ?>
+                        винрейт <?= round($winRate, 2) ?>%<br>
+                        профит <?= round($profitSum * $leverege, 2) ?> $
+                    </td>
+                    <td class="solid-border-top-td"></td>
+                    <td class="solid-border-top-td"></td>
+                    <td class="solid-border-top-td"></td>
+                    <td class="solid-border-top-td">
+                        <?
+                        if ($cntSignals !== 0)
+                            $sumRatioRR = round($normalizedRrProfitSum / $cntSignals, 2);
+                        else
+                            $sumRatioRR = 0;
+                        ?>
+                        1 / <?= $sumRatioRR ?>
+                    </td>
+                    <td class="solid-border-top-td"><?= $profitPercentSum * $leverege ?> %</td>
+                    <td class="solid-border-top-td">
+                        <?= round($profitSum * $leverege, 2); ?> $ <br>
+                    </td>
+                </tr>
+                </tfoot>
+            </table>
+        </div>
+    <? else: ?>
+        <p>Требуется настройка фильтра</p>
+    <? endif; ?>
+
+    <? if (!empty($errors)): ?>
+        <div class="table-container" style="margin-top: 20px;">
+            <table border="1" cellspacing="0" cellpadding="5" class="error-table">
+                <thead>
+                <tr>
+                    <th style="display: flex;">Ошибки</th>
+                </tr>
+                </thead>
+                <tbody>
+                <? foreach ($errors as $keyErr => $err): ?>
                     <tr>
-                        <th style="display: flex;">Ошибки</th>
+                        <td class="error-bg"><?= $keyErr + 1 ?>. <?= $err ?></td>
                     </tr>
-                    </thead>
-                    <tbody>
-                    <? foreach ($errors as $keyErr => $err): ?>
-                        <tr>
-                            <td class="error-bg"><?=$keyErr+1?>. <?= $err ?></td>
-                        </tr>
-                    <? endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <? endif; ?>
-    </div>
+                <? endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <? endif; ?>
+</div>
 
-    <?/*<div class="ai-analyze-wrapper">
+<? /*<div class="ai-analyze-wrapper">
         <button class="btnAiAnalyzeBtn" id="btnAiAnalyze">Анализ ИИ</button>
         <button class="btnAiAnalyzeBtn" id="btnAiAnalyzeLosses" style="margin-left:10px;">Анализ убыточных</button>
         <div id="aiAnalyzeResult"></div>
-    </div>/*/?>
+    </div>/*/ ?>
 
 <?
 /*global $DB;
@@ -1295,29 +1354,87 @@ while ($element = $res->Fetch()) {
     // Для MySQL с ядром Битрикс: CHAR_TO_DATE
     $dbDate = $DB->CharToDateFunction($originalDateCreate, "FULL");
     $DB->Query("
-        UPDATE b_iblock_element 
-        SET 
-            DATE_CREATE = {$dbDate}, 
-            TIMESTAMP_X  = {$dbDate} 
+        UPDATE b_iblock_element
+        SET
+            DATE_CREATE = {$dbDate},
+            TIMESTAMP_X  = {$dbDate}
         WHERE ID = ".intval($newId)
     );
 
     echo "Скопирован элемент {$element['ID']} → {$newId} (DATE_CREATE сохранён как {$originalDateCreate})<br>";
 }*/
 ?>
+
+<?php
+// 1) Формируем raw equity с нулевой точкой
+$equityPoints = [];
+$cumulative = 0;
+if (!$filteredResults) $filteredResults = [];
+
+// Добавляем начальную точку на время фильтра
+if ($startDateStr) {
+    // конвертим 'YYYY-MM-DDTHH:MM' в 'DD.MM.YYYY HH:mm:ss'
+    $dt0 = (new \DateTime($startDateStr))->format('d.m.Y H:i:s');
+    $equityPoints[] = ['t' => $dt0, 'y' => 0];
+}
+
+foreach ($filteredResults as $trade) {
+    $cumulative += $trade['profit'] * $leverege;
+    $equityPoints[] = [
+        't' => $trade['date'],
+        'y' => round($cumulative, 2),
+    ];
+}
+
+// 2) Аггрегируем по часу (пример; для дня/недели/месяца — аналогично)
+$aggEquity = [];
+foreach ($equityPoints as $pt) {
+    $dt = \DateTime::createFromFormat('d.m.Y H:i:s', $pt['t']);
+    $key = $dt->format('Y-m-d H:00:00');
+    $aggEquity[$key] = ['t' => $key, 'y' => $pt['y']];
+}
+ksort($aggEquity);
+$aggEquityPoints = array_values($aggEquity);
+
+// 3) Считаем просадку уже по агрегированному ряду
+$drawdownPoints = [];
+$peak = null;
+foreach ($aggEquityPoints as $pt) {
+    $v = $pt['y'];
+    if ($peak === null || $v > $peak) {
+        $peak = $v;
+    }
+    $dd = ($v - $peak) / max($peak, 1) * 100;
+    $drawdownPoints[] = ['t' => $pt['t'], 'y' => round($dd, 2)];
+}
+
+
+$returnBuckets = [];  // просто массив значений
+foreach ($filteredResults as $trade) {
+    $returnBuckets[] = round($trade['profit_percent'] * $leverege, 2);
+}
+
+$winRateChartArr = array_map(fn($r) => [
+    't' => $r['date'],          // строка "DD.MM.YYYY HH:mm:ss"
+    'win' => $r['profit'] > 0 ? 1 : 0,
+], $filteredResults);
+?>
 <script>
+    var equityData = <?= json_encode($equityPoints, JSON_UNESCAPED_SLASHES) ?>;
+    var aggEquityPoints = <?= json_encode($aggEquityPoints, JSON_UNESCAPED_SLASHES) ?>;
+    var drawdownData = <?= json_encode($drawdownPoints, JSON_UNESCAPED_SLASHES) ?>;
+    var returnBuckets = <?= json_encode($returnBuckets, JSON_NUMERIC_CHECK) ?>;
+    var winRateChartArr = <?= json_encode($winRateChartArr, JSON_NUMERIC_CHECK) ?>;
+
     $(document).ready(function () {
         var finalResults = {
-            a2_finalElements: <?=CUtil::PhpToJSObject($finalElements, false, false, true)?>,
-
-            res: <?=CUtil::PhpToJSObject($finalResults, false, false, true)?>,
-            selectedTpStrategy: <?=CUtil::PhpToJSObject($selectedTpStrategy, false, false, true)?>,
-            collectAndStoreTrainData: <?=CUtil::PhpToJSObject($collectAndStoreTrainData, false, false, true)?>,
-            getTrainData: <?=CUtil::PhpToJSObject($getTrainData, false, false, true)?>,
-            trainRes: <?=CUtil::PhpToJSObject($trainRes, false, false, true)?>,
+            //res: <?//=CUtil::PhpToJSObject($finalResults, false, false, true)?>,
+            //selectedTpStrategy: <?//=CUtil::PhpToJSObject($selectedTpStrategy, false, false, true)?>,
+            //collectAndStoreTrainData: <?//=CUtil::PhpToJSObject($collectAndStoreTrainData, false, false, true)?>,
+            //getTrainData: <?//=CUtil::PhpToJSObject($getTrainData, false, false, true)?>,
+            //trainRes: <?//=CUtil::PhpToJSObject($trainRes, false, false, true)?>,
             //predictRes: <?//=CUtil::PhpToJSObject($predictRes, false, false, true)?>,
             //predictMarketRes: <?//=CUtil::PhpToJSObject($predictMarketRes, false, false, true)?>,
-            errors: <?=CUtil::PhpToJSObject($errors, false, false, true)?>,
         }
         console.log('finalResults', finalResults);
 
