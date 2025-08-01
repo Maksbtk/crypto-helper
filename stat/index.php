@@ -184,6 +184,8 @@ $endDate = Bitrix\Main\Type\DateTime::createFromPhp($endDatePHP);
 
 // Массив для результатов
 $finalResults = [];
+//погрешность %
+$inaccuracy = 12;
 
 // Если форма отправлена (при наличии хотя бы одного GET-параметра)
 if (!empty($_GET)) {
@@ -287,6 +289,7 @@ if (!empty($_GET)) {
                     'tpFilterAr' => $tpFilterAr,
                     'updateTargetsFilter' => $updateTargetsFilter,
                     'updateMarketMlFilter' => $updateMarketMlFilter,
+                    'inaccuracy' => $inaccuracy,
                 ];
                 // Функция для обработки стратегии – обрабатывает элементы массива стратегии
                 $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $apiObAr, &$errors, &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes, &$portionWeight) {
@@ -594,14 +597,104 @@ if (!empty($_GET)) {
                         // Вычисляем абсолютную прибыль по депозиту: profit = deposit * (profit_percent / 100)
                         $profit = round($processedFilters['deposit'] * ($profit_percent / 100), 2);
 
+                        //погрешность
+                        if ($profit > 0) {
+                            $profit = round($profit / 100 * (100 - $processedFilters['inaccuracy']),2);
+                        } else {
+                            $profit = round($profit / 100 * (100 + ($processedFilters['inaccuracy']/1)),2);
+                        }
+
                         unset($strategy['maAr']);
                         unset($strategy['priceChange']);
                         unset($strategy['latestScreener']);
                         unset($strategy['actualMacdDivergence']['extremes']);
 
 
+                        //actual adx 5m
+                        /*if (!$strategy['actualAdx5m']) {
+                            // 1) Парсим строку в DateTime с указанием вашего часового пояса (Europe/Amsterdam)
+                            $dateSignal = \DateTime::createFromFormat(
+                                'd.m.Y H:i:s',
+                                $arItem['DATE_CREATE'],
+                                new DateTimeZone('Europe/Amsterdam')
+                            );
+
+                            // 2) Получаем UNIX‑время в секундах и сразу переводим в миллисекунды
+                            $endTime = $dateSignal->getTimestamp() * 1000;
+
+                            // 3) Вычисляем начало (ровно 14 часов назад)
+                            $hoursBack = 200;
+                            $startTime = ($dateSignal->getTimestamp() - $hoursBack * 3600) * 1000;
+
+                            $klineList = [];
+                            if ($processedFilters['market'] == 'bybit') {
+                                // 4) Запрос к API Bybit с нужными параметрами
+                                $kline = $apiObAr['bybitApiOb']->klineTimeV5(
+                                    "linear",
+                                    $symbolName,
+                                    $startTime,
+                                    $endTime,
+                                    '5m',
+                                    1000,
+                                    true,
+                                    36000
+                                );
+
+                                if (empty($kline['result']['list'])) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API bybit'
+                                    ];
+                                }
+                                usort($kline['result']['list'], fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline['result']['list'];
+                                // 5) Реверсим и готовим данные для расчёта ADX
+                            } else if ($processedFilters['market'] == 'binance') {
+                                $kline = $apiObAr['binanceApiOb']->kline($symbolName, '5m', 1000, $startTime, $endTime, true, 36000);
+                                if (empty($kline) || !is_array($kline)) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API binance'
+                                    ];
+                                }
+                                usort($kline, fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline;
+                            } else {
+                                $errors[] = 'не описано api для рассчета adx 5m по market - ' . $processedFilters['market'];
+                            }
+
+                            $candles5m = array_map(function ($k) {
+                                return [
+                                    't' => floatval($k[0]),
+                                    'o' => floatval($k[1]),
+                                    'h' => floatval($k[2]),
+                                    'l' => floatval($k[3]),
+                                    'c' => floatval($k[4]),
+                                    'v' => floatval($k[5]),
+                                ];
+                            }, $klineList);
+
+                            // 6) Расчитываем ADX и берём последнее значение
+                            $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
+                            $strategy['actualAdx5m'] = $adxData5m[array_key_last($adxData5m)] ?? null;
+                        }*/
+                        //squiz
+                        /*$isExhaustion = \Maksv\TechnicalAnalysis::isExhaustion($marketImpulsInfo['last30Candles15m'], $direction);
+                        $isExhaustion = \Maksv\TechnicalAnalysis::isExhaustion($strategy['candles15m'], $direction);
+                        $isVolumeSpike = \Maksv\TechnicalAnalysis::isVolumeSpike($strategy['candles15m']);*/
+                        //!squiz
+                        //mfi//
+                        $mfiRes = \Maksv\TechnicalAnalysis::calculateMFI($strategy['candles15m']);
+                        $mfi =   $mfiRes[array_key_last($mfiRes)] ?? null;
+
+                        $mfiResOthers =\Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
+                        $mfiOthers = $mfiResOthers[array_key_last($mfiResOthers)] ?? null;
+                        //!mfi//
+
                         // Формируем результирующий элемент массива
                         $finalResults[] = [
+                            "mfi" => $mfi,
+                            "mfiOthers" => $mfiOthers,
                             "date" => $arItem["DATE_CREATE"],
                             "marketMl" => $arItem["marketMl"],
                             //"reverseMarketMl" => $arItem["reverseMarketMl"],
@@ -801,6 +894,8 @@ if (!empty($_GET)) {
     <br>
     <? if (empty($finalResults)): ?>
         <h3>Требуется настройка фильтра</h3>
+    <?else:?>
+        <h3>В рассчетах учитывается погрешность равная <?=$inaccuracy?> %</h3>
     <? endif; ?>
 
     <div class="chart-wrapper">
@@ -893,7 +988,15 @@ if (!empty($_GET)) {
                             && $result['allInfo']['actualAdx']['adxDirection']['isDownDir'] === true
                         )
                     ) continue; ?>
-                    <?//if ($result['tpCountGeneral'] > 1) continue;?>
+
+                    <?/*
+                    if (
+                        $result['allInfo']['actualAdx5m']
+                        && ($result['allInfo']['actualAdx5m']['adx'] < 18)
+                    ) continue;
+                    */?>
+
+                    <? //if ($result['tpCountGeneral'] > 1) continue;?>
 
                     <?
                     //ml signal
@@ -961,6 +1064,10 @@ if (!empty($_GET)) {
 
                     //if ($normalizedRrProfit <= 0.1) continue
                     ?>
+
+                    <?//mfi mfiOthers?>
+                    <?//if ($result["direction"] == 'long' && ($result['mfiOthers']['isUpDir'] === false && $result['mfiOthers']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
+                    <?//if ($result["direction"] == 'short' && ($result['mfiOthers']['isDownDir'] === false && $result['mfiOthers']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
 
                     <? $cntSignals += 1; ?>
                     <? if ($result["profit"] > 0) {
@@ -1084,15 +1191,15 @@ $equityPoints = [];
 $cumulative = 0;
 if (!$filteredResults) {
     $filteredResults = [];
-} else {
+} /*else {
     //скипаем не сделки которые еще не отработали ни в одну сторону
-   /* $filteredResults = array_filter(
+    $filteredResults = array_filter(
         $filteredResults,
         function($r) {
             return isset($r['profit']) && floatval($r['profit']) != 0.0;
         }
-    );*/
-}
+    );
+}*/
 
 
 // Добавляем начальную точку на время фильтра
@@ -1144,6 +1251,70 @@ $winRateChartArr = array_map(fn($r) => [
 ], $filteredResults);
 ?>
 
+<?php
+if ($_GET['save_stat'] == 'y') {
+// Папка для квартальных json
+    $statDir = $_SERVER['DOCUMENT_ROOT'] . '/upload/stat';
+    if (!is_dir($statDir)) {
+        mkdir($statDir, 0755, true);
+    }
+
+// Кэши по файлу
+    $fileCache   = []; // ['2025_Q3' => [ key=>trade, ... ], ...]
+// флаги «грязности»
+    $dirtyFiles  = []; // ['2025_Q3' => true, ...]
+
+// Обрабатываем каждую сделку
+    foreach ($filteredResults as $r) {
+        // 1) отбрасываем нулевые
+        if (($r['profit'] * $leverege) == 0) {
+            continue;
+        }
+
+        // 2) квартал и ключ
+        $ts       = strtotime($r['date']);
+        $year     = date('Y', $ts);
+        $quarter  = ceil(intval(date('n', $ts)) / 3); // 1..4
+        $qName    = "{$year}_Q{$quarter}";
+        $filePath = "$statDir/trades_{$qName}.json";
+        $key      = $r['symbolName'] . '|' . $ts;
+
+        // 3) lazy‑load кэш этого квартала
+        if (!isset($fileCache[$qName])) {
+            $fileCache[$qName] = [];
+            if (file_exists($filePath)) {
+                $old = json_decode(file_get_contents($filePath), true) ?: [];
+                foreach ($old as $t) {
+                    $oldKey = $t['symbolName'] . '|' . intval($t['timestamp'] / 1000);
+                    $fileCache[$qName][$oldKey] = $t;
+                }
+            }
+        }
+
+        // 4) если нет в кэше — добавляем и помечаем «грязным»
+        if (!isset($fileCache[$qName][$key])) {
+            $fileCache[$qName][$key] = [
+                'symbolName'    => $r['symbolName'],
+                'timestamp'     => $ts * 1000,
+                'profitPercent' => round($r['profit_percent'] * $leverege, 2),
+            ];
+            $dirtyFiles[$qName] = true;
+        }
+    }
+
+// 5) Записываем на диск только «грязные» файлы
+    foreach ($dirtyFiles as $qName => $_) {
+        $filePath = "$statDir/trades_{$qName}.json";
+        // сбрасываем индексы, сохраняем плоский массив
+        $toSave = array_values($fileCache[$qName]);
+        file_put_contents(
+            $filePath,
+            json_encode($toSave, JSON_UNESCAPED_SLASHES|JSON_PRETTY_PRINT)
+        );
+    }
+}
+?>
+
 <script>
     var equityData = <?= json_encode($equityPoints, JSON_UNESCAPED_SLASHES) ?>;
     var aggEquityPoints = <?= json_encode($aggEquityPoints, JSON_UNESCAPED_SLASHES) ?>;
@@ -1159,7 +1330,7 @@ $winRateChartArr = array_map(fn($r) => [
             //drawdownData: drawdownData,
             //equityData: equityData,
             //aggEquityPoints: aggEquityPoints,
-            winRateChartArr: winRateChartArr,
+            //winRateChartArr: winRateChartArr,
         }
         console.log('finalResults', finalResults);
 

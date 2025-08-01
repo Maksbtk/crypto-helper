@@ -1,9 +1,16 @@
+#equityChart,
+#drawdownChart,
+#winrateChart {
+  touch-action: pan-y;
+}
+
 .red-bg {
-   background-color: rgba(255, 3, 3, 0.46);
+   background-color: rgba(255, 3, 3, 0.35);
  }
 .green-bg {
-  background-color: rgb(0 102 51 / 66%);
+  background-color: rgba(0, 102, 51, 0.35);
 }
+
 .solid-border-top-td {
   border-top: 3px solid #000;
 }

@@ -179,6 +179,11 @@ class TechnicalAnalysis
         $date->modify("+$microseconds microseconds");
         $timestamp = $date->format("H:i m.d");
 
+        $inputParams = [
+            'shortPeriod' => $shortPeriod,
+            'longPeriod' => $longPeriod,
+            //int $shortPeriod = 9, int $longPeriod = 26,
+        ];
         if ($previousEMA <= $previousSMA && $ema > $sma) {
             return [
                 'cross' => 'bull cross',
@@ -189,7 +194,8 @@ class TechnicalAnalysis
                 'isLong' => true,
                 'isShort' => false,
                 'timestamp_gmt' => $timestamp,
-                'timestamp' => $milliseconds
+                'timestamp' => $milliseconds,
+                'inputParams' => $inputParams,
             ];
         } elseif ($previousEMA >= $previousSMA && $ema < $sma) {
             return [
@@ -201,7 +207,8 @@ class TechnicalAnalysis
                 'isLong' => false,
                 'isShort' => true,
                 'timestamp_gmt' => $timestamp,
-                'timestamp' => $milliseconds
+                'timestamp' => $milliseconds,
+                'inputParams' => $inputParams,
             ];
         } else {
             return [
@@ -213,7 +220,8 @@ class TechnicalAnalysis
                 'isLong' => $isLong,
                 'isShort' => $isShort,
                 'timestamp_gmt' => $timestamp,
-                'timestamp' => $milliseconds
+                'timestamp' => $milliseconds,
+                'inputParams' => $inputParams,
             ];
         }
     }
@@ -1815,7 +1823,7 @@ class TechnicalAnalysis
      *
      * @throws \Exception Если недостаточно данных
      */
-    public static function analyzeImpulseMACD(array $candles, int $lengthMA = 34, int $lengthSignal = 9, $rangeSignals = 3): array
+    public static function analyzeImpulseMACD(array $candles, int $lengthMA = 32, int $lengthSignal = 9, $rangeSignals = 3): array
     {
         $count = count($candles);
         if ($count < $lengthMA + $lengthSignal) {
@@ -3369,4 +3377,241 @@ class TechnicalAnalysis
 
         return $res;
     }
+
+    /**
+     * John Carter Squeeze — проверяем, что полосы Боллинджера находятся внутри Keltner Channel
+     *
+     * @param array $candles   Массив свечей с ключами ['h','l','c','t'].
+     * @param int   $bbPeriod  Период для SMA и StdDev в Bollinger Bands (по умолчанию 20).
+     * @param float $bbStdDev  Множитель StdDev (по умолчанию 2).
+     * @param int   $kcPeriod  Период для EMA и ATR в Keltner Channel (по умолчанию 20).
+     * @param float $kcMul     Множитель ATR для построения KC (по умолчанию 1.5).
+     * @return bool
+     */
+    public static function isBBSqueezeKC(array $candles, int $bbPeriod = 20, float $bbStdDev = 2, int $kcPeriod = 20, float $kcMul = 1.5): bool
+    {
+        $count = count($candles);
+        if ($count < max($bbPeriod, $kcPeriod) + 1) {
+            // не хватает данных
+            return false;
+        }
+
+        // 1) Боллинджер: SMA и StdDev по закрытиям
+        $closes = array_column($candles, 'c');
+        $sliceClosesBB = array_slice($closes, -$bbPeriod);
+        $sma = array_sum($sliceClosesBB) / $bbPeriod;
+        $std = self::stats_standard_deviation($sliceClosesBB);
+
+        $bbUpper = $sma + $bbStdDev * $std;
+        $bbLower = $sma - $bbStdDev * $std;
+
+        // 2) Keltner: EMA и ATR
+        // Предполагаем, что calculateEMA возвращает массив, где последний элемент — текущая EMA.
+        $ema = self::calculateEMA($closes, $kcPeriod);
+
+        // ATR возвращает массив True Range усреднённый SMMA или EMA, последний элемент — текущий ATR
+        $atrArr = self::calculateATR($candles, $kcPeriod);
+        $atr = end($atrArr);
+
+        $kcUpper = $ema + $kcMul * $atr['atr'];
+        $kcLower = $ema - $kcMul * $atr['atr'];
+
+        // Squeeze, если BB-диапазон полностью внутри KC
+        return ($bbLower > $kcLower) && ($bbUpper < $kcUpper);
+    }
+
+    /**
+     * Вычисляет стандартное отклонение массива чисел.
+     *
+     * @param float[] $data   Массив числовых значений.
+     * @param bool    $sample Если true — разделить на (n−1) (выборочное С.О.), иначе на n (генеральное С.О.).
+     * @return float          Стандартное отклонение.
+     */
+    public static function stats_standard_deviation(array $data, bool $sample = false): float
+    {
+        $n = count($data);
+        if ($n === 0) {
+            return 0.0;
+        }
+
+        // 1) Считаем среднее
+        $mean = array_sum($data) / $n;
+
+        // 2) Сумма квадратов отклонений
+        $sumSq = 0.0;
+        foreach ($data as $x) {
+            $diff = $x - $mean;
+            $sumSq += $diff * $diff;
+        }
+
+        // 3) Делим на n или n−1
+        $divisor = $sample && $n > 1 ? ($n - 1) : $n;
+
+        return sqrt($sumSq / $divisor);
+    }
+
+    /**
+     * Проверка свечного истощения в конце тренда.
+     *
+     * @param array  $candles     Последние свечи в формате [['o','h','l','c','v'], …]
+     * @param string $direction   'long'  — ищем разворот снизу (конец медвежьего тренда);
+     *                            'short' — ищем разворот сверху (конец бычьего тренда).
+     * @param float  $tailRatio   Во сколько раз хвост должен превышать тело (по умолчанию 2.0).
+     * @return bool
+     */
+    public static function isExhaustion(array $candles, string $direction, float $tailRatio = 0.1): bool
+    {
+
+        // 2) Анализируем последнюю свечу
+        $last = end($candles);
+        $body = abs($last['c'] - $last['o']);
+        if ($body == 0) {
+            return false;
+        }
+
+        if ($direction === 'long') {
+            // нижний хвост
+            $lowerWick = min($last['o'], $last['c']) - $last['l'];
+            // хвост ≥ tailRatio × тело и есть закрытие обратно в тело
+            return $lowerWick > $tailRatio * $body
+                && $last['c'] > $last['l'] + $lowerWick * 0.5;
+        } else {
+            // short: верхний хвост
+            $upperWick = $last['h'] - max($last['o'], $last['c']);
+            return $upperWick > $tailRatio * $body
+                && $last['c'] < $last['h'] - $upperWick * 0.5;
+        }
+    }
+
+    /**
+     * Проверка объёмного спайка: объём последней свечи против среднего.
+     *
+     * @param array $candles      Массив свечей с ключом 'v' для объёма.
+     * @param int   $lookbackVol  Сколько прошлых объёмов брать в усреднение (по умолчанию 10).
+     * @param float $multiplier   Во сколько раз текущий объём должен быть выше среднего (по умолчанию 1.5).
+     * @return bool
+     */
+    public static function isVolumeSpike(array $candles, int $lookbackVol = 5, float $multiplier = 0.1): bool
+    {
+        $vols = array_column($candles, 'v');
+        $n = count($vols);
+        if ($n < $lookbackVol + 1) {
+            return false;
+        }
+        // Средний объём по последним lookbackVol свечам (кроме текущей)
+        $slice = array_slice($vols, -$lookbackVol - 1, $lookbackVol);
+        $avg   = array_sum($slice) / $lookbackVol;
+        $lastV = end($vols);
+
+        return $lastV >= $avg * $multiplier;
+    }
+
+
+    /**
+     * Рассчитывает MFI и его скользящие средние (fast и slow),
+     * а также направление тренда MFI: вверх или вниз.
+     *
+     * @param array $candles   Массив свечей в хронологическом порядке (от старых к новым),
+     *                         каждая свеча — ассоциативный массив с ключами:
+     *                           't' => timestamp в миллисекундах,
+     *                           'h' => High,
+     *                           'l' => Low,
+     *                           'c' => Close,
+     *                           'v' => Volume.
+     * @return array           Массив тех же размеров, что и входной, где каждый элемент —
+     *                         [
+     *                           'timestamp' => 'YYYY-MM-DD HH:MM:SS',
+     *                           'mfi'       => float|null,
+     *                           'fast_mfi'  => float|null,
+     *                           'slow_mfi'  => float|null,
+     *                           'isUpDir'   => bool,  // fast_mfi > slow_mfi
+     *                           'isDownDir' => bool,  // fast_mfi < slow_mfi
+     *                         ]
+     */
+    public static function calculateMFI($candles): array
+    {
+        if (!$candles)
+            return [];
+
+        // Жестко задаём периоды
+        $mfiPeriod  = 14;
+        $fastPeriod = 2;
+        $slowPeriod = 5;
+
+        $count     = count($candles);
+        $typPrice  = array_fill(0, $count, 0.0);
+        $moneyFlow = array_fill(0, $count, 0.0);
+
+        // 1) Типичная цена и raw money flow
+        foreach ($candles as $i => $c) {
+            $tp = ($c['h'] + $c['l'] + $c['c']) / 3.0;
+            $typPrice[$i]  = $tp;
+            $moneyFlow[$i] = $tp * $c['v'];
+        }
+
+        // 2) Положительный/отрицательный MF
+        $posMF = array_fill(0, $count, 0.0);
+        $negMF = array_fill(0, $count, 0.0);
+        for ($i = 1; $i < $count; $i++) {
+            if ($typPrice[$i] > $typPrice[$i - 1]) {
+                $posMF[$i] = $moneyFlow[$i];
+            } else {
+                $negMF[$i] = $moneyFlow[$i];
+            }
+        }
+
+        // 3) Вычисляем MFI
+        $mfiArr = array_fill(0, $count, null);
+        for ($i = $mfiPeriod; $i < $count; $i++) {
+            $sumPos = array_sum(array_slice($posMF, $i - $mfiPeriod + 1, $mfiPeriod));
+            $sumNeg = array_sum(array_slice($negMF, $i - $mfiPeriod + 1, $mfiPeriod));
+            if ($sumNeg === 0.0) {
+                $mfiArr[$i] = 100.0;
+            } else {
+                $ratio      = $sumPos / $sumNeg;
+                $mfiArr[$i] = 100.0 - (100.0 / (1.0 + $ratio));
+            }
+        }
+
+        // 4) Вспомогательная SMA-функция
+        $calcSMA = function(array $arr, int $period): array {
+            $n   = count($arr);
+            $out = array_fill(0, $n, null);
+            for ($j = $period - 1; $j < $n; $j++) {
+                $slice = array_slice($arr, $j - $period + 1, $period);
+                $vals  = array_filter($slice, fn($v) => $v !== null);
+                if (count($vals) === $period) {
+                    $out[$j] = array_sum($vals) / $period;
+                }
+            }
+            return $out;
+        };
+
+        // 5) Скользящие fast и slow
+        $fastArr = $calcSMA($mfiArr, $fastPeriod);
+        $slowArr = $calcSMA($mfiArr, $slowPeriod);
+
+        // 6) Формируем результат
+        $result = [];
+        foreach ($candles as $i => $c) {
+            $tsSec = (int) floor($c['t'] / 1000);
+            $dt    = (new \DateTime())->setTimestamp($tsSec);
+            $tsStr = $dt->format('Y-m-d H:i:s');
+
+            $fast = $fastArr[$i];
+            $slow = $slowArr[$i];
+
+            $result[] = [
+                'timestamp' => $tsStr,
+                'mfi'       => $mfiArr[$i],
+                'fast_mfi'  => $fast,
+                'slow_mfi'  => $slow,
+                'isUpDir'   => $fast !== null && $slow !== null && $fast > $slow,
+                'isDownDir' => $fast !== null && $slow !== null && $fast < $slow,
+            ];
+        }
+
+        return $result;
+    }
+
 }

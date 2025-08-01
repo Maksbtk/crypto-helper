@@ -6,7 +6,8 @@ $(document).ready(function () {
         id: 'crosshair',
         afterInit(chart) {
             // создаём crosshair объект, если ещё нет
-            chart.crosshair = {x: null};
+            //chart.crosshair = {x: null};
+            chart.crosshair = {x: null, y: null, active: false};
         },
         afterEvent(chart, args) {
             const e = args.event;
@@ -29,15 +30,29 @@ $(document).ready(function () {
             }
         },
         afterDraw(chart) {
-            if (!chart.crosshair || chart.crosshair.x == null) return;
+            const ch = chart.crosshair;
+            if (!ch || ch.x == null) return;
 
-            const x = chart.crosshair.x;
             const ctx = chart.ctx;
-            const top = chart.chartArea.top;
-            const bottom = chart.chartArea.bottom;
+            // Раскрываем chartArea
+            const {top, bottom, left, right} = chart.chartArea;
+            // Берём координаты из объекта crosshair
+            const x = ch.x;
+            const y = ch.y;
+
             ctx.save();
             ctx.strokeStyle = 'rgba(14, 14, 42, 0.7)';
             ctx.setLineDash([4, 4]);
+
+            // 1) Горизонтальная линия — только для активного графика
+            if (ch.active && y != null) {
+                ctx.beginPath();
+                ctx.moveTo(left, y);
+                ctx.lineTo(right, y);
+                ctx.stroke();
+            }
+
+            // 2) Вертикальная линия — для всех
             ctx.beginPath();
             ctx.moveTo(x, top);
             ctx.lineTo(x, bottom);
@@ -380,7 +395,6 @@ $(document).ready(function () {
         }
     });
 
-
     $('#tfInterval').on('change', function () {
         var tf = $(this).val();
         $('input#chartIntervalFilter').val(tf);
@@ -409,27 +423,36 @@ $(document).ready(function () {
 
     // общий обработчик движения
     function handlePointerMove(e) {
+
         // 1) на каком графике мы?
         const source = charts.find(c => c.canvas === e.target);
         if (!source) return;
 
         // 2) локальный X внутри этого canvas
         const rect = source.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
+        //const x = e.clientX - rect.left;
+        const x = Math.round(e.clientX - rect.left);
 
         // 3) синхронизируем crosshair на всех:
         charts.forEach(ch => {
+            //ch.crosshair.x = x;
+            // активируем горизонталь только на source
             ch.crosshair.x = x;
+            ch.crosshair.active = (ch === source);
+            if (ch.crosshair.active) {
+                // запомним Y для горизонтали
+                const pos = Chart.helpers.getRelativePosition(e, ch);
+                ch.crosshair.y = Math.round(pos.y);
+            }
             ch.draw();                // здесь мы НЕ трогаем тултипы
         });
 
         // 4) на исходном графике ищем ближайшую точку строго по X
         //const pts = source.getElementsAtEventForMode(
         let pts = source.getElementsAtEventForMode(
-
             e,
-            'nearest',
-            { intersect: false, axis: 'x' },
+            'index',//'nearest',
+            { intersect: false },//{intersect: false, axis: 'x'},
             false
         );
         pts = pts.filter(p => p.datasetIndex === 0);
@@ -450,6 +473,7 @@ $(document).ready(function () {
             }
         }
         // **если pts.length === 0**, ничего не делаем — тултип остаётся на последней
+        
     }
 
     // отдельный handler на выход из canvas
@@ -457,7 +481,9 @@ $(document).ready(function () {
         // сбросим все тултипы + crosshair
         charts.forEach(ch => {
             ch.tooltip.setActiveElements([], {});
-            ch.crosshair.x = null;
+            //ch.crosshair.x = null;
+            ch.crosshair.x = ch.crosshair.y = null;
+            ch.crosshair.active = false;
             ch.draw();
         });
         lastActiveKey = null;
@@ -468,6 +494,7 @@ $(document).ready(function () {
         canvas.addEventListener('pointermove', handlePointerMove);
         canvas.addEventListener('pointerleave', handlePointerLeave);
     });
+
     //!-cursor
 
 

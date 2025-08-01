@@ -5,6 +5,9 @@ $APPLICATION->SetPageProperty("title", "Инструмент для торгов
 $APPLICATION->SetTitle("Инструмент для торговли на бирже - Crypto helper");
 
 Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/adaptiveTables.css?v1", true);
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js?v=3", true);
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js?v=3", true);
+Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js?v=3", true);
 ?>
 
 <?php
@@ -77,34 +80,155 @@ $APPLICATION->IncludeComponent(
     false
 );?>
 
-
 <?php
+// 1) Сбор всех квартальных файлов, фильтр за 3 мес — без изменений
+$statDir = $_SERVER['DOCUMENT_ROOT'] . '/upload/stat';
+$allTrades = [];
+if (is_dir($statDir)) {
+    foreach (glob("$statDir/trades_*.json") as $file) {
+        $arr = json_decode(file_get_contents($file), true);
+        if (is_array($arr)) {
+            $allTrades = array_merge($allTrades, $arr);
+        }
+    }
+}
+$threeMonthsAgoMs = (time() - 90*24*3600) * 1000;
+$recent = array_filter($allTrades, fn($t)=> isset($t['timestamp']) && $t['timestamp'] >= $threeMonthsAgoMs);
 
-/*try {
-    $binanceOb = new \Maksv\Binance();
-    $resp = $binanceOb->getDepth('FITFIUSDT', 1000);
-    echo '<pre>'; var_dump($resp['bids']); echo '</pre>';
+// 2) Сгруппировать по дню (чтобы расчёт кумулятивки был стабильным по календарным дням)
+$daily = [];
+foreach ($recent as $t) {
+    $day = gmdate('Y-m-d', intval($t['timestamp']/1000));
+    if (!isset($daily[$day])) $daily[$day] = 0;
+    $daily[$day] += $t['profitPercent'];
+}
 
-} catch (Exception $e) {
-    echo '<pre>'; var_dump($e); echo '</pre>';
+// 3) Преобразовать в кумулятивную кривую
+$cumulative = 0;
+$equityPercentPoints = [];
+// сортируем ключи дней
+$days = array_keys($daily);
+sort($days);
+foreach ($days as $day) {
+    $cumulative += $daily[$day];
+    // делаем метку «начало дня»
+    $dt = DateTime::createFromFormat('Y-m-d', $day, new DateTimeZone('UTC'));
+    $label = $dt->format('d.m.Y') . ' 00:00:00';
+    $equityPercentPoints[] = [
+        't' => $label,
+        'y' => round($cumulative, 2),
+    ];
+}
 
-}*/
-
-/*$binanceOb = new \Maksv\Binance();
-$resp = $binanceOb->getDepth('FITFIUSDT', 1000);*/
-
-
-/*$bybitApiOb = new \Maksv\Bybit(apiKey : 'QOvYCttBiD4d9m7lNn' , secretKey : 'qOBEvTvgFDthGFTRl97Vokq4lHo2KNW4wnLT');
-$bybitApiOb->openConnection();
-
-$getServerTime =  $bybitApiOb->getServerTime();
-echo '<pre>'; var_dump($getServerTime); echo '</pre>';
-echo '<pre>'; var_dump($getServerTime['retMsg'] == 'OK'); echo '</pre>';
-
-$bybitApiOb->closeConnection();*/
-
-
+// 4) Передаём в JS
 ?>
+
+    <style>
+        .chart-wrapper {
+            padding: 0 35px;
+            margin-bottom: 120px;
+        }
+        @media only screen and (max-width: 1023px) {
+            .chart-wrapper {
+                padding: 0 10px;
+                margin-bottom: 40px;
+            }
+        }
+    </style>
+    <div class="chart-wrapper">
+        <h2>Кривая баланса (%)</h2>
+        <div id="sidebar">
+            <label for="tfSelect">Интервал агрегации</label>
+            <select id="tfSelect">
+                <option value="day">1 день</option>
+                <option value="3day" selected>3 дня</option>
+                <option value="week">1 неделя</option>
+                <option value="month">1 месяц</option>
+            </select>
+        </div><br>
+        <canvas id="mainChart" style=" height: 350px;width: 100%;"></canvas>
+    </div>
+    <script>
+        // rawData из PHP: уже агрегировано по дням
+        const rawEquityPct = <?= json_encode($equityPercentPoints, JSON_UNESCAPED_SLASHES) ?>;
+
+        // Инициализация Chart.js
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Equity %',
+                    data: aggregate(rawEquityPct, '3day'),
+                    parsing: { xAxisKey: 't', yAxisKey: 'y' },
+                    borderColor: 'rgba(0, 102, 51, 0.7)',
+                    backgroundColor: 'rgba(0, 102, 51, 0.1)',
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 6,
+                    borderWidth: 2,
+                    clip: false
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            parser: 'DD.MM.YYYY HH:mm:ss',
+                            unit: 'day',
+                            displayFormats: { day: 'DD.MM' }
+                        },
+                        grid: { color: '#eee' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Профит (%)' },
+                        grid: { color: '#eee' }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: { label: ctx => ctx.parsed.y.toFixed(2) + ' %' }
+                    },
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Агрегация по выбранному интервалу (1 день, 3 дня, неделя, месяц)
+        function aggregate(data, tf) {
+            const grouped = {};
+            data.forEach(pt => {
+                let m = moment(pt.t, 'DD.MM.YYYY HH:mm:ss');
+                switch (tf) {
+                    case '3day':
+                        m.startOf('day');
+                        const days = Math.floor(m.diff(moment(0), 'days'));
+                        m = moment(0).add(Math.floor(days/3)*3, 'days');
+                        break;
+                    case 'week':  m.startOf('week');   break;
+                    case 'month': m.startOf('month');  break;
+                    case 'day':   m.startOf('day');    break;
+                }
+                grouped[m.valueOf()] = {
+                    t: m.format('DD.MM.YYYY HH:mm:ss'),
+                    y: pt.y  // кумулятивка здесь не меняется, просто рисуем сплайн по точкам
+                };
+            });
+            return Object.values(grouped)
+                .sort((a,b)=> moment(a.t,'DD.MM.YYYY HH:mm:ss') - moment(b.t,'DD.MM.YYYY HH:mm:ss'));
+        }
+
+        // Селектор интервалов
+        document.getElementById('tfSelect').addEventListener('change', e => {
+            const tf = e.target.value;
+            chart.data.datasets[0].data = aggregate(rawEquityPct, tf);
+            chart.update();
+        });
+    </script>
 
     <link rel="stylesheet" href="/local/templates/maksv/css/mainpage-product-banners.css">
     <section class="mainpage-product-banners">
@@ -122,8 +246,8 @@ $bybitApiOb->closeConnection();*/
                 <div class="product-banner-item__inner">
                     <img class="product-banner-img" src="/local/templates/maksv/demo-pics/ban2.jpg?v=5" alt="CH">
                     <div class="product-banner-content">
-                        <div class="h2 product-banner-name">binance screener</div>
-                        <a href="/user/binanceScreener/" class="product-banner-link">Перейти</a>
+                        <div class="h2 product-banner-name">statistics beta</div>
+                        <a href="/stat/" class="product-banner-link">Перейти</a>
                     </div>
                 </div>
             </li>
@@ -131,71 +255,13 @@ $bybitApiOb->closeConnection();*/
                 <div class="product-banner-item__inner">
                     <img class="product-banner-img" src="/local/templates/maksv/demo-pics/ban3.jpg?v=5" alt="CH">
                     <div class="product-banner-content">
-                        <div class="h2 product-banner-name">bybit screener</div>
-                        <a href="/user/bybitScreener/" class="product-banner-link">Перейти</a>
+                        <div class="h2 product-banner-name">statistics ml</div>
+                        <a href="/stat/ml.php" class="product-banner-link">Перейти</a>
                     </div>
                 </div>
             </li>
         </ul>
     </section>
-
-<?/*
-    <section style="margin: 0px 15px;display: flex;flex-direction: column;justify-content: center;align-items: center;">
-
-        <div class="h1">Bybit BTCUSDT, ETHUSDT</div>
-        <br>
-        <?$marketCode = 'bybit';?>
-        <?$headCoinMap = ['BTCUSDT', 'ETHUSDT'];?>
-        <?foreach ($headCoinMap as $coin):?>
-            <div class="mobile-table">
-                <table class="iksweb js-open_interests_table">
-                    <thead>
-                        <tr>
-                            <th><?=$coin?></th>
-                            <?$tfMap = ['30m', '1h', '4h', '1d'];?>
-                            <? foreach ($tfMap as $tf):?>
-                                <th><?=$tf?></th>
-                            <?endforeach;?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                            <tr>
-                                <td>Price / OI</td>
-                                <?foreach ($tfMap as $tf):?>
-                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
-                                    <td><?=$actualSymbolsAr[$coin]['lastPriceChange']?> / <?=$actualSymbolsAr[$coin]['lastOpenInterest']?></td>
-                                <?endforeach;?>
-                            </tr>
-                            <tr>
-                                <td>Supertrand</td>
-                                <?foreach ($tfMap as $tf):?>
-                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
-                                    <td>
-                                        <?=$actualSymbolsAr[$coin]['lastSupertrend']['trend']?>
-                                        <?if ($actualSymbolsAr[$coin]['lastSupertrend']['is_reversal']):?>
-                                            <br>reversal
-                                        <?endif;?>
-                                    </td>
-                                <?endforeach;?>
-                            </tr>
-                            <tr>
-                                <td>SAR</td>
-                                <?foreach ($tfMap as $tf):?>
-                                    <?$actualSymbolsAr = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/'.$tf.'/actualMarketVolumes.json'), true))['STRATEGIES']['headCoin'] ?? [];?>
-                                    <td>
-                                        <?=$actualSymbolsAr[$coin]['lastSAR']['trend']?>
-                                        <?if ($actualSymbolsAr[$coin]['lastSAR']['is_reversal']):?>
-                                            <br>reversal
-                                        <?endif;?>
-                                    </td>
-                                <?endforeach;?>
-                            </tr>
-                    </tbody>
-                </table>
-            </div>
-            <br>
-        <?endforeach;?>
-    </section> <?*/?>
 
     <?
     $cmcExchenge = (json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/CoinMarketCupExchange/btcd/res.json'), true)) ?? [];

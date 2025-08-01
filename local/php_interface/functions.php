@@ -29,7 +29,10 @@ function agentBybitRespDev()
     //\Maksv\Okx\Exchange::screener('15m', 0.99, -0.99, true);
     //\Maksv\Okx\Exchange::okxSummaryVolumeExchange(true);
     //\Maksv\Okx\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5,2.5, true);
-    \Maksv\Bybit\Exchange::screener('15m', 0.99, -0.99, true);
+    //\Maksv\Bybit\Exchange::screener('15m', 0.99, -0.99, true);
+    \Maksv\Bybit\Exchange::bybitExchange('15m', 0.99, -0.99, true);
+
+
     return "agentBybitRespDev();";
 }
 
