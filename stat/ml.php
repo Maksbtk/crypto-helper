@@ -158,6 +158,8 @@ $endDate = Bitrix\Main\Type\DateTime::createFromPhp($endDatePHP);
 
 // Массив для результатов
 $finalResults = [];
+//погрешность %
+$inaccuracy = 2;
 
 // Если форма отправлена (при наличии хотя бы одного GET-параметра)
 if (!empty($_GET)) {
@@ -268,6 +270,7 @@ if (!empty($_GET)) {
                     'tpFilterAr' => $tpFilterAr,
                     'updateTargetsFilter' => $updateTargetsFilter,
                     'updateMarketMlFilter' => $updateMarketMlFilter,
+                    'inaccuracy' => $inaccuracy,
                 ];
                 // Функция для обработки стратегии – обрабатывает элементы массива стратегии
                 $processStrategies = function ($strategyArray, $typeKey) use ($arItem, $startTime, $endTime, $processedFilters, $apiObAr, &$errors, &$decoded, &$candlesUpdated, &$finalResults, &$lastSignalTimes, &$portionWeight) {
@@ -607,6 +610,13 @@ if (!empty($_GET)) {
                         // Вычисляем абсолютную прибыль по депозиту: profit = deposit * (profit_percent / 100)
                         $profit = round($processedFilters['deposit'] * ($profit_percent / 100), 2);
 
+                        //погрешность
+                        if ($profit > 0) {
+                            $profit = round($profit / 100 * (100 - $processedFilters['inaccuracy']),2);
+                        } else {
+                            $profit = round($profit / 100 * (100 + ($processedFilters['inaccuracy']/1)),2);
+                        }
+
                         unset($strategy['maAr']);
                         unset($strategy['priceChange']);
                         unset($strategy['latestScreener']);
@@ -680,12 +690,83 @@ if (!empty($_GET)) {
                             $strategy['actualAdx1h'] = $adxData1h[array_key_last($adxData1h)] ?? null;
                         }
                         //!-dev actual adx 1h
+                        
+                        //actual adx 5m
+                        if (!$strategy['actualAdx5m']) {
+                            // 1) Парсим строку в DateTime с указанием вашего часового пояса (Europe/Amsterdam)
+                            $dateSignal = \DateTime::createFromFormat(
+                                'd.m.Y H:i:s',
+                                $arItem['DATE_CREATE'],
+                                new DateTimeZone('Europe/Amsterdam')
+                            );
+
+                            // 2) Получаем UNIX‑время в секундах и сразу переводим в миллисекунды
+                            $endTime = $dateSignal->getTimestamp() * 1000;
+
+                            // 3) Вычисляем начало (ровно 14 часов назад)
+                            $hoursBack = 200;
+                            $startTime = ($dateSignal->getTimestamp() - $hoursBack * 3600) * 1000;
+
+                            $klineList = [];
+                            if ($processedFilters['market'] == 'bybit') {
+                                // 4) Запрос к API Bybit с нужными параметрами
+                                $kline = $bybitApiOb->klineTimeV5(
+                                    "linear",
+                                    $symbolName,
+                                    $startTime,
+                                    $endTime,
+                                    '5m',
+                                    1000,
+                                    true,
+                                    36000
+                                );
+
+                                if (empty($kline['result']['list'])) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API bybit'
+                                    ];
+                                }
+                                usort($kline['result']['list'], fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline['result']['list'];
+                                // 5) Реверсим и готовим данные для расчёта ADX
+                            } else if ($processedFilters['market'] == 'binance') {
+                                $kline = $binanceApiOb->kline($symbolName, '5m', 1000, $startTime, $endTime, true, 36000);
+                                if (empty($kline) || !is_array($kline)) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API binance'
+                                    ];
+                                }
+                                usort($kline, fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline;
+                            }
+
+                            $candles5m = array_map(function ($k) {
+                                return [
+                                    't' => floatval($k[0]),
+                                    'o' => floatval($k[1]),
+                                    'h' => floatval($k[2]),
+                                    'l' => floatval($k[3]),
+                                    'c' => floatval($k[4]),
+                                    'v' => floatval($k[5]),
+                                ];
+                            }, $klineList);
+
+                            // 6) Расчитываем ADX и берём последнее значение
+                            $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
+                            $strategy['actualAdx5m'] = $adxData5m[array_key_last($adxData5m)] ?? null;
+                        }
+                        //!-actual adx 5m
+
+                        //mfi//
+                        $mfiResOthers =\Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
+                        $mfiOthers = $mfiResOthers[array_key_last($mfiResOthers)] ?? null;
+                        //!mfi//
 
                         // Формируем результирующий элемент массива
                         $finalResults[] = [
-                            //"actualAdx1h" => $actualAdx1h,
-                            //"adxData1h" => $adxData1h,
-                            //"candles1h" => $candles1h,
+                            "mfiOthers" => $mfiOthers,
 
                             "date" => $arItem["DATE_CREATE"],
                             "marketMl" => $arItem["marketMl"],
@@ -974,7 +1055,7 @@ if (!empty($_GET)) {
             <? endif; ?>
         </div>
 
-        <input type="hidden" id="chartIntervalFilter" name="chartIntervalFilter" value="day">
+        <input type="hidden" id="chartIntervalFilter" name="chartIntervalFilter" value="<?=$chartIntervalFilter?>">
         <div class="button-footer">
             <div class="form-group">
                 <button type="submit">Фильтровать</button>
@@ -984,7 +1065,10 @@ if (!empty($_GET)) {
     <br>
     <? if (empty($finalResults)): ?>
         <h3>Требуется настройка фильтра</h3>
+    <?else:?>
+        <h3>В рассчетах учитывается погрешность равная <?=$inaccuracy?> %</h3>
     <? endif; ?>
+    
     <div class="chart-wrapper">
         <div class="tf-selector">
             <label for="tfInterval"> </label>
@@ -1079,8 +1163,18 @@ if (!empty($_GET)) {
 
                     <? if (
                         $result['allInfo']['actualAdx']
-                        && ($result['allInfo']['actualAdx']['adx'] < 23)
+                        && ($result['allInfo']['actualAdx']['adx'] < 20)
+                        || (
+                            $result['allInfo']['actualAdx']['adx'] < 26
+                            && $result['allInfo']['actualAdx']['adxDirection']['isDownDir'] === true
+                        )
                     ) continue; ?>
+
+                    <?/* if (
+                        $result['allInfo']['actualAdx5m']
+                        && ($result['allInfo']['actualAdx5m']['adx'] < 18)
+
+                    ) continue; */?>
 
                     <?
                     //ml signal
@@ -1122,7 +1216,6 @@ if (!empty($_GET)) {
                         $signalTimestamp = $dt->getTimestamp();
                         $predictMarket = $predictMarketRes[$result["symbolName"] . '_' . $signalTimestamp] ?? false;
 
-
                     }
 
                     if ($predictMarket['prediction']['probabilities'][0] && $predictMarket['prediction']['probabilities'][1]) {
@@ -1156,6 +1249,9 @@ if (!empty($_GET)) {
                     ) continue;*/
                     ?>
                     <?//if ($result['tpCountGeneral'] > 1) continue;?>
+                    <?//mfi mfiOthers?>
+                    <?//if ($result["direction"] == 'long' && ($result['mfiOthers']['isUpDir'] === false && $result['mfiOthers']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
+                    <?//if ($result["direction"] == 'short' && ($result['mfiOthers']['isDownDir'] === false && $result['mfiOthers']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
 
                     <? $cntSignals += 1; ?>
                     <? if ($result["profit"] > 0) {
@@ -1369,8 +1465,17 @@ while ($element = $res->Fetch()) {
 // 1) Формируем raw equity с нулевой точкой
 $equityPoints = [];
 $cumulative = 0;
-if (!$filteredResults) $filteredResults = [];
-
+if (!$filteredResults) {
+    $filteredResults = [];
+} /*else {
+    //скипаем не сделки которые еще не отработали ни в одну сторону
+    $filteredResults = array_filter(
+        $filteredResults,
+        function($r) {
+            return isset($r['profit']) && floatval($r['profit']) != 0.0;
+        }
+    );
+}*/
 // Добавляем начальную точку на время фильтра
 if ($startDateStr) {
     // конвертим 'YYYY-MM-DDTHH:MM' в 'DD.MM.YYYY HH:mm:ss'
@@ -1435,6 +1540,7 @@ $winRateChartArr = array_map(fn($r) => [
             //trainRes: <?//=CUtil::PhpToJSObject($trainRes, false, false, true)?>,
             //predictRes: <?//=CUtil::PhpToJSObject($predictRes, false, false, true)?>,
             //predictMarketRes: <?//=CUtil::PhpToJSObject($predictMarketRes, false, false, true)?>,
+            $filteredResults: <?=CUtil::PhpToJSObject($filteredResults, false, false, true)?>,
         }
         console.log('finalResults', finalResults);
 

@@ -231,8 +231,6 @@ class DataOperation
             '1h' => 'H1',
         ];
 
-        $message .= '⏰ Timeframe: ' . $intervalsMap[$res['interval']] . "\n";
-
         if ($res['leverage'])
             $message .= '💰 Leverage: Сross (' . $res['leverage'] . ")\n\n";
         else
@@ -254,6 +252,8 @@ class DataOperation
 
         if ($additionalInfo) {
             $message .= '_______________________' . "\n";
+
+            $message .= 'Timeframe: ' . $intervalsMap[$res['interval']] . "\n";
 
              if ($res['recommendedEntry'])
                  $message .= 'Recommended entry: ' . $res['recommendedEntry'] .  "\n";

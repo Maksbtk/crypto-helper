@@ -315,6 +315,22 @@ class Exchange
                     devlogs('ERR | err - Supertrend 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
+                $actualAdx5m = false;
+                try {
+                    $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
+                    $screenerData['actualAdx5m'] = $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
+                } catch (Exception $e) {
+                    devlogs('ERR ' . $symbolName . ' | err - adx 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                }
+
+                if (
+                    $actualAdx5m
+                    && ($actualAdx5m['adx'] < 20)
+                ) {
+                    devlogs('CONTINUE ' . $symbolName . ' |  adx 5m ' . $actualAdx5m['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    continue;
+                }
+
                 $candles15m = $candles;
                 if ($interval != '15m') {
                     $kline15m = $okxApiOb->getCandles($symbolName, '15m', $barsCount,true, 120);
@@ -475,7 +491,9 @@ class Exchange
 
                 $candles1h = [];
                 $actualAdx1h = false;
-                $kline1h = $okxApiOb->getCandles($symbolName, '1H', 100,true, 120);
+                $screenerData['ma400_1h'] = $ma400_1h = $screenerData['ma100_1h'] = $ma100_1h = [];
+
+                $kline1h = $okxApiOb->getCandles($symbolName, '1H', $barsCount,true, 120);
                 if (empty($kline1h) || !is_array($kline1h)) {
                     devlogs('ERR 4' . $symbolName . ' | err - klinen 1h' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     //continue;
@@ -508,7 +526,26 @@ class Exchange
                     } catch (Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
+
+                    if (is_array($candles1h) && count($candles1h) >= 802) {
+                        try {
+                            $ma400His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 400, 10) ?? [];
+                            $screenerData['ma400_1h'] = $ma400_1h = $ma400His_1h[array_key_last($ma400His_1h)];
+                        } catch (Exception $e) {
+                            devlogs('ERR ' . $symbolName . ' | err - ma400 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        }
+                    }
+
+                    if (is_array($candles1h) && count($candles1h) >= 202) {
+                        try {
+                            $ma100His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 100, 10) ?? [];
+                            $screenerData['ma100_1h'] = $ma100_1h = $ma100His_1h[array_key_last($ma100His_1h)];
+                        } catch (Exception $e) {
+                            devlogs('ERR ' . $symbolName . ' | err - ma100 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        }
+                    }
                 }
+
                 if (
                     $actualAdx1h
                     && (
@@ -551,6 +588,8 @@ class Exchange
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'long')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'long')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Bybit\Exchange::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Bybit\Exchange::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'long')
                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                 ) {
                     $screenerData['isLong'] = true;
@@ -612,6 +651,8 @@ class Exchange
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'short')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'short')
                     && \Maksv\Bybit\Exchange::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Bybit\Exchange::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Bybit\Exchange::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'short')
                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                 ) {
                     $screenerData['isLong'] = false;
@@ -691,11 +732,11 @@ class Exchange
 
                     $screenerData['mlBoard'] = $mlBoard = 0.71;
                     if ($screenerData['isLong']){
-                        $screenerData['mlBoard'] = $mlBoard = 0.74; //0.71
+                        $screenerData['mlBoard'] = $mlBoard = 0.73; //0.73
                         $screenerData['marketMLName'] = 'longMl';
                         $actualStrategyName = 'screenerPump';
                     } else {
-                        $screenerData['mlBoard'] = $mlBoard = 0.74; //0.71
+                        $screenerData['mlBoard'] = $mlBoard = 0.73; //0.72
                         $screenerData['marketMLName'] = 'shortMl';
                         $actualStrategyName = 'screenerDump';
                     }

@@ -7,16 +7,16 @@ $aMenuLinks = Array(
 		Array("SIDE"=>"LEFT"), 
 		"" 
 	),
-	Array(
-		"Сигналы bybit", 
-		"/user/bybitScreener/",
-		Array(), 
-		Array("SIDE"=>"LEFT"), 
-		"" 
-	),
     Array(
-        "Сигналы binance",
-        "/user/binanceScreener/",
+        "statistics beta forever",
+        "/stat/",
+        Array(),
+        Array("SIDE"=>"LEFT"),
+        ""
+    ),
+    Array(
+        "statistics ml",
+        "/stat/ml.php",
         Array(),
         Array("SIDE"=>"LEFT"),
         ""
@@ -63,13 +63,5 @@ $aMenuLinks = Array(
 		Array("SIDE"=>"RIGHT"), 
 		"" 
 	),
-    Array(
-        "Статистика",
-        "/stat/",
-        Array(),
-        Array("SIDE"=>"RIGHT"),
-        ""
-    )
-
 );
 ?>

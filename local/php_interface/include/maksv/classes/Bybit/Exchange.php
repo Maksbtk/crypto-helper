@@ -337,12 +337,28 @@ class Exchange
                 $actualSupertrend5m = [];
                 try {
                     $supertrendData5m = \Maksv\TechnicalAnalysis::calculateSupertrend($candles5m, 10, 3) ?? false; // длина 10, фактор 3
+
                     $screenerData['actualSupertrend5m'] = $actualSupertrend5m = $supertrendData5m[array_key_last($supertrendData5m)] ?? false;
                     if (!$actualSupertrend5m)
                         devlogs('ERR ' . $symbolName . ' | err - actualSupertrend5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-
                 } catch (Exception $e) {
                     devlogs('ERR | err - Supertrend 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                }
+
+                $actualAdx5m = false;
+                try {
+                    $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
+                    $screenerData['actualAdx5m'] = $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
+                } catch (Exception $e) {
+                    devlogs('ERR ' . $symbolName . ' | err - adx 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                }
+
+                if (
+                    $actualAdx5m
+                    && ($actualAdx5m['adx'] < 20)
+                ) {
+                    devlogs('CONTINUE ' . $symbolName . ' |  adx 5m ' . $actualAdx5m['adx'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    continue;
                 }
 
                 $candles15m = $candles;
@@ -419,7 +435,6 @@ class Exchange
                 if (!$ma26)
                     devlogs('ERR ' . $symbolName . ' | err - ma26' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
-
                 if (is_array($candles) && count($candles) >= 102) {
                     try {
                         $ma50His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 12, 50, 102) ?? [];
@@ -437,9 +452,9 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - ma100 candles15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
+
                 if (!$ma100)
                     devlogs('ERR ' . $symbolName . ' | err - ma100' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-
 
                 if (is_array($candles15m) && count($candles15m) >= 402) {
                     try {
@@ -503,8 +518,9 @@ class Exchange
 
                 $candles1h = [];
                 $actualAdx1h = false;
+                $screenerData['ma400_1h'] = $ma400_1h = $screenerData['ma100_1h'] = $ma100_1h = [];
 
-                $kline1h = $bybitApiOb->klineV5("linear", $symbolName, '1h', 100, true, 120);
+                $kline1h = $bybitApiOb->klineV5("linear", $symbolName, '1h', $barsCount, true, 120);
                 if (!$kline1h['result'] || !$kline1h['result']['list'] || !is_array($kline1h['result']['list'])) {
                     devlogs('ERR 3' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     //continue;
@@ -535,6 +551,24 @@ class Exchange
                         $screenerData['actualAdx1h'] = $actualAdx1h = $adxData1h[array_key_last($adxData1h)];
                     } catch (Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    }
+
+                    if (is_array($candles1h) && count($candles1h) >= 802) {
+                        try {
+                            $ma400His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 400, 10) ?? [];
+                            $screenerData['ma400_1h'] = $ma400_1h = $ma400His_1h[array_key_last($ma400His_1h)];
+                        } catch (Exception $e) {
+                            devlogs('ERR ' . $symbolName . ' | err - ma400 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        }
+                    }
+
+                    if (is_array($candles1h) && count($candles1h) >= 202) {
+                        try {
+                            $ma100His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 100, 10) ?? [];
+                            $screenerData['ma100_1h'] = $ma100_1h = $ma100His_1h[array_key_last($ma100His_1h)];
+                        } catch (Exception $e) {
+                            devlogs('ERR ' . $symbolName . ' | err - ma100 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                        }
                     }
                 }
 
@@ -580,6 +614,8 @@ class Exchange
                     && self::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'long')
                     && self::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'long')
                     && self::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'long')
+                    && self::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'long')
+                    && self::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'long')
                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                 ) {
                     $screenerData['isLong'] = true;
@@ -640,6 +676,8 @@ class Exchange
                     && self::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'short')
                     && self::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'short')
                     && self::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'short')
+                    && self::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'short')
+                    && self::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'short')
                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                 ) {
                     $screenerData['isLong'] = false;
@@ -717,11 +755,11 @@ class Exchange
 
                     $screenerData['resML']['mlBoard'] = $mlBoard =  0.71;
                     if ($screenerData['isLong']){
-                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.73; // 0.72
+                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.73; // 0.73
                         $screenerData['marketMLName'] = 'longMl';
                         $actualStrategyName = 'screenerPump';
                     } else {
-                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.77; // 0.72
+                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.74; // 0.73
                         $screenerData['marketMLName'] = 'shortMl';
                         $actualStrategyName = 'screenerDump';
                     }
@@ -1173,7 +1211,7 @@ class Exchange
             'dump' => [],
         ];
 
-        $btcInfo = self::checkMarketImpulsInfoDev();
+        $btcInfo = self::checkMarketImpulsInfo();
 
         $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/bybitExchange/summaryVolumeExchange.json';
         $existingDataSeparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
@@ -1252,7 +1290,7 @@ class Exchange
 
                 //периодически обновляем данные
                 if ($countReq % 40 === 0)
-                    $btcInfo = self::checkMarketImpulsInfoDev();
+                    $btcInfo = self::checkMarketImpulsInfo();
 
                 try {
                     $klineHistory = [];
@@ -1509,6 +1547,21 @@ class Exchange
                                     devlogs('ERR | err - Supertrend 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
+                                $actualAdx5m = false;
+                                try {
+                                    $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
+                                    $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualAdx5m'] = $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
+                                } catch (Exception $e) {
+                                    devlogs('ERR | ' . $symbolName . ' adx 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
+                                }
+
+                                if (
+                                    $actualAdx5m
+                                    && ($actualAdx5m['adx'] < 18)
+                                ) {
+                                    continue;
+                                }
+
                                 //если лонг, а тренды все down
                                 if (
                                     $analyzeVolumeSignalRes['isLong']
@@ -1556,7 +1609,10 @@ class Exchange
                                 }
 
                                 $actualStochastic1h = $actualAdx1h = [];
-                                $kline1h = $bybitApiOb->klineV5("linear", $symbolName, '1h', 100, true, 120);
+                                $kline1h = $bybitApiOb->klineV5("linear", $symbolName, '1h', $barsCount, true, 120);
+                                $crossMA400_1h = $crossMA100_1h = [];
+
+
                                 if (!$kline1h['result'] || !$kline1h['result']['list'] || !is_array($kline1h['result']['list'])) {
                                     devlogs('ERR 3 |  timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                     //continue;
@@ -1587,6 +1643,22 @@ class Exchange
                                         $actualAdx1h = $adxData1h[array_key_last($adxData1h)];
                                     } catch (Exception $e) {
                                         devlogs('ERR | ' . $symbolName . ' err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
+                                    }
+
+                                    if (is_array($candles1h) && count($candles1h) >= 802) {
+                                        try {
+                                            $crossMA400_1h = \Maksv\TechnicalAnalysis::checkMACross($candles1h, 9, 400, 20, 2) ?? [];
+                                        } catch (Exception $e) {
+                                            devlogs('ERR | ' . $symbolName . '  err - ma400 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
+                                        }
+                                    }
+
+                                    if (is_array($candles1h) && count($candles1h) >= 202) {
+                                        try {
+                                            $crossMA100_1h = \Maksv\TechnicalAnalysis::checkMACross($candles1h, 9, 100, 20, 2) ?? [];
+                                        } catch (Exception $e) {
+                                            devlogs('ERR | ' . $symbolName . '  err - ma100 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
+                                        }
                                     }
                                 }
 
@@ -1629,6 +1701,9 @@ class Exchange
                                     'lastCrossMA200' => $crossMA200,
                                     'lastCrossMA100' => $crossMA100,
                                     'crossMAVal' => $crossMAVal,
+
+                                    'lastCrossMA100_1h' => $crossMA100_1h,
+                                    'lastCrossMA400_1h' => $crossMA400_1h,
 
                                     'candles15m' => array_slice($candles15m, -30),
 
@@ -1711,6 +1786,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'long')
                                 ) {
                                     if ($crossMA100['isLong']) {
                                         $opportunityData['strategy'] = 'MA100xEMA9/MACD';
@@ -1725,7 +1802,7 @@ class Exchange
                                 }
 
                                 if (
-                                    $timeFrame == '15m'
+                                    $timeFrame == '15m' // $ma400_1h $ma100_1h
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
                                     && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
@@ -1733,7 +1810,10 @@ class Exchange
                                     && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
-                                    && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')                                ) {
+                                    && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'short')
+                                ) {
                                     if ($crossMA100['isShort']) {
                                         $opportunityData['strategy'] = 'MA100xEMA9/MACD';
                                     } else if ($crossMA200['isShort']) {
@@ -1756,6 +1836,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'long')
                                 ) {
                                     $opportunityData['strategy'] = 'macd/!d/MAfar';
                                     $actualOpportunities['masterPump'][$symbolName] = $actualOpportunities['allPump'][$symbolName] = $opportunityData;
@@ -1771,6 +1853,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'short')
                                 ) {
                                     $opportunityData['strategy'] = 'macd/!d/MAfar';
                                     $actualOpportunities['masterDump'][$symbolName] = $actualOpportunities['allDump'][$symbolName] = $opportunityData;
@@ -1788,6 +1872,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'long')
                                 ) {
                                     $opportunityData['strategy'] = 'macdI/direct/!d/MAfar';
                                     $actualOpportunities['masterPump'][$symbolName] = $actualOpportunities['allPump'][$symbolName] = $opportunityData;
@@ -1804,6 +1890,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'short')
                                 ) {
                                     $opportunityData['strategy'] = 'macdI/direct/!d/MAfar';
                                     $actualOpportunities['masterDump'][$symbolName] = $actualOpportunities['allDump'][$symbolName] = $opportunityData;
@@ -1819,6 +1907,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'long')
                                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                                     && ($actualMacdDivergence['longDivergenceTypeAr']['regular'] || $actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                                 ) {
@@ -1835,6 +1925,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'short')
                                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                                     && ($actualMacdDivergence['shortDivergenceTypeAr']['regular'] || $actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                                 ) {
@@ -1853,6 +1945,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'long')
                                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                                 ) {
                                     $opportunityData['strategy'] = 'stochRsi/!d/MAfar';
@@ -1869,6 +1963,8 @@ class Exchange
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'short')
                                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                                 ) {
                                     $opportunityData['strategy'] = 'stochRsi/!d/MAfar';
@@ -2038,10 +2134,10 @@ class Exchange
 
                 $dump = array_merge($dump, $processed);
 
-                $dump['resML']['totalMl'] = $totalMl = $marketMl = $signalMl = false;
-                $dump['resML']['marketMl'] = $marketMl = $btcInfo['shortMl']['probabilities'][1] ?? false;
-                $dump['resML']['signalMl'] = $signalMl = $dump['actualMlModel']['probabilities'][1] ?? false;
-                if ($marketMl && $signalMl) {
+                $dump['resML']['totalMl'] = $totalMl = $marketMl = $signalMl = 0;
+                $dump['resML']['marketMl'] = $marketMl = $btcInfo['shortMl']['probabilities'][1] ?? 0;
+                $dump['resML']['signalMl'] = $signalMl = $dump['actualMlModel']['probabilities'][1] ?? 0;
+                if ($marketMl || $signalMl) {
                     $dump['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
                 }
                 $dump['resML']['mlBoard'] = $mlBoard = $btcInfo['mlBoard'] ?? 0.71;
@@ -2327,7 +2423,7 @@ class Exchange
                     }
 
                     try {
-                        $impulseMACD15m = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles15m, 34, 9, 3) ?? false;
+                        $impulseMACD15m = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles15m) ?? false;
                         if ($impulseMACD15m && is_array($impulseMACD15m))
                             $res['actualImpulsMacd15m'] = $actualImpulsMacd15m = $impulseMACD15m[array_key_last($impulseMACD15m)];
                     } catch (Exception $e) {
@@ -2427,11 +2523,19 @@ class Exchange
                     }
 
                     try {
+                        $mfiData15m = \Maksv\TechnicalAnalysis::calculateMFI($candles15m);
+                        $res['mfi15m'] = $mfiData15m[array_key_last($mfiData15m)] ?? [];
+                    } catch (Exception $e) {
+                        devlogs('ERR | err - mfi 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
+                    }
+
+                    try {
                         $res['fibonacciLevels15m'] = \Maksv\TechnicalAnalysis::buildFibonacciLevels($candles15m, 8);
 
                     } catch (Exception $e) {
                         devlogs('ERR | err - fiba 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
+
                 }
 
                 $klineList1h = $marketKlines['1h'] ?? [];
@@ -2454,13 +2558,12 @@ class Exchange
                         ];
                     }, $klineList1h);
 
-                    /* try {
-                         //$firstNCandles =  array_slice($candles4h, 0, 250);
-                         $res['fibonacciLevels1h'] = \Maksv\TechnicalAnalysis::buildFibonacciLevels($candles1h, 8);
 
-                     } catch (Exception $e) {
-                         devlogs('ERR | err - fiba 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
-                     }*/
+                    $res['last30Candles1h'] = array_slice($candles1h, -30);
+                    if (!$res['last30Candles1h'] || !is_array($res['last30Candles1h'])) {
+                        $res['last30Candles1h'] = [];
+                        \Maksv\DataOperation::sendErrorInfoMessage('not found data last30Candles1h', $backtraceStr, 'getMarketInfo');
+                    }
 
                     try {
 
@@ -2505,7 +2608,20 @@ class Exchange
                     }
 
                     try {
-                        $res['ma100_1h'] = \Maksv\TechnicalAnalysis::checkMACross($candles1h, 9, 100, 20, 2) ?? [];
+                        $res['ma100_1h'] = \Maksv\TechnicalAnalysis::checkMACross($candles1h, 4, 100, 20, 2) ?? [];
+                        $res['ma100_1h']['actualClosePrice15m'] = $res['actualClosePrice15m'];
+
+                        if ($res['ma100_1h']['ema'] < $res['ma100_1h']['sma']) {
+                            $res['ma100_1h']['isUptrend'] = false;
+                        } else if ($res['ma100_1h']['ema'] > $res['ma100_1h']['sma']) {
+                            $res['ma100_1h']['isUptrend'] = true;
+                        } else {
+                            if ($res['actualClosePrice15m'] < $res['ma100_1h']['sma'])
+                                $res['ma100_1h']['isUptrend'] = false;
+                            else if ($res['actualClosePrice15m'] < $res['ma100_1h']['sma'])
+                                $res['ma100_1h']['isUptrend'] = true;
+                        }
+
                     } catch (Exception $e) {
                         devlogs('ERR | err - ma100 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
@@ -2516,6 +2632,13 @@ class Exchange
                             $res['actualImpulsMacd1h'] = $actualImpulsMacd1h = $impulseMACD1h[array_key_last($impulseMACD1h)];
                     } catch (Exception $e) {
                         devlogs('ERR | err - actualImpulsMacd 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
+                    }
+
+                    try {
+                        $mfiData1h = \Maksv\TechnicalAnalysis::calculateMFI($candles1h);
+                        $res['mfi1h'] = $mfiData1h[array_key_last($mfiData1h)] ?? [];
+                    } catch (Exception $e) {
+                        devlogs('ERR | err - mfi 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
                 }
 
@@ -2540,7 +2663,7 @@ class Exchange
                     }, $klineList4h);
 
                     try {
-                        $impulseMACD4h = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles4h, 34, 9, 3) ?? false;
+                        $impulseMACD4h = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles4h) ?? false;
                         if ($impulseMACD4h && is_array($impulseMACD4h))
                             $res['actualImpulsMacd4h'] = $actualImpulsMacd4h = $impulseMACD4h[array_key_last($impulseMACD4h)];
                     } catch (Exception $e) {
@@ -2548,9 +2671,35 @@ class Exchange
                     }
 
                     try {
-                        $res['ma100_4h'] = \Maksv\TechnicalAnalysis::checkMACross($candles4h, 9, 100, 20, 2) ?? [];
+                        $res['ma100_4h'] = \Maksv\TechnicalAnalysis::checkMACross($candles4h, 2, 100, 20, 2) ?? [];
+                        $res['ma100_4h']['actualClosePrice15m'] = $res['actualClosePrice15m'];
+                        if ($res['ma100_4h']['ema'] < $res['ma100_4h']['sma']) {
+                            $res['ma100_4h']['isUptrend'] = false;
+                        } else if ($res['ma100_4h']['ema'] > $res['ma100_4h']['sma']) {
+                            $res['ma100_4h']['isUptrend'] = true;
+                        } else {
+                            if ($res['actualClosePrice15m'] < $res['ma100_4h']['sma']) {
+                                $res['ma100_4h']['isUptrend'] = false;
+                            } else if ($res['actualClosePrice15m'] < $res['ma100_4h']['sma']) {
+                                $res['ma100_4h']['isUptrend'] = true;
+                            }
+                        }
+
                     } catch (Exception $e) {
                         devlogs('ERR | err - ma100 4h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
+                    }
+
+                    try {
+                        $res['ma150_4h'] = \Maksv\TechnicalAnalysis::checkMACross($candles4h, 3, 150, 20, 2) ?? [];
+
+                        $res['ma150_4h']['actualClosePrice15m'] = $res['actualClosePrice15m'];
+                        if ($res['ma150_4h']['ema'] < $res['ma150_4h']['sma']) {
+                            $res['ma150_4h']['isUptrend'] = false;
+                        } else if ($res['ma150_4h']['ema'] > $res['ma150_4h']['sma']) {
+                            $res['ma150_4h']['isUptrend'] = true;
+                        }
+                    } catch (Exception $e) {
+                        devlogs('ERR | err - ma150 4h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
@@ -2582,7 +2731,7 @@ class Exchange
         $res['atrMultipliers'] = false;
         $res['shortTpCount'] = $res['longTpCount'] = 1;
         $res['risk'] = 6;
-        $maDistance = 2.5;
+        $maDistance = 2;
 
         $res['marketImpulsInfo'] = $marketImpulsInfo = self::getMarketInfo();
         $res['btcImpulsInfo'] = $btcImpulsInfo = self::checkBtcImpulsInfo();
@@ -2613,7 +2762,7 @@ class Exchange
         $infoText .= 'impuls macd hist ' . formatBigNumber($marketImpulsInfo['actualImpulsMacd1h']['histogram']) . ' trend ' . ($marketImpulsInfo['actualImpulsMacd1h']['trend']['trendText'])
             . ' (' . formatBigNumber($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd']) . ', '
             . formatBigNumber($marketImpulsInfo['actualImpulsMacd1h']['signal_line']) . '), (' . $marketImpulsInfo['actualImpulsMacd1h']['trend']['trendVal'] . '), 1h' . "\n";
-        
+
         //market impuls macd 15m text
         $infoText .= 'impuls macd hist ' . formatBigNumber($marketImpulsInfo['actualImpulsMacd15m']['histogram']) . ' trend ' . ($marketImpulsInfo['actualImpulsMacd15m']['trend']['trendText'])
             . ' (' . formatBigNumber($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd']) . ', '
@@ -2716,19 +2865,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
-          /*  if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 2000000000) {
-                $res['risk'] = 3.5;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 1h\n";
-            }*/
-
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 5000000000) {
-                $res['risk'] = 3.5;
-                $res['mlBoard'] = 0.73;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 1h\n";
-            }
-
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= 4000000000) {
                 $res['risk'] = 3.5;
                 $res['mlBoard'] = 0.73;
@@ -2769,6 +2905,12 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 1h stoch trend\n";
             }
 
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 5000000000) {
+                $res['risk'] = 3;
+                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h\n";
+            }
+
             if (
                 $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] == 0
                 || $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
@@ -2784,12 +2926,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low impuls hist 5m\n";
             }
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
-            }
-
             if (!self::checkMaCondition($marketImpulsInfo['ma100_15m'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
@@ -2802,11 +2938,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m ma 200 close\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 6000000000) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls 1h\n";
-            }
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['histogram'] > 0 && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] <= ($marketImpulsMacdVal / 2)) {
                 $res['risk'] = 3;
@@ -2820,7 +2951,7 @@ class Exchange
             ) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " low adx 5m\n";
+                $infoText .= 'risk ' . $res['risk'] . " low adx 5m (22)\n";
             }
 
 
@@ -2858,6 +2989,12 @@ class Exchange
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 6000000000) {
+                $res['risk'] = 2.5;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
@@ -2920,6 +3057,42 @@ class Exchange
             }
 
             if (
+                $marketImpulsInfo['actualAdx5m']['adx'] < 18
+            ) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
+            }
+
+            /*if (
+                $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 5000000000
+                && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
+            ) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
+            }*/
+
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
+            }
+
+            if (!self::checkMaCondition($marketImpulsInfo['ma150_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 4h ma 150 close\n";
+            }
+
+
+            if ($marketImpulsInfo['mfi15m']['isUpDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] <= 50) {
+                $res['risk'] = 2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " down mfi 15m\n";
+            }
+
+            if (
                 $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] == 0
             ) {
                 $res['risk'] = 2;
@@ -2957,13 +3130,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -5000000000) {
-                $res['risk'] = 3.5;
-                $res['mlBoard'] = 0.74;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 1h\n";
-            }
-
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= -4000000000) {
                 $res['risk'] = 3.5;
                 $res['mlBoard'] = 0.74;
@@ -2995,6 +3161,12 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " diver\n";
             }
 
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -5000000000) {
+                $res['risk'] = 3;
+                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h\n";
+            }
+
             if (
                 $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] == 0
                 || $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
@@ -3002,12 +3174,6 @@ class Exchange
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " neutral trend 4h 1h\n";
-            }
-
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_15m'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
@@ -3031,12 +3197,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 1h stoch trend\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -6000000000) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls 1h\n";
-            }
-
             if ($marketImpulsInfo['actualImpulsMacd5m']['histogram'] < 0 && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] >= -($marketImpulsMacdVal / 2)) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
@@ -3049,9 +3209,8 @@ class Exchange
             ) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " low adx 5m\n";
+                $infoText .= 'risk ' . $res['risk'] . " low adx 5m (22)\n";
             }
-
 
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx1h']['adx'] < 25) {
                 $res['risk'] = 3;
@@ -3087,6 +3246,12 @@ class Exchange
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -6000000000) {
+                $res['risk'] = 2.5;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
@@ -3129,7 +3294,7 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (15)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketMidImpulsBoard) {
+            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketMidImpulsBoard*1.05) {
                 $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
@@ -3147,6 +3312,41 @@ class Exchange
                 $res['risk'] = 2.4;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " 15m trend close\n";
+            }
+
+           /* if (
+                $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -5000000000
+                && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
+            ) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
+            }*/
+
+            if (
+                $marketImpulsInfo['actualAdx5m']['adx'] < 18
+            ) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
+            }
+
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
+            }
+
+            if (!self::checkMaCondition($marketImpulsInfo['ma150_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 4h ma 150 close\n";
+            }
+
+            if ($marketImpulsInfo['mfi15m']['isDownDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] >= 50) {
+                $res['risk'] = 2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " up mfi 15m\n";
             }
 
             if (
@@ -3259,7 +3459,7 @@ class Exchange
         $res['atrMultipliers'] = false;
         $res['shortTpCount'] = $res['longTpCount'] = 1;
         $res['risk'] = 6;
-        $maDistance = 2.5;
+        $maDistance = 2;
 
         $res['marketImpulsInfo'] = $marketImpulsInfo = self::getMarketInfo('total3');
         $res['btcImpulsInfo'] = $btcImpulsInfo = self::checkBtcImpulsInfo();
@@ -3387,19 +3587,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
-            /*  if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 2000000000) {
-                  $res['risk'] = 3.5;
-                  $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                  $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 1h\n";
-              }*/
-
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 15000000000) {
-                $res['risk'] = 3.5;
-                $res['mlBoard'] = 0.73;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 1h\n";
-            }
-
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= 10000000000) {
                 $res['risk'] = 3.5;
                 $res['mlBoard'] = 0.73;
@@ -3440,6 +3627,12 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 1h stoch trend\n";
             }
 
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 15000000000) {
+                $res['risk'] = 3;
+                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 1h\n";
+            }
+
             if (
                 $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] == 0
                 || $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
@@ -3455,12 +3648,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low impuls hist 5m\n";
             }
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
-            }
-
             if (!self::checkMaCondition($marketImpulsInfo['ma100_15m'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
@@ -3471,12 +3658,6 @@ class Exchange
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " 15m ma 200 close\n";
-            }
-
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 17000000000) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['histogram'] > 0 && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] <= ($marketImpulsMacdVal / 2)) {
@@ -3523,6 +3704,12 @@ class Exchange
                 $res['risk'] = 2.8;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 17000000000) {
+                $res['risk'] = 2.5;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
@@ -3591,6 +3778,35 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m trend close\n";
             }
 
+           /* if (
+                $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 15000000000
+                && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
+            ) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
+            }*/
+
+            if (
+                $marketImpulsInfo['actualAdx5m']['adx'] < 18
+            ) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
+            }
+
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
+            }
+
+            if ($marketImpulsInfo['mfi15m']['isUpDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] <= 50) {
+                $res['risk'] = 2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " down mfi 15m\n";
+            }
+
             if (
                 $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] == 0
             ) {
@@ -3629,13 +3845,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -15000000000) {
-                $res['risk'] = 3.5;
-                $res['mlBoard'] = 0.74;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 1h\n";
-            }
-
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= -10000000000) {
                 $res['risk'] = 3.5;
                 $res['mlBoard'] = 0.74;
@@ -3667,6 +3876,12 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " diver\n";
             }
 
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -15000000000) {
+                $res['risk'] = 3;
+                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 1h\n";
+            }
+
             if (
                 $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] == 0
                 || $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
@@ -3674,12 +3889,6 @@ class Exchange
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " neutral trend 4h 1h\n";
-            }
-
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_15m'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
@@ -3701,12 +3910,6 @@ class Exchange
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " 1h stoch trend\n";
-            }
-
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -17000000000) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['histogram'] < 0 && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] >= -($marketImpulsMacdVal / 2)) {
@@ -3754,10 +3957,10 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
-                $res['risk'] = 2.4;
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -17000000000) {
+                $res['risk'] = 2.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " 1h ma 100 close\n";
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
@@ -3774,6 +3977,11 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
             }
 
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
+                $res['risk'] = 2.4;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 1h ma 100 close\n";
+            }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
                 $res['risk'] = 2.4;
@@ -3819,6 +4027,35 @@ class Exchange
                 $res['risk'] = 2.4;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " 15m trend close\n";
+            }
+
+            if (
+                $marketImpulsInfo['actualAdx5m']['adx'] < 18
+            ) {
+                $res['risk'] = 2.5;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
+            }
+
+            /*if (
+                $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -15000000000
+                && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
+            ) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
+            }*/
+
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
+            }
+
+            if ($marketImpulsInfo['mfi15m']['isDownDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] >= 50) {
+                $res['risk'] = 2;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " up mfi 15m\n";
             }
 
             if (
@@ -4637,7 +4874,7 @@ class Exchange
      *     - иначе рассчитываем diffPercent = ((actualClosePrice - sma) / sma) * 100
      *       и возвращаем true, если diffPercent >= $maDistance, иначе false.
      */
-    public static function checkMaCondition(array $ma, float $actualClosePrice, int $maDistance, string $direction): bool
+    public static function checkMaCondition(array $ma, float $actualClosePrice, float $maDistance, string $direction): bool
     {
         // 1) Если 'sma' не указан или равен нулю → считаем условие выполненным (true)
         if (empty($ma['sma']) || floatval($ma['sma']) === 0.0) {
@@ -4649,7 +4886,7 @@ class Exchange
 
         if ($direction === 'long') {
             // Для long: если уже в восходящем тренде → true
-            if (!empty($ma['isUptrend'])) {
+            if ($ma['isUptrend']) {
                 return true;
             }
             // Иначе: проверяем, что цена упала относительно SMA на maDistance процентов либо больше
@@ -4657,7 +4894,7 @@ class Exchange
 
         } elseif ($direction === 'short') {
             // Для short: если уже не в восходящем тренде → true
-            if (empty($ma['isUptrend'])) {
+            if (!$ma['isUptrend']) {
                 return true;
             }
             // Иначе: проверяем, что цена поднялась относительно SMA на maDistance процентов либо больше
