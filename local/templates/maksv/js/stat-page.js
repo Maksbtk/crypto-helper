@@ -104,7 +104,7 @@ $(document).ready(function () {
     }
 
     //кривая доходности
-    var sliceEquityData = aggEquityPoints.slice(); // ваши точки
+    var sliceEquityData = aggEquityPoints.slice();
     var ctx = document.getElementById('equityChart');
     var equityChart = new Chart(ctx, {
         type: 'line',
@@ -174,7 +174,7 @@ $(document).ready(function () {
     });
 
     // просадка
-    var sliceDrawdownData = drawdownData.slice(); // ваши точки
+    var sliceDrawdownData = drawdownData.slice();
     var ddCtx = document.getElementById('drawdownChart');
     var drawdownChart = new Chart(ddCtx, {
         type: 'line',
@@ -247,8 +247,6 @@ $(document).ready(function () {
             datasets: [{
                 label: 'Count',
                 data: bins,
-                //backgroundColor: 'rgba(0, 123, 255, 0.6)',
-                //borderColor:     'rgba(0, 123, 255, 1)',
                 borderColor: 'rgba(14, 14, 42, 0.7)',
                 backgroundColor: 'rgba(0, 123, 255, 0.1)',
                 borderWidth: 2
@@ -418,9 +416,7 @@ $(document).ready(function () {
     const charts = [equityChart, drawdownChart, winrateChart];
     const canvases = charts.map(c => c.canvas);
 
-    // где‑то в начале вашего скрипта
     let lastActiveKey = null;
-
     // общий обработчик движения
     function handlePointerMove(e) {
 
@@ -447,7 +443,7 @@ $(document).ready(function () {
             ch.draw();                // здесь мы НЕ трогаем тултипы
         });
 
-        // 4) на исходном графике ищем ближайшую точку строго по X
+        // на исходном графике ищем ближайшую точку строго по X
         //const pts = source.getElementsAtEventForMode(
         let pts = source.getElementsAtEventForMode(
             e,
@@ -472,7 +468,7 @@ $(document).ready(function () {
                 source.draw(); // и перерисовываем уже с тултипом
             }
         }
-        // **если pts.length === 0**, ничего не делаем — тултип остаётся на последней
+        //
         
     }
 
@@ -496,8 +492,6 @@ $(document).ready(function () {
     });
 
     //!-cursor
-
-
     function sendAIAnalysis(filterFunc, promptIntro) {
         var trades = finalResults.res.filter(filterFunc);
         if (!trades.length) {
@@ -580,10 +574,17 @@ $(document).ready(function () {
 
     $('#statsFilterForm').on('submit', function (e) {
         window.siteShowPrelouder();
-        setTimeout(() => {
+        /*setTimeout(() => {
             window.siteHidePrelouder();
-        }, "15000");
-
+        }, "35000");*/
     });
+
+    // подставляем из stats
+    $('#summary-profit').text(stats.profitDollar + ' $');
+    $('#summary-total').text(stats.closedTrades);
+    $('#summary-winrate').text(stats.winRatePercent + '%');
+    $('#summary-winloss').text('(' + stats.winningTrades + '/' + stats.losingTrades + ')');
+    // показываем контейнер
+    $('#summary-stats-container').fadeIn(200);
 
 });

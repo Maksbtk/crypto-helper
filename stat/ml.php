@@ -31,6 +31,7 @@ $categoriesMap = [
         7 => 'screener',
         5 => 'master',
         6 => 'alerts',
+        12 => 'screenerMFI',
     ],
     7 => [
         8 => 'screener',
@@ -83,24 +84,26 @@ $leverege = isset($_GET['leverege']) ? intval($_GET['leverege']) : 1;  // пле
 $defaultTpSrearAr = [1.9, 2.6, 3.4, 5.6, 6.9];
 $tpStrategyAr = [
     0 => ['NAME' => 'default', 'VALUE' => false],
-    1 => ['NAME' => '1.1, 2.2, 3.6, 6, 8.4', 'VALUE' => [1.1, 2.2, 3.6, 6, 8.4]],
-    3 => ['NAME' => '1.4, 2.6, 3.4, 5.6, 6.9', 'VALUE' => [1.4, 2.6, 3.4, 5.6, 6.9]],
-    4 => ['NAME' => '1.8, 2.6, 3.4, 5.6, 6.9', 'VALUE' => [1.8, 2.6, 3.4, 5.6, 6.9]],
-    5 => ['NAME' => '1.9, 2.6, 3.4, 5.6, 6.9', 'VALUE' => [1.9, 2.6, 3.4, 5.6, 6.9]],
-    6 => ['NAME' => '1.9, 2.7, 3.4, 5.6, 6.9', 'VALUE' => [1.9, 2.7, 3.4, 5.6, 6.9]],
-    7 => ['NAME' => '1.9, 2.9, 3.9, 5.9, 6.9', 'VALUE' => [1.9, 2.9, 3.9, 5.9, 6.9]],
-    8 => ['NAME' => '2.3, 2.9, 3.3, 5.6, 6.9', 'VALUE' => [2.3, 2.9, 3.3, 5.6, 6.9]],
-    9 => ['NAME' => '2.2, 3.4, 4.9, 5.6, 6.9', 'VALUE' => [2.2, 3.4, 4.9, 5.6, 6.9]],
-    10 => ['NAME' => '2.5, 3.4, 5.5, 7.4, 9.9', 'VALUE' => [2.5, 3.4, 5.5, 7.4, 9.9]],
-    11 => ['NAME' => '3.5, 4.3, 5.2, 6.3, 7.2', 'VALUE' => [3.5, 4.3, 5.2, 6.3, 7.2]],
-    12 => ['NAME' => '2.6, 3.0, 3.5, 4.3, 5.2', 'VALUE' => [2.6, 3.0, 3.5, 4.3, 5.2]],
-    13 => ['NAME' => '2.6, 3.4, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.4, 4.3, 7.4, 9.9]],
-    14 => ['NAME' => '2.6, 3.5, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.5, 4.3, 7.4, 9.9]],
-    15 => ['NAME' => '2.6, 3.6, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.6, 4.3, 7.4, 9.9]],
-    16 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
+    1 => ['NAME' => '1.1, 2.2, 3.6, 6, 8.4', 'VALUE' => [1.1, 2.2, 2.9, 4.5, 5.2]],
+    2 => ['NAME' => '1.4, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.4, 2.4, 2.9, 4.5, 5.2]],
+    3 => ['NAME' => '1.5, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.5, 2.4, 2.9, 4.5, 5.2]],
+    4 => ['NAME' => '1.6, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.6, 2.4, 2.9, 4.5, 5.2]],
+    5 => ['NAME' => '1.7, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.7, 2.4, 2.9, 4.5, 5.2]],
+    6 => ['NAME' => '1.8, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.8, 2.4, 2.9, 4.5, 5.2]],
+    7 => ['NAME' => '1.9, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.9, 2.4, 2.9, 4.5, 5.2]],
+    8 => ['NAME' => '1.9, 2.9, 3.9, 5.9, 6.9', 'VALUE' => [1.9, 2.9, 3.9, 5.9, 6.9]],
+    9 => ['NAME' => '2.3, 2.9, 3.3, 5.6, 6.9', 'VALUE' => [2.3, 2.9, 3.3, 5.6, 6.9]],
+    10 => ['NAME' => '2.2, 3.4, 4.9, 5.6, 6.9', 'VALUE' => [2.2, 3.4, 4.9, 5.6, 6.9]],
+    11 => ['NAME' => '2.5, 3.4, 5.5, 7.4, 9.9', 'VALUE' => [2.5, 3.4, 5.5, 7.4, 9.9]],
+    12 => ['NAME' => '3.5, 4.3, 5.2, 6.3, 7.2', 'VALUE' => [3.5, 4.3, 5.2, 6.3, 7.2]],
+    13 => ['NAME' => '2.6, 3.0, 3.5, 4.3, 5.2', 'VALUE' => [2.6, 3.0, 3.5, 4.3, 5.2]],
+    14 => ['NAME' => '2.6, 3.4, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.4, 4.3, 7.4, 9.9]],
+    15 => ['NAME' => '2.6, 3.5, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.5, 4.3, 7.4, 9.9]],
+    16 => ['NAME' => '2.6, 3.6, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.6, 4.3, 7.4, 9.9]],
     17 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
+    18 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
     19 => ['NAME' => '2.9, 3.5, 4.3, 5.4, 6.3', 'VALUE' => [2.9, 3.4, 4.3, 5.4, 6.3]],
-    18 => ['NAME' => '3.4, 4.3, 5.3, 6.4, 7.3', 'VALUE' => [3.4, 4.3, 5.3, 6.4, 7.3]],
+    20 => ['NAME' => '3.4, 4.3, 5.3, 6.4, 7.3', 'VALUE' => [3.4, 4.3, 5.3, 6.4, 7.3]],
 ];
 
 $tpFilter = isset($_GET['tpFilter']) ? intval($_GET['tpFilter']) : 0;
@@ -159,7 +162,7 @@ $endDate = Bitrix\Main\Type\DateTime::createFromPhp($endDatePHP);
 // Массив для результатов
 $finalResults = [];
 //погрешность %
-$inaccuracy = 2;
+$inaccuracy = 15;
 
 // Если форма отправлена (при наличии хотя бы одного GET-параметра)
 if (!empty($_GET)) {
@@ -249,7 +252,7 @@ if (!empty($_GET)) {
                 if ($categorySectionID == 5) {
                     $keyPump = "masterPump";
                     $keyDump = "masterDump";
-                } elseif (in_array($categorySectionID, [7, 8, 9, 11])) {
+                } elseif (in_array($categorySectionID, [7, 8, 9, 11, 12])) {
                     $keyPump = "screenerPump";
                     $keyDump = "screenerDump";
                 } elseif (in_array($categorySectionID, [6])) {
@@ -515,7 +518,7 @@ if (!empty($_GET)) {
                         if ($processedFilters['tpCountGeneral'] == 1) {
                             $portionWeight = [1];
                         } else if ($processedFilters['tpCountGeneral'] == 2) {
-                            $portionWeight = [0.65, 0.35];
+                            $portionWeight = [0.6, 0.4];
                         } else if ($processedFilters['tpCountGeneral'] == 3) {
                             $portionWeight = [0.34, 0.33, 0.33];
                         } else if ($processedFilters['tpCountGeneral'] == 4) {
@@ -760,13 +763,23 @@ if (!empty($_GET)) {
                         //!-actual adx 5m
 
                         //mfi//
-                        $mfiResOthers =\Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
+                        $mfiResOthers = [];
+                        if ($marketImpulsInfo['last30Candles15m']) {
+                            $mfiResOthers = \Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
+                        }
                         $mfiOthers = $mfiResOthers[array_key_last($mfiResOthers)] ?? null;
+
+                        $mfiRes = [];
+                        if ($strategy['candles15m']) {
+                            $mfiRes = \Maksv\TechnicalAnalysis::calculateMFI($strategy['candles15m']);
+                        }
+                        $mfi = $mfiRes[array_key_last($mfiRes)] ?? null;
                         //!mfi//
 
                         // Формируем результирующий элемент массива
                         $finalResults[] = [
                             "mfiOthers" => $mfiOthers,
+                            "mfi" => $mfi,
 
                             "date" => $arItem["DATE_CREATE"],
                             "marketMl" => $arItem["marketMl"],
@@ -936,9 +949,10 @@ if (!empty($_GET)) {
         <div class="filter-footer">
             <div class="form-group">
                 <label for="riskFilter">Фильтр по риску, %:</label>
+                <? $riskFilterAr = range(1.8, 7, 0.1); ?>
                 <select name="riskFilter" id="riskFilter">
-                    <? $riskFilterAr = range(2, 10, 0.5); ?>
                     <? foreach ($riskFilterAr as $riskFilterVal): ?>
+                        <?$riskFilterVal = round($riskFilterVal, 1) ;?>
                         <option value="<?= $riskFilterVal ?>" <?= ($riskFilter == $riskFilterVal ? "selected" : "") ?>><?= $riskFilterVal ?></option>
                     <? endforeach; ?>
                 </select>
@@ -1061,25 +1075,42 @@ if (!empty($_GET)) {
                 <button type="submit">Фильтровать</button>
             </div>
         </div>
+        <? if (empty($finalResults)): ?>
+            <h3>Требуется настройка фильтра</h3>
+        <?else:?>
+            <h3>В рассчетах учитывается погрешность равная <?=$inaccuracy?> %</h3>
+        <? endif; ?>
     </form>
     <br>
-    <? if (empty($finalResults)): ?>
-        <h3>Требуется настройка фильтра</h3>
-    <?else:?>
-        <h3>В рассчетах учитывается погрешность равная <?=$inaccuracy?> %</h3>
-    <? endif; ?>
+    <div id="summary-stats-container" style="display: none;">
+        <div class="summary-stats">
+            <div class="stat">
+                <span class="stat-label">P&L</span>
+                <span id="summary-profit" class="stat-value"></span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Сделок</span>
+                <span id="summary-total" class="stat-value"></span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Вин рейт</span>
+                <span id="summary-winrate" class="stat-value"></span>
+                <small id="summary-winloss" class="stat-xs"></small>
+            </div>
+        </div>
+    </div>
+
+    <div class="tf-selector">
+        <label for="tfInterval"> </label>
+        <select id="tfInterval"><? //$chartIntervalAr[$chartIntervalFilter];?>
+            <? foreach ($chartIntervalAr as $intervalKey => $interval): ?>
+                <option value="<?= $intervalKey ?>"
+                        <? if ($chartIntervalFilter == $intervalKey): ?>selected<? endif ?> ><?= $interval ?></option>
+            <? endforeach; ?>
+        </select>
+    </div>
     
     <div class="chart-wrapper">
-        <div class="tf-selector">
-            <label for="tfInterval"> </label>
-            <select id="tfInterval"><? //$chartIntervalAr[$chartIntervalFilter];?>
-                <? foreach ($chartIntervalAr as $intervalKey => $interval): ?>
-                    <option value="<?= $intervalKey ?>"
-                            <? if ($chartIntervalFilter == $intervalKey): ?>selected<? endif ?> ><?= $interval ?></option>
-                <? endforeach; ?>
-            </select>
-        </div>
-
         <div class="chart-container">
             <h4>Кривая баланса ($)</h4>
             <canvas id="equityChart"></canvas>
@@ -1100,7 +1131,7 @@ if (!empty($_GET)) {
             <canvas id="histProfitChart"></canvas>
         </div>
     </div>
-
+    <br>
     <!-- Таблица с результатами -->
     <? if (!empty($finalResults)): ?>
         <div class="table-container">
@@ -1146,7 +1177,6 @@ if (!empty($_GET)) {
                     <? if ($directionFilter && $result["direction"] != $directionFilter) continue; ?>
                     <? if ($tfFilter && $result["tf"] != $tfFilter) continue; ?>
                     <? if ($strategyFilter && $result["strategy"] != $strategyFilter) continue; ?>
-
                     <? if ($entryFilter == 'n' && !$result["entry_touched"]) continue; ?>
 
                     <? if (
@@ -1170,11 +1200,11 @@ if (!empty($_GET)) {
                         )
                     ) continue; ?>
 
-                    <?/* if (
+                    <? if (
                         $result['allInfo']['actualAdx5m']
                         && ($result['allInfo']['actualAdx5m']['adx'] < 18)
 
-                    ) continue; */?>
+                    ) continue; ?>
 
                     <?
                     //ml signal
@@ -1236,10 +1266,9 @@ if (!empty($_GET)) {
                             || $signalMl < 0.65
                             || ($totalMl < floatval($mlFilter))
                         )
-                    ) continue;
+                    ) continue;?>
 
-                    /*if ($mlFilter != 'n' && ($marketMl < 0.67 || $signalMl < 0.67)) continue;
-
+                    <?/*
                     if (
                         $mlFilter != 'n'
                         && (
@@ -1250,8 +1279,13 @@ if (!empty($_GET)) {
                     ?>
                     <?//if ($result['tpCountGeneral'] > 1) continue;?>
                     <?//mfi mfiOthers?>
-                    <?//if ($result["direction"] == 'long' && ($result['mfiOthers']['isUpDir'] === false && $result['mfiOthers']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
-                    <?//if ($result["direction"] == 'short' && ($result['mfiOthers']['isDownDir'] === false && $result['mfiOthers']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
+                    <?if ($result["direction"] == 'long' && ($result['mfiOthers']['isUpDir'] === false && $result['mfiOthers']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
+                    <?if ($result["direction"] == 'short' && ($result['mfiOthers']['isDownDir'] === false && $result['mfiOthers']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
+                
+                    <?//mfi ?>
+                    <?//if ($result["direction"] == 'long' && ($result['mfi']['mfi'] < 50)) continue;?>
+                    <?//if ($result["direction"] == 'short' && ($result['mfi']['mfi'] > 50)) continue;?>
+
 
                     <? $cntSignals += 1; ?>
                     <? if ($result["profit"] > 0) {
@@ -1284,6 +1318,9 @@ if (!empty($_GET)) {
                             <? if ($totalMl && $signalMl && $marketMl): ?>
                                 <br>
                                 ML: <?= $totalMl ?> (<?= $signalMl ?>/<?= $marketMl ?>)
+                            <?elseif ($signalMl):?>
+                                <br>
+                                ML: <?= $signalMl ?>
                             <? endif; ?>
 
                             <? if ($result['tpCountGeneral']): ?>
@@ -1350,6 +1387,20 @@ if (!empty($_GET)) {
                         <?= round($profitSum * $leverege, 2); ?> $ <br>
                     </td>
                 </tr>
+                <script>
+                    // передаём из PHP в JS
+                    var stats = {
+                        totalTrades:      <?= (int)$cntSignals ?>,
+                        openTrades:       <?= (int)$cntOpenSignals ?>,
+                        closedTrades:     <?= (int)$cntClosedSignals ?>,
+                        winningTrades:    <?= (int)$cntSignalsProfit ?>,
+                        losingTrades:     <?= (int)$cntSignalsRisk ?>,
+                        winRatePercent:   <?= $cntClosedSignals>0
+                            ? round($cntSignalsProfit / $cntClosedSignals * 100, 2)
+                            : 0 ?>,
+                        profitDollar:     <?= round($profitSum * $leverege, 2) ?>,
+                    };
+                </script>
                 </tfoot>
             </table>
         </div>
@@ -1540,7 +1591,7 @@ $winRateChartArr = array_map(fn($r) => [
             //trainRes: <?//=CUtil::PhpToJSObject($trainRes, false, false, true)?>,
             //predictRes: <?//=CUtil::PhpToJSObject($predictRes, false, false, true)?>,
             //predictMarketRes: <?//=CUtil::PhpToJSObject($predictMarketRes, false, false, true)?>,
-            $filteredResults: <?=CUtil::PhpToJSObject($filteredResults, false, false, true)?>,
+            //$filteredResults: <?//=CUtil::PhpToJSObject($filteredResults, false, false, true)?>,
         }
         console.log('finalResults', finalResults);
 

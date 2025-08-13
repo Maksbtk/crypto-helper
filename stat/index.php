@@ -11,7 +11,7 @@ define('NEED_AUTH', true);
 
 require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/header.php");
 
-Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/stat-page.css?v=3");
+Asset::getInstance()->addCss(SITE_TEMPLATE_PATH . "/css/stat-page.css?v=4");
 
 Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js?v=3", true);
 Asset::getInstance()->addJs("https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js?v=3", true);
@@ -115,24 +115,26 @@ $leverege = isset($_GET['leverege']) ? intval($_GET['leverege']) : 1;  // пле
 $defaultTpSrearAr = [1.9, 2.6, 3.4, 5.6, 6.9];
 $tpStrategyAr = [
     0 => ['NAME' => 'default', 'VALUE' => false],
-    1 => ['NAME' => '1.1, 2.2, 3.6, 6, 8.4', 'VALUE' => [1.1, 2.2, 3.6, 6, 8.4]],
-    3 => ['NAME' => '1.4, 2.6, 3.4, 5.6, 6.9', 'VALUE' => [1.4, 2.6, 3.4, 5.6, 6.9]],
-    4 => ['NAME' => '1.8, 2.6, 3.4, 5.6, 6.9', 'VALUE' => [1.8, 2.6, 3.4, 5.6, 6.9]],
-    5 => ['NAME' => '1.9, 2.6, 3.4, 5.6, 6.9', 'VALUE' => [1.9, 2.6, 3.4, 5.6, 6.9]],
-    6 => ['NAME' => '1.9, 2.7, 3.4, 5.6, 6.9', 'VALUE' => [1.9, 2.7, 3.4, 5.6, 6.9]],
-    7 => ['NAME' => '1.9, 2.9, 3.9, 5.9, 6.9', 'VALUE' => [1.9, 2.9, 3.9, 5.9, 6.9]],
-    8 => ['NAME' => '2.3, 2.9, 3.3, 5.6, 6.9', 'VALUE' => [2.3, 2.9, 3.3, 5.6, 6.9]],
-    9 => ['NAME' => '2.2, 3.4, 4.9, 5.6, 6.9', 'VALUE' => [2.2, 3.4, 4.9, 5.6, 6.9]],
-    10 => ['NAME' => '2.5, 3.4, 5.5, 7.4, 9.9', 'VALUE' => [2.5, 3.4, 5.5, 7.4, 9.9]],
-    11 => ['NAME' => '3.5, 4.3, 5.2, 6.3, 7.2', 'VALUE' => [3.5, 4.3, 5.2, 6.3, 7.2]],
-    12 => ['NAME' => '2.6, 3.0, 3.5, 4.3, 5.2', 'VALUE' => [2.6, 3.0, 3.5, 4.3, 5.2]],
-    13 => ['NAME' => '2.6, 3.4, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.4, 4.3, 7.4, 9.9]],
-    14 => ['NAME' => '2.6, 3.5, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.5, 4.3, 7.4, 9.9]],
-    15 => ['NAME' => '2.6, 3.6, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.6, 4.3, 7.4, 9.9]],
-    16 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
+    1 => ['NAME' => '1.1, 2.2, 3.6, 6, 8.4', 'VALUE' => [1.1, 2.2, 2.9, 4.5, 5.2]],
+    2 => ['NAME' => '1.4, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.4, 2.4, 2.9, 4.5, 5.2]],
+    3 => ['NAME' => '1.5, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.5, 2.4, 2.9, 4.5, 5.2]],
+    4 => ['NAME' => '1.6, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.6, 2.4, 2.9, 4.5, 5.2]],
+    5 => ['NAME' => '1.7, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.7, 2.4, 2.9, 4.5, 5.2]],
+    6 => ['NAME' => '1.8, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.8, 2.4, 2.9, 4.5, 5.2]],
+    7 => ['NAME' => '1.9, 2.4, 2.9, 4.5, 5.2', 'VALUE' => [1.9, 2.4, 2.9, 4.5, 5.2]],
+    8 => ['NAME' => '1.9, 2.9, 3.9, 5.9, 6.9', 'VALUE' => [1.9, 2.9, 3.9, 5.9, 6.9]],
+    9 => ['NAME' => '2.3, 2.9, 3.3, 5.6, 6.9', 'VALUE' => [2.3, 2.9, 3.3, 5.6, 6.9]],
+    10 => ['NAME' => '2.2, 3.4, 4.9, 5.6, 6.9', 'VALUE' => [2.2, 3.4, 4.9, 5.6, 6.9]],
+    11 => ['NAME' => '2.5, 3.4, 5.5, 7.4, 9.9', 'VALUE' => [2.5, 3.4, 5.5, 7.4, 9.9]],
+    12 => ['NAME' => '3.5, 4.3, 5.2, 6.3, 7.2', 'VALUE' => [3.5, 4.3, 5.2, 6.3, 7.2]],
+    13 => ['NAME' => '2.6, 3.0, 3.5, 4.3, 5.2', 'VALUE' => [2.6, 3.0, 3.5, 4.3, 5.2]],
+    14 => ['NAME' => '2.6, 3.4, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.4, 4.3, 7.4, 9.9]],
+    15 => ['NAME' => '2.6, 3.5, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.5, 4.3, 7.4, 9.9]],
+    16 => ['NAME' => '2.6, 3.6, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.6, 4.3, 7.4, 9.9]],
     17 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
+    18 => ['NAME' => '2.6, 3.7, 4.3, 7.4, 9.9', 'VALUE' => [2.6, 3.7, 4.3, 7.4, 9.9]],
     19 => ['NAME' => '2.9, 3.5, 4.3, 5.4, 6.3', 'VALUE' => [2.9, 3.4, 4.3, 5.4, 6.3]],
-    18 => ['NAME' => '3.4, 4.3, 5.3, 6.4, 7.3', 'VALUE' => [3.4, 4.3, 5.3, 6.4, 7.3]],
+    20 => ['NAME' => '3.4, 4.3, 5.3, 6.4, 7.3', 'VALUE' => [3.4, 4.3, 5.3, 6.4, 7.3]],
 ];
 
 $tpFilter = isset($_GET['tpFilter']) ? intval($_GET['tpFilter']) : 0;
@@ -185,7 +187,15 @@ $endDate = Bitrix\Main\Type\DateTime::createFromPhp($endDatePHP);
 // Массив для результатов
 $finalResults = [];
 //погрешность %
-$inaccuracy = 12;
+$inaccuracy = 15;
+
+// лимит сделок в одном окне (0 = без ограничений). По умолчанию 0 (без ограничений)
+$perWindowLimit = isset($_GET['perWindowLimit']) ? intval($_GET['perWindowLimit']) : 0;
+if ($perWindowLimit < 0) $perWindowLimit = 0;
+
+// размер окна в часах (по умолчанию 1 — часовые интервалы)
+$windowHours = isset($_GET['windowHours']) ? max(1, intval($_GET['windowHours'])) : 1;
+
 
 // Если форма отправлена (при наличии хотя бы одного GET-параметра)
 if (!empty($_GET)) {
@@ -502,7 +512,7 @@ if (!empty($_GET)) {
                         if ($processedFilters['tpCountGeneral'] == 1) {
                             $portionWeight = [1];
                         } else if ($processedFilters['tpCountGeneral'] == 2) {
-                            $portionWeight = [0.65, 0.35];
+                            $portionWeight = [0.6, 0.4];
                         } else if ($processedFilters['tpCountGeneral'] == 3) {
                             $portionWeight = [0.34, 0.33, 0.33];
                         } else if ($processedFilters['tpCountGeneral'] == 4) {
@@ -836,9 +846,10 @@ if (!empty($_GET)) {
         <div class="filter-footer">
             <div class="form-group">
                 <label for="riskFilter">Фильтр по риску, %:</label>
+                <? $riskFilterAr = range(1.8, 7, 0.1); ?>
                 <select name="riskFilter" id="riskFilter">
-                    <? $riskFilterAr = range(2, 10, 0.5); ?>
                     <? foreach ($riskFilterAr as $riskFilterVal): ?>
+                        <?$riskFilterVal = round($riskFilterVal, 1) ;?>
                         <option value="<?= $riskFilterVal ?>" <?= ($riskFilter == $riskFilterVal ? "selected" : "") ?>><?= $riskFilterVal ?></option>
                     <? endforeach; ?>
                 </select>
@@ -875,11 +886,30 @@ if (!empty($_GET)) {
                 <label for="mlFilter">ml фильтр:</label>
                 <select name="mlFilter" id="mlFilter">
                     <option value="n" <?= ($mlFilter == 'n' ? "selected" : "") ?>>нет</option>
-                    <? $mlFilterAr = range(0.7, 0.85, 0.01); ?>
+                    <? $mlFilterAr = range(0.71, 0.85, 0.01); ?>
                     <? foreach ($mlFilterAr as $mlFilterArVal): ?>
                         <? $mlFilterArVal = round($mlFilterArVal, 2); ?>
                         <option value="<?= $mlFilterArVal ?>" <?= ($mlFilter == $mlFilterArVal ? "selected" : "") ?>><?= $mlFilterArVal ?></option>
                     <? endforeach; ?>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="perWindowLimit">Сделок в окне (лимит):</label>
+                <select name="perWindowLimit" id="perWindowLimit">
+                    <option value="0" <?= (isset($_GET['perWindowLimit']) && intval($_GET['perWindowLimit']) === 0 ? 'selected' : (!isset($_GET['perWindowLimit']) ? 'selected' : '')) ?>>Без ограничений</option>
+                    <? for ($i = 1; $i <= 20; $i++): ?>
+                        <option value="<?= $i ?>" <?= (isset($_GET['perWindowLimit']) && intval($_GET['perWindowLimit']) === $i ? 'selected' : '') ?>><?= $i ?></option>
+                    <? endfor; ?>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="windowHours">Интервал окна (часы):</label>
+                <select name="windowHours" id="windowHours">
+                    <? for ($h = 1; $h <= 24; $h++): ?>
+                        <option value="<?= $h ?>" <?= ($windowHours == $h ? "selected" : "") ?>><?= $h ?></option>
+                    <? endfor; ?>
                 </select>
             </div>
         </div>
@@ -887,27 +917,46 @@ if (!empty($_GET)) {
         <input type="hidden" id="chartIntervalFilter" name="chartIntervalFilter" value="<?= $chartIntervalFilter ?>">
         <div class="button-footer">
             <div class="form-group">
-                <button type="submit">Фильтровать</button>
+                <button id="statFormSubmit" type="submit">Фильтровать</button>
             </div>
         </div>
+        <? if (empty($finalResults)): ?>
+            <h3>Требуется настройка фильтра</h3>
+        <?else:?>
+            <h3>В рассчетах учитывается погрешность равная <?=$inaccuracy?> %</h3>
+        <? endif; ?>
     </form>
     <br>
-    <? if (empty($finalResults)): ?>
-        <h3>Требуется настройка фильтра</h3>
-    <?else:?>
-        <h3>В рассчетах учитывается погрешность равная <?=$inaccuracy?> %</h3>
-    <? endif; ?>
+
+    <div id="summary-stats-container" style="display: none;">
+        <div class="summary-stats">
+            <div class="stat">
+                <span class="stat-label">P&L</span>
+                <span id="summary-profit" class="stat-value"></span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Сделок</span>
+                <span id="summary-total" class="stat-value"></span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Вин рейт</span>
+                <span id="summary-winrate" class="stat-value"></span>
+                <small id="summary-winloss" class="stat-xs"></small>
+            </div>
+        </div>
+    </div>
+
+    <div class="tf-selector">
+        <label for="tfInterval"> </label>
+        <select id="tfInterval"><? //$chartIntervalAr[$chartIntervalFilter];?>
+            <? foreach ($chartIntervalAr as $intervalKey => $interval): ?>
+                <option value="<?= $intervalKey ?>"
+                        <? if ($chartIntervalFilter == $intervalKey): ?>selected<? endif ?> ><?= $interval ?></option>
+            <? endforeach; ?>
+        </select>
+    </div>
 
     <div class="chart-wrapper">
-        <div class="tf-selector">
-            <label for="tfInterval"> </label>
-            <select id="tfInterval"><? //$chartIntervalAr[$chartIntervalFilter];?>
-                <? foreach ($chartIntervalAr as $intervalKey => $interval): ?>
-                    <option value="<?= $intervalKey ?>"
-                            <? if ($chartIntervalFilter == $intervalKey): ?>selected<? endif ?> ><?= $interval ?></option>
-                <? endforeach; ?>
-            </select>
-        </div>
 
         <div class="chart-container">
             <h4>Кривая баланса ($)</h4>
@@ -929,7 +978,7 @@ if (!empty($_GET)) {
             <canvas id="histProfitChart"></canvas>
         </div>
     </div>
-
+    <br>
     <!-- Таблица с результатами -->
     <? if (!empty($finalResults)): ?>
         <div class="table-container">
@@ -958,7 +1007,19 @@ if (!empty($_GET)) {
                 <? $profitSum = 0; ?>
                 <? $filteredResults = []; ?>
 
+                <?php
+                // Сортируем события по времени: старые -> новые (обязательно)
+                usort($finalResults, function($a, $b){
+                    $ta = \DateTime::createFromFormat('d.m.Y H:i:s', $a['date'], new \DateTimeZone('Europe/Amsterdam'));
+                    $tb = \DateTime::createFromFormat('d.m.Y H:i:s', $b['date'], new \DateTimeZone('Europe/Amsterdam'));
+                    $tsa = $ta ? $ta->getTimestamp() : strtotime($a['date']);
+                    $tsb = $tb ? $tb->getTimestamp() : strtotime($b['date']);
+                    return $tsa <=> $tsb;
+                });
 
+                // Счётчик по окнам (ключ — unix timestamp начала окна в UTC, представленного локальным выравниванием)
+                $windowCountMap = []; // ['windowStartTs' => count]
+                ?>
                 <? foreach ($finalResults as $result): ?>
 
                     <? if ($result["startRisk"] >= $riskFilter) continue; ?>
@@ -1069,6 +1130,54 @@ if (!empty($_GET)) {
                     <?//if ($result["direction"] == 'long' && ($result['mfiOthers']['isUpDir'] === false && $result['mfiOthers']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
                     <?//if ($result["direction"] == 'short' && ($result['mfiOthers']['isDownDir'] === false && $result['mfiOthers']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
 
+                    <?//mfi?>
+                    <?//if ($result["direction"] == 'long' && (/*$result['mfi']['isUpDir'] === false &&*/ $result['mfi']['mfi'] <= 50)) continue;?>
+                    <?//if ($result["direction"] == 'short' && (/*$result['mfi']['isDownDir'] === false &&*/ $result['mfi']['mfi'] >= 50)) continue;?>
+
+                    <?
+                    // --- ограничение по часовым (windowHours) окнам ---
+                    if ($perWindowLimit > 0) {
+                        // ожидается формат даты 'd.m.Y H:i:s'
+                        $dt = \DateTime::createFromFormat('d.m.Y H:i:s', $result["date"], new \DateTimeZone('Europe/Amsterdam'));
+                        if (!$dt) {
+                            try {
+                                $dt = new \DateTime($result["date"], new \DateTimeZone('Europe/Amsterdam'));
+                            } catch (\Exception $e) {
+                                $dt = false;
+                            }
+                        }
+
+                        if ($dt) {
+                            $ts = $dt->getTimestamp();           // unix seconds
+                            $tzOffset = $dt->getOffset();        // смещение локальной зоны в секундах (учитывает DST)
+                            $windowSeconds = $windowHours * 3600;
+
+                            // выравнивание по локальным границам:
+                            // сдвигаем на offset, делим на длину окна, floor, возвращаем обратно
+                            $windowStart = floor( ($ts + $tzOffset) / $windowSeconds ) * $windowSeconds - $tzOffset;
+
+                            $windowKey = (string)$windowStart;
+                        } else {
+                            // fallback — если дата не парсится, можно использовать просто день + час из строки
+                            $windowKey = substr($result["date"], 0, 13); // 'dd.mm.YYYY HH' — менее точный, но действует
+                        }
+
+                        if (!isset($windowCountMap[$windowKey])) {
+                            $windowCountMap[$windowKey] = 0;
+                        }
+
+                        if ($windowCountMap[$windowKey] >= $perWindowLimit) {
+                            // опционально: для отладки раскомментируй
+                            $errors[] = 'пропущено по лимиту окна | ' . $result['symbolName'] . ' | ' . $result['date'];
+                            continue;
+                        }
+
+                        // учитываем эту сделку в счётчике окна
+                        $windowCountMap[$windowKey]++;
+                    }
+// --- конец ограничения по окну ---
+                    ?>
+
                     <? $cntSignals += 1; ?>
                     <? if ($result["profit"] > 0) {
                         $cntSignalsProfit++;
@@ -1152,6 +1261,20 @@ if (!empty($_GET)) {
                         <?= round($profitSum * $leverege, 2) ?> $ <br>
                     </td>
                 </tr>
+                <script>
+                    // передаём из PHP в JS
+                    var stats = {
+                        totalTrades:      <?= (int)$cntSignals ?>,
+                        openTrades:       <?= (int)$cntOpenSignals ?>,
+                        closedTrades:     <?= (int)$cntClosedSignals ?>,
+                        winningTrades:    <?= (int)$cntSignalsProfit ?>,
+                        losingTrades:     <?= (int)$cntSignalsRisk ?>,
+                        winRatePercent:   <?= $cntClosedSignals>0
+                            ? round($cntSignalsProfit / $cntClosedSignals * 100, 2)
+                            : 0 ?>,
+                        profitDollar:     <?= round($profitSum * $leverege, 2) ?>,
+                    };
+                </script>
                 </tfoot>
             </table>
         </div>

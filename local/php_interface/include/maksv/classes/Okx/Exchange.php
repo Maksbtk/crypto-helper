@@ -134,10 +134,10 @@ class Exchange
                 $cnt++;
 
                 //периодически обновляем данные
-                if ($cnt % 20 === 0)
+                if ($cnt % 12 === 0)
                     $latestScreener = \Maksv\DataOperation::getLatestScreener($okxScreenerIblockId);
 
-                if ($cnt % 15 === 0)
+                if ($cnt % 12 === 0)
                     $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverIblockId, $betaForeverSectionCode);
 
                 if ($cnt % 40 === 0)
@@ -270,7 +270,7 @@ class Exchange
                 try {
                     $macdData = \Maksv\TechnicalAnalysis::analyzeMACD($candles) ?? false;
                     $screenerData['actualMacd'] = $actualMacd = $macdData[array_key_last($macdData)] ?? false;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - actualMacd' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -279,7 +279,7 @@ class Exchange
                     $impulseMACD = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles) ?? false;
                     if ($impulseMACD && is_array($impulseMACD))
                         $screenerData['actualImpulsMacd'] = $actualImpulsMacd = $impulseMACD[array_key_last($impulseMACD)];
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - actualImpulsMacd' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -311,7 +311,7 @@ class Exchange
                     if (!$actualSupertrend5m)
                         devlogs('ERR ' . $symbolName . ' | err - actualSupertrend5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR | err - Supertrend 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -319,7 +319,7 @@ class Exchange
                 try {
                     $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
                     $screenerData['actualAdx5m'] = $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - adx 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -362,7 +362,7 @@ class Exchange
                         '15m',
                         ['5m' => 14, '15m' => 14, '30m' => 14, '1h' => 14, '4h' => 8, '1d' => 6]
                     );
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - actualMacdDivergence' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -370,7 +370,7 @@ class Exchange
                 try {
                     $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($candles15m, 10, 3) ?? false; // длина 10, фактор 3
                     $screenerData['actualSupertrend15m'] = $actualSupertrend15m = $supertrendData[array_key_last($supertrendData)] ?? false;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR | err - Supertrend 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -400,7 +400,7 @@ class Exchange
                     try {
                         $maHis = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 9, 26, 102) ?? [];
                         $ma26 = $maHis[array_key_last($maHis)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma26' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -412,7 +412,7 @@ class Exchange
                     try {
                         $ma50His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 12, 50, 102) ?? [];
                         $ma50 = $ma50His[array_key_last($ma50His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma50' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -421,7 +421,7 @@ class Exchange
                     try {
                         $ma100His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 100, 102) ?? [];
                         $ma100 = $ma100His[array_key_last($ma100His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma100 candles15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -433,7 +433,7 @@ class Exchange
                     try {
                         $ma200His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 200, 102) ?? [];
                         $ma200 = $ma200His[array_key_last($ma200His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma200' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -442,7 +442,7 @@ class Exchange
                     try {
                         $ma400His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 400, 10) ?? [];
                         $ma400 = $ma400His[array_key_last($ma400His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma400 candles15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -466,7 +466,7 @@ class Exchange
                     // Рассчитываем ATR по свечам
                     $ATRData = \Maksv\TechnicalAnalysis::calculateATR($candles15m);
                     $screenerData['actualATR'] = $actualATR = $ATRData[array_key_last($ATRData)] ?? null;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - atr' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -474,7 +474,7 @@ class Exchange
                 try {
                     $adxData = \Maksv\TechnicalAnalysis::calculateADX($candles15m) ?? [];
                     $screenerData['actualAdx'] = $actualAdx = $adxData[array_key_last($adxData)];
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - adx' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -516,14 +516,14 @@ class Exchange
                         if ($stochasticOscillatorData1h && is_array($stochasticOscillatorData1h))
                             $screenerData['actualStochastic1h'] = $actualStochastic1h = $stochasticOscillatorData1h[array_key_last($stochasticOscillatorData1h)];
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR err - stoch 1h ' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
                     try {
                         $adxData1h = \Maksv\TechnicalAnalysis::calculateADX($candles1h) ?? [];
                         $screenerData['actualAdx1h'] = $actualAdx1h = $adxData1h[array_key_last($adxData1h)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
@@ -531,7 +531,7 @@ class Exchange
                         try {
                             $ma400His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 400, 10) ?? [];
                             $screenerData['ma400_1h'] = $ma400_1h = $ma400His_1h[array_key_last($ma400His_1h)];
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             devlogs('ERR ' . $symbolName . ' | err - ma400 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         }
                     }
@@ -540,7 +540,7 @@ class Exchange
                         try {
                             $ma100His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 100, 10) ?? [];
                             $screenerData['ma100_1h'] = $ma100_1h = $ma100His_1h[array_key_last($ma100His_1h)];
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             devlogs('ERR ' . $symbolName . ' | err - ma100 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         }
                     }
@@ -736,7 +736,7 @@ class Exchange
                         $screenerData['marketMLName'] = 'longMl';
                         $actualStrategyName = 'screenerPump';
                     } else {
-                        $screenerData['mlBoard'] = $mlBoard = 0.73; //0.72
+                        $screenerData['mlBoard'] = $mlBoard = 0.76; //0.72
                         $screenerData['marketMLName'] = 'shortMl';
                         $actualStrategyName = 'screenerDump';
                     }
@@ -771,7 +771,7 @@ class Exchange
                         try {
                             $writeRes = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'screener');
                             devlogs('screener write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         }
 
@@ -837,7 +837,7 @@ class Exchange
                         try {
                             $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'normal_ml', $marketMode);
                             devlogs('screener beta forever write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             $errText = 'ERR beta forever write - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
                             \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screener' . $interval);
                             devlogs($errText, $marketMode . '/screener' . $interval);
@@ -895,7 +895,7 @@ class Exchange
                         try {
                             $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'high_ml', $marketMode);
                             devlogs('screener beta forever high write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             $errText = 'ERR beta forever high write - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
                             \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screener' . $interval);
                             devlogs($errText, $marketMode . '/screener' . $interval);
@@ -912,7 +912,7 @@ class Exchange
 
                 /*if ($devMode && $cnt >= 50)
                     break;*/
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR ' . $symbolName . ' | err -' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
             }
         }

@@ -411,6 +411,31 @@ foreach ($days as $day) {
     //$getFuturesContracts = $bingxApiOb->getFuturesContracts();
     //$tradesHistoryResp = $bingxApiOb->tradesHistory('AVAX-USDT', 1000);
 
+    /*$path = $_SERVER['DOCUMENT_ROOT'] . '/upload/traydingviewExchange/total_ex_top10.json';
+    $marketData = json_decode(file_get_contents($path), true) ?? [];
+    $marketKlines = $marketData['data'];
+    $klineList15m = $marketKlines['15m'] ?? [];
+    if ($klineList15m && is_array($klineList15m) && count($klineList15m) > 80) {
+        $candles15m = array_map(function ($k) {
+            // создаём объект DateTime из строки
+            $dt = new \DateTime($k['datetime']);
+            // получаем секунды с эпохи и умножаем на 1000 — получаем миллисекунды
+            $ms = $dt->getTimestamp() * 1000;
+
+            return [
+                't' => $ms, // timestamp
+                'o' => floatval($k['open']), // Open price
+                'h' => floatval($k['high']), // High price
+                'l' => floatval($k['low']), // Low price
+                'c' => floatval($k['close']), // Close price
+                'v' => floatval($k['volume'])  // Volume
+            ];
+        }, $klineList15m);
+        $mfiData15m = \Maksv\TechnicalAnalysis::calculateMFI($candles15m);
+        //$res['mfi15m'] = $mfiData15m[array_key_last($mfiData15m)] ?? [];
+    }*/
+
+
     $bybitApiOb->closeConnection();
     $binanceApiOb->closeConnection();
     $okxApiOb->closeConnection();
@@ -420,7 +445,6 @@ foreach ($days as $day) {
     var devRes = {
         longV: <?=CUtil::PhpToJSObject($signals['long'], false, false, true)?>,
         shortV: <?=CUtil::PhpToJSObject($signals['short'], false, false, true)?>,
-        //$rsOi: <?//=CUtil::PhpToJSObject($rsOi, false, false, true)?>,
     }
     console.log('devRes', devRes);
 </script>

@@ -133,6 +133,9 @@ class Request
             case '@cryptoHelperErrors':
                 $chatName = '-1002195205048';
                 break;
+            case '@infoCryptoHelperScreenerMFI':
+                $chatName = '-1002706730438';
+                break;
             /*default:
                 $chatName = $chatName;
           */
