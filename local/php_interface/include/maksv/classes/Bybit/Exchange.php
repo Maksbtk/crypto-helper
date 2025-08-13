@@ -7,19 +7,18 @@ use Bitrix\Main\Loader,
 
 /**
  *
- * Параметр	Минимум (консервативно)	Источник
- * 24h объём торгов	$1 млн – $2 млн	TradingView Screener
+ * Параметр    Минимум (консервативно)    Источник
+ * 24h объём торгов    $1 млн – $2 млн    TradingView Screener
  * fxonbit.com
- * 24h объём торгов	≥ $5 млн	Hummingbot / Prop-funds
+ * 24h объём торгов    ≥ $5 млн    Hummingbot / Prop-funds
  * fxonbit.com
- * Открытый интерес	≥ $10 млн – $20 млн	Prop-фонды (Bookmap)
+ * Открытый интерес    ≥ $10 млн – $20 млн    Prop-фонды (Bookmap)
  * bookmap.com
- * Рыночная капитализация spot	≥ $50 млн – $100 млн	CEX best practices
+ * Рыночная капитализация spot    ≥ $50 млн – $100 млн    CEX best practices
  */
-
 class Exchange
 {
-    const SYMBOLS_STOP_LIST_MAIN = ['SOLUSDT', 'BTCUSDT', 'ETHUSDT', 'BRUSDT', 'USD1USDT'];
+    const SYMBOLS_STOP_LIST_MAIN = ['SOLUSDT', 'BTCUSDT', 'ETHUSDT', 'BRUSDT', 'USD1USDT', 'BADGERUSDT', 'A8USDT'];
     const SYMBOLS_STOP_LIST1 = [
         'BTCUSDT-04APR25', 'BTCUSDT-11APR25', 'BTCUSDT-21MAR25',
         'BTCUSDT-25APR25', 'ETHUSDT-04APR25', 'ETHUSDT-11APR25', 'ETHUSDT-21MAR25',
@@ -30,14 +29,398 @@ class Exchange
         'ETHUSDT-27JUN25', 'SOLUSDT-02MAY25', 'USDCUSDT', 'USDEUSDT', 'USTCUSDT',
     ];
 
-    public function __construct() {}
+    public function __construct()
+    {
+    }
+
+    public static function screenerMFI(
+        $devMode = false,
+        $interval = '15m',
+    )
+    {
+
+        $marketMode = 'bybit';
+        $contracts = [
+            /*[
+                'name' => "BTCUSDT",//93%
+                'mfiFastMa' => 9,
+                'mfiSlowMa' => 48,
+                'adxThreshold' => 31,
+                'tpAtrMultipliers' => [1.6, 1.6, 3.2],
+                'slAtrMultiplier' => 4.2,
+                'trendMa' => 28,
+                'scale' => 2,
+                'maxLeverage' => 100,
+            ],*/
+            [
+                'name' => "ETHUSDT",//72%
+                'mfiFastMa' => 9,
+                'mfiSlowMa' => 36,
+                'adxThreshold' => 22,
+                'tpAtrMultipliers' => [2.1, 2.1, 3.3],
+                'slAtrMultiplier' => 4.5,
+                'trendMa' => 33,
+                'scale' => 2,
+                'maxLeverage' => 100,
+            ],
+            [
+                'name' => "XRPUSDT", //66%
+                'mfiFastMa' => 9,
+                'mfiSlowMa' => 36,
+                'adxThreshold' => 25,
+                'tpAtrMultipliers' => [2.2, 2.2, 4],
+                'slAtrMultiplier' => 4,
+                'trendMa' => 40,
+                'scale' => 4,
+                'maxLeverage' => 75,
+            ],
+            [
+                'name' => "SOLUSDT",//73%
+                'mfiFastMa' => 11,
+                'mfiSlowMa' => 37,
+                'adxThreshold' => 27,
+                'tpAtrMultipliers' => [1.4, 2, 3],
+                'slAtrMultiplier' => 3.6,
+                'trendMa' => 32,
+                'scale' => 2,
+                'maxLeverage' => 100,
+            ],
+            [
+                'name' => "LTCUSDT", //87%
+                'mfiFastMa' => 11,
+                'mfiSlowMa' => 45,
+                'adxThreshold' => 29,
+                'tpAtrMultipliers' => [1.9, 1.9, 3],
+                'slAtrMultiplier' => 3.7,
+                'trendMa' => 29,
+                'scale' => 2,
+                'maxLeverage' => 50,
+            ],
+            [
+                'name' => "AVAXUSDT", //~76%
+                'mfiFastMa' => 9,
+                'mfiSlowMa' => 47,
+                'adxThreshold' => 31,
+                'tpAtrMultipliers' => [1.6, 1.6, 3],
+                'slAtrMultiplier' => 3.5,
+                'trendMa' => 33,
+                'scale' => 3,
+                'maxLeverage' => 50,
+            ],
+        ];
+
+        if (!$devMode) {
+            $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screenerMFI/' . $interval . '/timestamp.json'), true);
+            if ($lastTimestapJson['TIMESTAP'] && ((time() - $lastTimestapJson['TIMESTAP']) < 120)) {
+                devlogs("end, timestap dif -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+                return;
+            } else {
+                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screenerMFI/' . $interval . '/timestamp.json', json_encode(['TIMESTAP' => time(), "TIMEMARK" => date("d.m.y H:i:s")]));
+            }
+        }
+        devlogs("start -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+
+        $bybitApiOb = new \Maksv\Bybit\Bybit();
+        $bybitApiOb->openConnection();
+        $analyzeCnt = $cntSuccess = 0;
+
+        $bybitScreenerMFIIblockId = 3;
+        $bybitScreenerMFISectionCode = 'screenerMFI';
+        $latestScreener = \Maksv\DataOperation::getLatestScreener($bybitScreenerMFIIblockId, $bybitScreenerMFISectionCode, 1);
+        $marketInfo = self::checkMarketImpulsInfo();
+
+        foreach ($contracts as $symbol) {
+            $analyzeCnt++;
+            $screenerData = $res['screenerPump'] = $res['screenerDump'] = [];
+
+            try {
+
+                $screenerData['marketCode'] = $marketMode;
+                $screenerData['contactSettings'] = $symbol;
+                $screenerData['latestScreener'] = $latestScreener;
+
+                $symbolName = $screenerData['symbolName'] = $symbol['name'];
+                $symbolScale = $screenerData['symbolScale'] = intval($symbol['scale']) ?? 6;
+                $symbolMaxLeverage = $screenerData['symbolMaxLeverage'] = floatval($symbol['maxLeverage']) ?? 10;
+                $screenerData['interval'] = $interval;
+
+                if ($latestScreener[$symbolName])
+                    continue;
+
+                $kline15m = $bybitApiOb->klineV5("linear", $symbolName, $interval, 402, true, 120);
+                if ($kline15m['result'] && $kline15m['result']['list']) {
+                    $klineList15m = array_reverse($kline15m['result']['list']);
+                    $candles15m = array_map(function ($k) {
+                        return [
+                            't' => floatval($k[0]), // timestap
+                            'o' => floatval($k[1]), // Open price
+                            'h' => floatval($k[2]), // High price
+                            'l' => floatval($k[3]), // Low price
+                            'c' => floatval($k[4]), // Close price
+                            'v' => floatval($k[5])  // Volume
+                        ];
+                    }, $klineList15m);
+
+                    $lastIndex = array_key_last($candles15m);
+                    $actualClosePrice = $screenerData['actualClosePrice'] = $screenerData['entryTarget'] = $candles15m[$lastIndex]['c'] ?? false;
+                    $screenerData['candles15m'] = array_slice($candles15m, -30);
+
+                    $screenerData['actualAdx'] = $actualAdx = [];
+                    try {
+                        $adxData = \Maksv\TechnicalAnalysis::calculateADX($candles15m);
+                        $screenerData['actualAdx'] = $actualAdx = $adxData[array_key_last($adxData)];
+                    } catch (\Exception $e) {
+                        devlogs('ERR | err ' . $symbolName . ' - actualAdx 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+                    }
+
+                    $screenerData['actualMfi'] = $actualMfi = [];
+                    try {
+                        $mfiData = \Maksv\TechnicalAnalysis::calculateMFI($candles15m, $symbol['mfiFastMa'], $symbol['mfiSlowMa']);
+                        $screenerData['actualMfi'] = $actualMfi = $mfiData[array_key_last($mfiData)];
+                    } catch (\Exception $e) {
+                        devlogs('ERR | ' . $symbolName . ' err - actualMfi 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+                    }
+
+                    $screenerData['actualMa'] = $actualMa = [];
+                    try {
+                        $screenerData['actualMa'] = $actualMa = \Maksv\TechnicalAnalysis::checkMACross($candles15m, 3, $symbol['trendMa'], 20, 2) ?? [];
+                    } catch (\Exception $e) {
+                        devlogs('ERR | ' . $symbolName . ' err - ma 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+                    }
+
+                    $screenerData['actualATR'] = $actualATR = [];
+                    try {
+                        // Рассчитываем ATR по свечам
+                        $ATRData = \Maksv\TechnicalAnalysis::calculateATR($candles15m);
+                        $screenerData['actualATR'] = $actualATR = $ATRData[array_key_last($ATRData)] ?? null;
+                    } catch (\Exception $e) {
+                        devlogs('ERR | ' . $symbolName . ' err - atr 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+                    }
+
+                    /*$actualAdx['adx'] = 60;
+                    $actualMfi['isLong'] = true;
+                    $actualMa['isUptrend'] = true;*/
+
+                    if (
+                        $actualAdx['adx'] >= $symbol['adxThreshold']
+                        && $actualMfi['isLong']
+                        && $actualMa['isUptrend']
+                    ) {
+                        $cntSuccess++;
+                        $screenerData['isLong'] = true;
+                        $screenerData['strategy'] = $symbolName.'/mfi/ma/adx';
+                        $screenerData['SL'] = $screenerData['TP'] = $screenerData['recommendedEntry'] = false;
+
+                        $processed = self::processSignalMfi(
+                            'long',
+                            floatval($actualATR['atr']),
+                            floatval($actualClosePrice),
+                            $candles15m,
+                            $symbolScale,
+                            $symbol['tpAtrMultipliers'],
+                            $symbol['slAtrMultiplier'],
+                        );
+
+
+                        //if ($processed !== false) {
+                        if ($processed !== false) {
+                            $screenerData = array_merge($screenerData, $processed);
+                            $res['screenerPump'][$symbolName] = $screenerData;
+                        } else {
+                            $continueSymbols .= $symbolName . ', ';
+                        }
+
+                    } else if (
+                        $actualAdx['adx'] >= $symbol['adxThreshold']
+                        && $actualMfi['isShort']
+                        && !$actualMa['isUptrend']
+                    ) {
+                        $cntSuccess++;
+                        $screenerData['isLong'] = false;
+                        $screenerData['strategy'] = $symbolName.'/mfi/ma/adx';
+                        $screenerData['SL'] = $screenerData['TP'] = $screenerData['recommendedEntry'] = false;
+
+                        $processed = self::processSignalMfi(
+                            'short',
+                            floatval($actualATR['atr']),
+                            floatval($actualClosePrice),
+                            $candles15m,
+                            $symbolScale,
+                            $symbol['tpAtrMultipliers'],
+                            $symbol['slAtrMultiplier'],
+                        );
+
+                        if ($processed !== false) {
+                            $screenerData = array_merge($screenerData, $processed);
+                            $res['screenerDump'][$symbolName] = $screenerData;
+                        } else {
+                            $continueSymbols .= $symbolName . ', ';
+                        }
+                    }
+
+                }
+            } catch (\Exception $e) {
+                devlogs('ERR ' . $symbolName . ' | err -' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+            }
+
+            if ($res['screenerPump'] || $res['screenerDump']) {
+                $cntSuccess++;
+
+
+                $screenerData['resML']['mlBoard'] = $mlBoard = 0.71;
+                if ($screenerData['isLong']) {
+                    $screenerData['resML']['mlBoard'] = $mlBoard = 0.73; // 0.73
+                    $screenerData['marketMLName'] = 'longMl';
+                    $actualStrategyName = 'screenerPump';
+                } else {
+                    $screenerData['resML']['mlBoard'] = $mlBoard = 0.74; // 0.73
+                    $screenerData['marketMLName'] = 'shortMl';
+                    $actualStrategyName = 'screenerDump';
+                }
+
+                $screenerData['resML']['marketMl'] = $marketMl = $marketInfo[$screenerData['marketMLName']]['probabilities'][1] ?? false;
+                $screenerData['resML']['signalMl'] = $signalMl = $screenerData['actualMlModel']['probabilities'][1] ?? false;
+                $screenerData['resML']['totalMl'] = $totalMl = false;
+                if ($marketMl && $signalMl) {
+                    $screenerData['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
+                }
+
+                $screenerData['leverage'] = '10X';
+                $tpCount = $screenerData['tpCount']['longTpCount'] = $screenerData['tpCount']['shortTpCount'] = 2;
+                $screenerData['TP'] = array_slice($screenerData['TP'], 0, $tpCount);
+
+                //после всех мутаций снимаем копию
+                $res[$actualStrategyName][$symbolName] = $screenerData;
+
+                //if ($totalMl >= $mlBoard) {
+
+                    \Maksv\DataOperation::sendScreener($screenerData, true, '@infoCryptoHelperScreenerMFI');
+                    //cохраняем отдельно по бирже
+                    $actualStrategy = [
+                        "TIMEMARK" => date("d.m.y H:i:s"),
+                        "STRATEGIES" => $res,
+                        "INFO" => [
+                            'BTC_INFO' => $marketInfo,
+                        ],
+                        "EXCHANGE_CODE" => 'screenerMFI'
+                    ];
+
+                    file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screenerMFI/' . $interval . '/actualStrategy.json', json_encode($actualStrategy));
+                    try {
+                        $writeRes = \Maksv\DataOperation::saveSignalToIblock($interval, 'bybit', 'screenerMFI');
+                        devlogs('screener write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+                    } catch (\Exception $e) {
+                        $errText = 'ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
+                        \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screenerMFI' . $interval);
+                        devlogs($errText, $marketMode . '/screenerMFI' . $interval);
+                    }
+
+                /*} else {
+                    devlogs(
+                        ' main skip mfi reason  | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
+                        $marketMode . '/screenerMFI' . $interval
+                    );
+                }*/
+            }
+        }
+
+        $bybitApiOb->closeConnection();
+
+        devlogs("end (analyzeCnt " . $analyzeCnt . ") (cntSuccess " . $cntSuccess . ") -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screenerMFI' . $interval);
+        devlogs('_____________________________________', $marketMode . '/screenerMFI' . $interval);
+
+        return $res;
+    }
+
+    /**
+     * Упрощённая версия processSignal — считает только SL, TP и ML-прогноз по MFI-сигналу.
+     *
+     * @param string $direction 'long' или 'short'
+     * @param float $atr значение ATR
+     * @param float $closePrice текущая цена закрытия
+     * @param array $candles15m массив 15m-свечей для ML (каждая с 't','h','l','c','v')
+     * @param int $symbolScale число знаков после запятой в цене инструмента
+     * @param array $tpAtrMultipliers массив множителей для тейк-профитов, например [1.9,2.9,...]
+     * @param float $slAtrMultiplier множитель для стоп-лосса, например 3.5
+     * @return array|false               либо массив с ключами ['SL','TP','MLModel'], либо false при ошибке
+     */
+    public static function processSignalMfi(
+        string $direction,
+        float  $atr,
+        float  $closePrice,
+        array  $candles15m,
+        int    $symbolScale,
+        array  $tpAtrMultipliers,
+        float  $slAtrMultiplier
+    )
+    {
+        // 1) Проверки
+        if (!in_array($direction, ['long', 'short'], true)) {
+            return false;
+            //throw new \InvalidArgumentException("direction must be 'long' or 'short'");
+        }
+        if ($atr <= 0 || $closePrice <= 0) {
+            return false;
+        }
+        if (empty($candles15m) || !is_array($candles15m)) {
+            return false;
+        }
+        if (empty($tpAtrMultipliers)) {
+            return false;
+        }
+
+        // 2) Вычисляем стоп-лосс
+        if ($direction === 'long') {
+            $sl = round($closePrice - $slAtrMultiplier * $atr, $symbolScale);
+        } else {
+            $sl = round($closePrice + $slAtrMultiplier * $atr, $symbolScale);
+        }
+
+        // 3) Вычисляем массив тейк-профитов
+        $tp = [];
+        foreach ($tpAtrMultipliers as $mult) {
+            if (!is_numeric($mult)) {
+                continue;
+            }
+            if ($direction === 'long') {
+                $tp[] = round($closePrice + floatval($mult) * $atr, $symbolScale);
+            } else {
+                $tp[] = round($closePrice - floatval($mult) * $atr, $symbolScale);
+            }
+        }
+
+        // 4) ML-прогноз (базовый, без dev-режима)
+        $mlModel = [];
+        try {
+            // берём последние 30 свечей или меньше
+            $slice = count($candles15m) > 30 ? array_slice($candles15m, -30) : $candles15m;
+            $payload = [
+                'candles' => $slice,
+                'entry' => $closePrice,
+                'tps' => $tp,
+                'sl' => $sl,
+                'direction' => $direction,
+            ];
+            $ml = new \Maksv\MachineLearning\Request('http://127.0.0.1:8000');
+            $mlModel = $ml->predict($payload);
+        } catch (\Exception $e) {
+            // при ошибке ML просто оставляем пустой массив
+            $mlModel = [];
+        }
+
+        return [
+            'SL' => $sl,
+            'TP' => $tp,
+            'actualMlModel' => $mlModel,
+        ];
+    }
 
     //обмен по основной стратегии
     public static function screener($interval = '15m', $longOiLimit = 1.49, $shortOiLimit = -1.49, $devMode = false)
     {
         $currentLongOiLimit = $longOiLimit;
         $currentShortOiLimit = $shortOiLimit;
-
+        
         $marketMode = 'bybit';
         // проверяем не запускался ли только что обмен
         if (!$devMode) {
@@ -67,7 +450,7 @@ class Exchange
         $binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
         $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
         $okxSymbolsList = array_column(
-            array_map(function($item) {
+            array_map(function ($item) {
                 $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
                 return [
                     $item['instId'],
@@ -155,10 +538,10 @@ class Exchange
                 $cnt++;
 
                 //периодически обновляем данные
-                if ($cnt % 20 === 0)
+                if ($cnt % 12 === 0)
                     $latestScreener = \Maksv\DataOperation::getLatestScreener($bybitScreenerIblockId);
 
-                if ($cnt % 15 === 0)
+                if ($cnt % 12 === 0)
                     $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverIblockId, $betaForeverSectionCode);
 
                 if ($cnt % 40 === 0)
@@ -238,14 +621,14 @@ class Exchange
                 }
                 $screenerData['oiLimits'] = ['longOiLimit' => $longOiLimit, 'shortOiLimit' => $shortOiLimit];
 
-               /* if (
-                    !($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1))
-                    && !($summaryOI >= $longOiLimit)
-                    && !($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
-                ) {
-                    //devlogs('ERR ' . $symbolName . ' | err - OI' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
-                    continue;
-                }*/
+                /* if (
+                     !($summaryOIBybit >= $longOiLimit && (!$summaryOIBinance || $summaryOIBinance >= 0.1))
+                     && !($summaryOI >= $longOiLimit)
+                     && !($summaryOIBybit <= $shortOiLimit && (!$summaryOIBinance || $summaryOIBinance <= -0.1))
+                 ) {
+                     //devlogs('ERR ' . $symbolName . ' | err - OI' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
+                     continue;
+                 }*/
 
                 if (
                     !(($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
@@ -302,7 +685,7 @@ class Exchange
                 try {
                     $macdData = \Maksv\TechnicalAnalysis::analyzeMACD($candles) ?? false;
                     $screenerData['actualMacd'] = $actualMacd = $macdData[array_key_last($macdData)] ?? false;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - actualMacd' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -311,7 +694,7 @@ class Exchange
                     $impulseMACD = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles) ?? false;
                     if ($impulseMACD && is_array($impulseMACD))
                         $screenerData['actualImpulsMacd'] = $actualImpulsMacd = $impulseMACD[array_key_last($impulseMACD)];
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - actualImpulsMacd' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -341,7 +724,7 @@ class Exchange
                     $screenerData['actualSupertrend5m'] = $actualSupertrend5m = $supertrendData5m[array_key_last($supertrendData5m)] ?? false;
                     if (!$actualSupertrend5m)
                         devlogs('ERR ' . $symbolName . ' | err - actualSupertrend5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR | err - Supertrend 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -349,7 +732,7 @@ class Exchange
                 try {
                     $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
                     $screenerData['actualAdx5m'] = $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - adx 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -390,7 +773,7 @@ class Exchange
                         '15m',
                         ['5m' => 11, '15m' => 11, '30m' => 11, '1h' => 14, '4h' => 8, '1d' => 6]
                     );
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - actualMacdDivergence' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -398,7 +781,7 @@ class Exchange
                 try {
                     $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($candles15m, 10, 3) ?? false; // длина 10, фактор 3
                     $screenerData['actualSupertrend15m'] = $actualSupertrend15m = $supertrendData[array_key_last($supertrendData)] ?? false;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR | err - Supertrend 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -428,7 +811,7 @@ class Exchange
                     try {
                         $maHis = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 9, 26, 102) ?? [];
                         $ma26 = $maHis[array_key_last($maHis)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma26' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -439,7 +822,7 @@ class Exchange
                     try {
                         $ma50His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 12, 50, 102) ?? [];
                         $ma50 = $ma50His[array_key_last($ma50His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma50' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -448,7 +831,7 @@ class Exchange
                     try {
                         $ma100His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 100, 102) ?? [];
                         $ma100 = $ma100His[array_key_last($ma100His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma100 candles15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -460,7 +843,7 @@ class Exchange
                     try {
                         $ma200His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 9, 200, 102) ?? [];
                         $ma200 = $ma200His[array_key_last($ma200His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma200' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -469,7 +852,7 @@ class Exchange
                     try {
                         $ma400His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles15m, 12, 400, 10) ?? [];
                         $ma400 = $ma400His[array_key_last($ma400His)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - ma400 candles15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
@@ -493,7 +876,7 @@ class Exchange
                     // Рассчитываем ATR по свечам
                     $ATRData = \Maksv\TechnicalAnalysis::calculateATR($candles15m);
                     $screenerData['actualATR'] = $actualATR = $ATRData[array_key_last($ATRData)] ?? null;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - atr' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -501,7 +884,7 @@ class Exchange
                 try {
                     $adxData = \Maksv\TechnicalAnalysis::calculateADX($candles15m) ?? [];
                     $screenerData['actualAdx'] = $actualAdx = $adxData[array_key_last($adxData)];
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - adx' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 }
 
@@ -542,14 +925,14 @@ class Exchange
                         if ($stochasticOscillatorData1h && is_array($stochasticOscillatorData1h))
                             $screenerData['actualStochastic1h'] = $actualStochastic1h = $stochasticOscillatorData1h[array_key_last($stochasticOscillatorData1h)];
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR err - stoch 1h ' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
                     try {
                         $adxData1h = \Maksv\TechnicalAnalysis::calculateADX($candles1h) ?? [];
                         $screenerData['actualAdx1h'] = $actualAdx1h = $adxData1h[array_key_last($adxData1h)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR ' . $symbolName . ' | err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
@@ -557,7 +940,7 @@ class Exchange
                         try {
                             $ma400His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 400, 10) ?? [];
                             $screenerData['ma400_1h'] = $ma400_1h = $ma400His_1h[array_key_last($ma400His_1h)];
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             devlogs('ERR ' . $symbolName . ' | err - ma400 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         }
                     }
@@ -566,7 +949,7 @@ class Exchange
                         try {
                             $ma100His_1h = \Maksv\TechnicalAnalysis::getMACrossHistory($candles1h, 12, 100, 10) ?? [];
                             $screenerData['ma100_1h'] = $ma100_1h = $ma100His_1h[array_key_last($ma100His_1h)];
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             devlogs('ERR ' . $symbolName . ' | err - ma100 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         }
                     }
@@ -610,19 +993,19 @@ class Exchange
                         || ($ma200['isLong'] && $interval == '15m')
                         || ($ma400['isLong'] && $interval == '15m')
                     )
-                    && self::checkMaCondition($ma26,  $actualClosePrice, $maDistance, 'long')
+                    && self::checkMaCondition($ma26, $actualClosePrice, $maDistance, 'long')
                     && self::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'long')
                     && self::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'long')
                     && self::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'long')
                     && self::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'long')
                     && self::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'long')
-                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
+                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden']*/)
                 ) {
                     $screenerData['isLong'] = true;
 
                     // помечаем стратегию
                     if ($actualMacd['isLong']) {
-                        if ($actualMacdDivergence['longDivergenceTypeAr']['regular'] || $actualMacdDivergence['longDivergenceTypeAr']['hidden'])
+                        if ($actualMacdDivergence['longDivergenceTypeAr']['regular']/* || $actualMacdDivergence['longDivergenceTypeAr']['hidden']*/)
                             $screenerData['strategy'] = 'macdD/macdC/MAfar';
                         else
                             $screenerData['strategy'] = 'macd/!d/MAfar';
@@ -672,18 +1055,18 @@ class Exchange
                         || ($ma200['isShort'] && $interval == '15m')
                         || ($ma400['isShort'] && $interval == '15m')
                     )
-                    && self::checkMaCondition($ma26,  $actualClosePrice, $maDistance, 'short')
+                    && self::checkMaCondition($ma26, $actualClosePrice, $maDistance, 'short')
                     && self::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'short')
                     && self::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'short')
                     && self::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'short')
                     && self::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'short')
                     && self::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'short')
-                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
+                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['longDivergenceTypeAr']['hidden']*/)
                 ) {
                     $screenerData['isLong'] = false;
 
                     if ($actualMacd['isShort']) {
-                        if ($actualMacdDivergence['shortDivergenceTypeAr']['regular'] || $actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
+                        if ($actualMacdDivergence['shortDivergenceTypeAr']['regular'] /*|| $actualMacdDivergence['shortDivergenceTypeAr']['hidden']*/)
                             $screenerData['strategy'] = 'macdD/macdC/MAfar';
                         else
                             $screenerData['strategy'] = 'macd/!d/MAfar';
@@ -753,9 +1136,9 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - PriceChartGenerator' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
 
-                    $screenerData['resML']['mlBoard'] = $mlBoard =  0.71;
-                    if ($screenerData['isLong']){
-                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.73; // 0.73
+                    $screenerData['resML']['mlBoard'] = $mlBoard = 0.71;
+                    if ($screenerData['isLong']) {
+                        $screenerData['resML']['mlBoard'] = $mlBoard = 0.74; // 0.73
                         $screenerData['marketMLName'] = 'longMl';
                         $actualStrategyName = 'screenerPump';
                     } else {
@@ -796,12 +1179,12 @@ class Exchange
                         try {
                             $writeRes = \Maksv\DataOperation::saveSignalToIblock($interval, 'bybit', 'screener');
                             devlogs('screener write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             $errText = 'ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
                             \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screener' . $interval);
                             devlogs($errText, $marketMode . '/screener' . $interval);
                         }
-                    } else  {
+                    } else {
                         devlogs(
                             ' main skip latestScreener  | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
@@ -845,7 +1228,7 @@ class Exchange
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $shortTpCount);
 
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
-                            $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
+                            $screenerData['TP'] = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperBetaForever');
 
@@ -859,17 +1242,17 @@ class Exchange
                             "EXCHANGE_CODE" => 'normal_ml'
                         ];
 
-                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategyBeta.json', json_encode($actualStrategyBeta));
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screener/' . $interval . '/actualStrategyBeta.json', json_encode($actualStrategyBeta));
                         try {
                             $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'normal_ml', $marketMode);
                             devlogs('screener beta forever write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             $errText = 'ERR beta forever write - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
                             \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screener' . $interval);
                             devlogs($errText, $marketMode . '/screener' . $interval);
                         }
 
-                    } else  {
+                    } else {
                         devlogs(
                             'normal ml skip | total ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
@@ -902,7 +1285,7 @@ class Exchange
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $shortTpCount);
 
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
-                            $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
+                            $screenerData['TP'] = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperBetaForeverHigh');
 
@@ -916,17 +1299,17 @@ class Exchange
                             "EXCHANGE_CODE" => 'high_ml'
                         ];
 
-                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategyBetaHigh.json', json_encode($actualStrategyBetaHigh));
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screener/' . $interval . '/actualStrategyBetaHigh.json', json_encode($actualStrategyBetaHigh));
                         try {
                             $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'high_ml', $marketMode);
                             devlogs('screener beta forever high write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-                        } catch (Exception $e) {
+                        } catch (\Exception $e) {
                             $errText = 'ERR beta forever high write - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s");
                             \Maksv\DataOperation::sendErrorInfoMessage($errText, 'screener', $marketMode . '/screener' . $interval);
                             devlogs($errText, $marketMode . '/screener' . $interval);
                         }
 
-                    } else  {
+                    } else {
                         devlogs(
                             'high ml skip | total ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
@@ -936,7 +1319,7 @@ class Exchange
 
                 /*if ($devMode && $cnt >= 50)
                     break;*/
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR ' . $symbolName . ' | err -' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
             }
         }
@@ -1086,9 +1469,9 @@ class Exchange
             $allBaseCoins = array_unique(array_column($exchangeBybitSymbolsList, 'baseCoin'));
 
             // 5) Запрашиваем капитализации батчами по 99 монет через CoinMarketCap
-            $cmc       = new \Maksv\Coinmarketcap\Request();
-            $capMap    = [];  // здесь накопим [SYMBOL => marketCap]
-            $chunks    = array_chunk($allBaseCoins, 99);
+            $cmc = new \Maksv\Coinmarketcap\Request();
+            $capMap = [];  // здесь накопим [SYMBOL => marketCap]
+            $chunks = array_chunk($allBaseCoins, 99);
             foreach ($chunks as $chunk) {
                 try {
                     // getMarketCaps умеет принять массив
@@ -1157,7 +1540,9 @@ class Exchange
 
 
             if ($timeFrame == '1d') {
-                echo '<pre>'; var_dump('tech OK'); echo '</pre>';
+                echo '<pre>';
+                var_dump('tech OK');
+                echo '</pre>';
                 return true;
             }
         }
@@ -1165,7 +1550,7 @@ class Exchange
         $binanceSymbolsList = array_column($exchangeBinanceSymbolsList, 'symbol') ?? [];
         $bybitSymbolsList = array_column($exchangeBybitSymbolsList, 'symbol') ?? [];
         $okxSymbolsList = array_column(
-            array_map(function($item) {
+            array_map(function ($item) {
                 $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
                 return [
                     $item['instId'],
@@ -1292,6 +1677,10 @@ class Exchange
                 if ($countReq % 40 === 0)
                     $btcInfo = self::checkMarketImpulsInfo();
 
+                //периодически обновляем данные
+                if ($countReq % 15 === 0)
+                    $latestSignals = \Maksv\DataOperation::getLatestSignals($timeFrame, 'master');
+
                 try {
                     $klineHistory = [];
 
@@ -1307,7 +1696,7 @@ class Exchange
                     //oi
                     $summaryOpenInterestOb = self::getSummaryOpenInterestDev($symbolName, $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, $intervalsOImap[$timeFrame]);
                     //$summaryOpenInterestOb = self::getSummaryOpenInterest($symbolName, $binanceApiOb, $bybitApiOb, $binanceSymbolsList, $bybitSymbolsList, $intervalsOImap[$timeFrame]);
-                    if (/*$summaryOpenInterestOb['summaryOI'] || */$summaryOpenInterestOb['summaryOIBybit']) {
+                    if (/*$summaryOpenInterestOb['summaryOI'] || */ $summaryOpenInterestOb['summaryOIBybit']) {
 
                         $summaryOIBybit = $summaryOpenInterestOb['summaryOIBybit'];
                         $summaryOIBinance = $summaryOpenInterestOb['summaryOIBinance'];
@@ -1396,7 +1785,7 @@ class Exchange
                                     if ($macdData && is_array($macdData))
                                         $actualMacd = $macdData[array_key_last($macdData)];
 
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | err - macdData' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
                                 $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualMacd'] = $actualMacd;
@@ -1406,7 +1795,7 @@ class Exchange
                                     $impulseMACD = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles) ?? false;
                                     if ($impulseMACD && is_array($impulseMACD))
                                         $actualImpulsMacd = $impulseMACD[array_key_last($impulseMACD)];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | err - actualImpulsMacd' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
                                 $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualImpulsMacd'] = $actualImpulsMacd;
@@ -1415,7 +1804,7 @@ class Exchange
                                 $crossMA = $crossMA100 = $crossMA200 = $crossMA400 = [];
                                 try {
                                     $crossMA = \Maksv\TechnicalAnalysis::checkMACross($candles, 9, 26, 20, 2) ?? [];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | err - ma 26' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
@@ -1433,7 +1822,7 @@ class Exchange
                                     if ($stochasticOscillatorData && is_array($stochasticOscillatorData))
                                         $actualStochastic = $stochasticOscillatorData[array_key_last($stochasticOscillatorData)];
 
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR | ' . $symbolName . ' actualStochastic' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
@@ -1473,7 +1862,7 @@ class Exchange
                                         '15m',
                                         ['5m' => 11, '15m' => 11, '30m' => 11, '1h' => 14, '4h' => 8, '1d' => 6]
                                     );
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | err - actualMacdDivergence' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
@@ -1482,7 +1871,7 @@ class Exchange
                                 try {
                                     $supertrendData15m = \Maksv\TechnicalAnalysis::calculateSupertrend($candles15m, 10, 3) ?? false; // длина 10, фактор 3
                                     $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualSupertrend5m'] = $actualSupertrend15m = $supertrendData15m[array_key_last($supertrendData15m)] ?? false;
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR | err - Supertrend 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
@@ -1492,28 +1881,28 @@ class Exchange
                                     // Рассчитываем ATR по свечам
                                     $ATRData = \Maksv\TechnicalAnalysis::calculateATR($candles15m);
                                     $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualATR'] = $actualATR = $ATRData[array_key_last($ATRData)] ?? null;
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | err - ATR' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
                                 // other ma, always 15m candles
                                 try {
                                     $crossMA100 = \Maksv\TechnicalAnalysis::checkMACross($candles15m, 9, 100, 20, 2) ?? [];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | err - ma 100' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
                                 $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['cross100MA'] = $crossMA100;
 
                                 try {
                                     $crossMA200 = \Maksv\TechnicalAnalysis::checkMACross($candles15m, 9, 200, 20, 2) ?? [];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | ma 200 ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
                                 $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['cross200MA'] = $crossMA200;
 
                                 try {
                                     $crossMA400 = \Maksv\TechnicalAnalysis::checkMACross($candles15m, 9, 400, 20, 2) ?? [];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR ' . $symbolName . ' | ma 400 ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
                                 $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['cross400MA'] = $crossMA400;
@@ -1543,7 +1932,7 @@ class Exchange
                                 try {
                                     $supertrendData5m = \Maksv\TechnicalAnalysis::calculateSupertrend($candles5m, 10, 3) ?? false; // длина 10, фактор 3
                                     $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualSupertrend5m'] = $actualSupertrend5m = $supertrendData5m[array_key_last($supertrendData5m)] ?? false;
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR | err - Supertrend 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
@@ -1551,7 +1940,7 @@ class Exchange
                                 try {
                                     $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m) ?? [];
                                     $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualAdx5m'] = $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR | ' . $symbolName . ' adx 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
@@ -1586,7 +1975,7 @@ class Exchange
                                 try {
                                     $orderBook = $bybitApiOb->orderBookV5('linear', $symbolName, 1000, true);
                                     $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['analyzeOrderBook'] = $analyzeOrderBook = \Maksv\TechnicalAnalysis::analyzeOrderBook($orderBook) ?? [];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR | ' . $symbolName . ' analyzeOrderBook' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }*/
 
@@ -1594,7 +1983,7 @@ class Exchange
                                 try {
                                     $adxData = \Maksv\TechnicalAnalysis::calculateADX($candles15m) ?? [];
                                     $marketVolumesJson['RESPONSE_EXCHENGE'][$symbolName]['actualAdx'] = $actualAdx = $adxData[array_key_last($adxData)];
-                                } catch (Exception $e) {
+                                } catch (\Exception $e) {
                                     devlogs('ERR | ' . $symbolName . ' adx' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                 }
 
@@ -1634,21 +2023,21 @@ class Exchange
                                         if ($stochasticOscillatorData1h && is_array($stochasticOscillatorData1h))
                                             $actualStochastic1h = $stochasticOscillatorData1h[array_key_last($stochasticOscillatorData1h)];
 
-                                    } catch (Exception $e) {
+                                    } catch (\Exception $e) {
                                         devlogs('ERR | ' . $symbolName . ' actualStochastic1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                     }
 
                                     try {
                                         $adxData1h = \Maksv\TechnicalAnalysis::calculateADX($candles1h) ?? [];
                                         $actualAdx1h = $adxData1h[array_key_last($adxData1h)];
-                                    } catch (Exception $e) {
+                                    } catch (\Exception $e) {
                                         devlogs('ERR | ' . $symbolName . ' err - adx 1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                     }
 
                                     if (is_array($candles1h) && count($candles1h) >= 802) {
                                         try {
                                             $crossMA400_1h = \Maksv\TechnicalAnalysis::checkMACross($candles1h, 9, 400, 20, 2) ?? [];
-                                        } catch (Exception $e) {
+                                        } catch (\Exception $e) {
                                             devlogs('ERR | ' . $symbolName . '  err - ma400 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                         }
                                     }
@@ -1656,7 +2045,7 @@ class Exchange
                                     if (is_array($candles1h) && count($candles1h) >= 202) {
                                         try {
                                             $crossMA100_1h = \Maksv\TechnicalAnalysis::checkMACross($candles1h, 9, 100, 20, 2) ?? [];
-                                        } catch (Exception $e) {
+                                        } catch (\Exception $e) {
                                             devlogs('ERR | ' . $symbolName . '  err - ma100 candles1h' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                                         }
                                     }
@@ -1781,8 +2170,8 @@ class Exchange
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
                                     && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
-                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
+                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden']*/)
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
@@ -1806,8 +2195,8 @@ class Exchange
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
                                     && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
-                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
+                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['longDivergenceTypeAr']['hidden']*/)
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
@@ -1830,9 +2219,9 @@ class Exchange
                                     $actualMacd['isLong']
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
-                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
+                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden']*/)
                                     && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
@@ -1847,9 +2236,9 @@ class Exchange
                                     $actualMacd['isShort']
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
-                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
+                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['longDivergenceTypeAr']['hidden']*/)
                                     && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
@@ -1866,9 +2255,9 @@ class Exchange
                                     //&& $timeFrame != '30m'
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
-                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
+                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden']*/)
                                     && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
@@ -1884,9 +2273,9 @@ class Exchange
                                     //&& $timeFrame != '30m'
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
-                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
+                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['longDivergenceTypeAr']['hidden']*/)
                                     && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
@@ -1903,14 +2292,14 @@ class Exchange
                                     && $btcInfo['isLong']
                                     && $analyzeVolumeSignalRes['isLong']
                                     && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'long')
                                     && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'long')
-                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
-                                    && ($actualMacdDivergence['longDivergenceTypeAr']['regular'] || $actualMacdDivergence['longDivergenceTypeAr']['hidden'])
+                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden']*/)
+                                    && ($actualMacdDivergence['longDivergenceTypeAr']['regular']/* || $actualMacdDivergence['longDivergenceTypeAr']['hidden']*/)
                                 ) {
                                     $opportunityData['strategy'] = 'macdD/macdC/MAfar';
                                     $actualOpportunities['allPump'][$symbolName] = $actualOpportunities['masterPump'][$symbolName] = $opportunityData;
@@ -1921,53 +2310,16 @@ class Exchange
                                     && $btcInfo['isShort']
                                     && $analyzeVolumeSignalRes['isShort']
                                     && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
+                                    && self::checkMaCondition($crossMA, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'short')
                                     && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'short')
-                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
-                                    && ($actualMacdDivergence['shortDivergenceTypeAr']['regular'] || $actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
+                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular']/* && !$actualMacdDivergence['longDivergenceTypeAr']['hidden']*/)
+                                    && ($actualMacdDivergence['shortDivergenceTypeAr']['regular']/* || $actualMacdDivergence['shortDivergenceTypeAr']['hidden']*/)
                                 ) {
                                     $opportunityData['strategy'] = 'macdD/macdC/MAfar';
-                                    $actualOpportunities['allDump'][$symbolName] = $actualOpportunities['masterDump'][$symbolName] = $opportunityData;
-                                }
-
-                                //master(alfa), stoch rsi and !divergence
-                                if (
-                                    $timeFrame == '15m'
-                                    && $actualStochastic['isLong']
-                                    && $btcInfo['isLong']
-                                    && $analyzeVolumeSignalRes['isLong']
-                                    && (($summaryOIBybit >= $longOiLimit) && ($summaryOI >= 0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'long')
-                                    && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'long')
-                                    && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'long')
-                                    && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'long')
-                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'long')
-                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'long')
-                                    && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
-                                ) {
-                                    $opportunityData['strategy'] = 'stochRsi/!d/MAfar';
-                                    $actualOpportunities['allPump'][$symbolName] = $actualOpportunities['masterPump'][$symbolName] = $opportunityData;
-                                }
-
-                                if (
-                                    $timeFrame == '15m'
-                                    && $actualStochastic['isShort']
-                                    && $btcInfo['isShort']
-                                    && $analyzeVolumeSignalRes['isShort']
-                                    && (($summaryOIBybit <= $shortOiLimit) && ($summaryOI <= -0.01))
-                                    && self::checkMaCondition($crossMA,  $actualClosePrice, $maDistance, 'short')
-                                    && self::checkMaCondition($crossMA100, $actualClosePrice, $maDistance, 'short')
-                                    && self::checkMaCondition($crossMA200, $actualClosePrice, $maDistance, 'short')
-                                    && self::checkMaCondition($crossMA400, $actualClosePrice, $maDistance, 'short')
-                                    && self::checkMaCondition($crossMA100_1h, $actualClosePrice, $maDistance, 'short')
-                                    && self::checkMaCondition($crossMA400_1h, $actualClosePrice, $maDistance, 'short')
-                                    && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
-                                ) {
-                                    $opportunityData['strategy'] = 'stochRsi/!d/MAfar';
                                     $actualOpportunities['allDump'][$symbolName] = $actualOpportunities['masterDump'][$symbolName] = $opportunityData;
                                 }
 
@@ -1984,7 +2336,7 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - OI' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                     }
 
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' countReq - ' . $countReq . ' | err text - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                 }
 
@@ -2004,7 +2356,7 @@ class Exchange
             uasort($actualOpportunities['allDump'], function ($a, $b) {
                 return $b['lastOpenInterest'] <=> $a['lastOpenInterest'];
             });
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             devlogs('ERR - alert sort Err | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
         }
 
@@ -2016,7 +2368,7 @@ class Exchange
             uasort($actualOpportunities['masterDump'], function ($a, $b) {
                 return $b['lastOpenInterest'] <=> $a['lastOpenInterest'];
             });
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             devlogs('ERR - alfa Err | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
         }
 
@@ -2080,21 +2432,21 @@ class Exchange
                 // Вешаем на $pump всё, что вернула функция
                 $pump = array_merge($pump, $processed);
 
-                $pump['resML']['totalMl'] = $totalMl = $marketMl = $signalMl = false;
-                $pump['resML']['marketMl'] = $marketMl = $btcInfo['longMl']['probabilities'][1] ?? false;
-                $pump['resML']['signalMl'] = $signalMl = $pump['actualMlModel']['probabilities'][1] ?? false;
+                $pump['resML']['totalMl'] = $totalMl = $marketMl = $signalMl = 0;
+                $pump['resML']['marketMl'] = $marketMl = $btcInfo['longMl']['probabilities'][1] ?? 0;
+                $pump['resML']['signalMl'] = $signalMl = $pump['actualMlModel']['probabilities'][1] ?? 0;
                 if ($marketMl && $signalMl) {
                     $pump['resML']['totalMl'] = $totalMl = ($marketMl + $signalMl) / 2;
                 }
                 $pump['resML']['mlBoard'] = $mlBoard = $btcInfo['mlBoard'] ?? 0.71;
 
-               /* if (
-                    !$marketMl || !$signalMl || $totalMl
-                    || $marketMl <= 0.65 || $signalMl <= 0.65 || $totalMl < $mlBoard
-                ) {
-                    $unsetSymbols[] = $pump['symbolName'];
-                    continue;
-                }*/
+                /* if (
+                     !$marketMl || !$signalMl || $totalMl
+                     || $marketMl <= 0.65 || $signalMl <= 0.65 || $totalMl < $mlBoard
+                 ) {
+                     $unsetSymbols[] = $pump['symbolName'];
+                     continue;
+                 }*/
 
             }
             unset($pump);
@@ -2182,7 +2534,7 @@ class Exchange
             try {
                 $writeRes = \Maksv\DataOperation::saveSignalToIblock($timeFrame, 'bybit', 'master');
                 devlogs($timeFrame . ' master write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
             }
         }
@@ -2195,7 +2547,7 @@ class Exchange
                 try {
                     $writeRes = \Maksv\DataOperation::saveSignalToIblock($timeFrame, 'bybit', 'alerts');
                     devlogs($timeFrame . ' alerts write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), $marketCode . '/bybitExchange' . $timeFrame);
                 }
             }
@@ -2213,7 +2565,7 @@ class Exchange
 
     public static function getMarketInfo($symbol = 'others')
     {
-        $devlogsCode = 'getMarketInfo/'.$symbol;
+        $devlogsCode = 'getMarketInfo/' . $symbol;
         $cacheID = md5($devlogsCode . 'Cache|' . $symbol);
 
         $backtraceStr = '';
@@ -2261,7 +2613,7 @@ class Exchange
             //\Maksv\DataOperation::sendErrorInfoMessage($err, $backtraceStr, $devlogsCode);
             //return ['err' => [$err]];
         }
-        
+
         try {
             $cache = \Bitrix\Main\Data\Cache::createInstance();
             if ($cache->initCache(30, $cacheID)) {
@@ -2313,8 +2665,13 @@ class Exchange
 
                 if ($klineList5m && is_array($klineList5m) && count($klineList5m) > 80) {
                     $candles5m = array_map(function ($k) {
+                        // создаём объект DateTime из строки
+                        $dt = new \DateTime($k['datetime']);
+                        // получаем секунды с эпохи и умножаем на 1000 — получаем миллисекунды
+                        $ms = $dt->getTimestamp() * 1000;
+
                         return [
-                            't' => floatval($k['datetime']), // timestap
+                            't' => $ms, // timestamp
                             'o' => floatval($k['open']), // Open price
                             'h' => floatval($k['high']), // High price
                             'l' => floatval($k['low']), // Low price
@@ -2326,7 +2683,7 @@ class Exchange
                     try {
                         $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($candles5m, 10, 3) ?? false; // длина 10, фактор 3
                         $res['actualSupertrend5m'] = $actualSupertrend5m = $supertrendData[array_key_last($supertrendData) - 1] ?? false;
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - Supertrend 5m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2335,7 +2692,7 @@ class Exchange
                         if ($macdData5m && is_array($macdData5m))
                             $res['actualMacd5m'] = $actualMacd5m = $macdData5m[array_key_last($macdData5m)];
                         unset($res['actualMacd5m']['extremes']);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - macd 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2343,7 +2700,7 @@ class Exchange
                         $stochasticOscillatorData5m = \Maksv\TechnicalAnalysis::calculateStochasticRSI($candles5m) ?? false;
                         if ($stochasticOscillatorData5m && is_array($stochasticOscillatorData5m))
                             /* $res['actualStochastic5m'] = */ $actualStochastic5m = $stochasticOscillatorData5m[array_key_last($stochasticOscillatorData5m)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - stoch 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2366,14 +2723,14 @@ class Exchange
                         }
 
                         //unset( $res['actualMacdDivergence5m']['extremes']);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - checkMultiMACD 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m);
                         $res['actualAdx5m'] = $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualAdx5m 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2381,8 +2738,15 @@ class Exchange
                         $impulseMACD5m = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles5m) ?? false;
                         if ($impulseMACD5m && is_array($impulseMACD5m))
                             $res['actualImpulsMacd5m'] = $actualImpulsMacd5m = $impulseMACD5m[array_key_last($impulseMACD5m)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualImpulsMacd 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
+                    }
+
+                    try {
+                        $linRegChannelData5m = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles5m, 100, 2.0);
+                        $res['linRegChannel5m'] = $linRegChannel5m = end($linRegChannelData5m);
+                    } catch (\Exception $e) {
+                        devlogs('ERR | err - linRegChanne 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
                 }
 
@@ -2426,7 +2790,7 @@ class Exchange
                         $impulseMACD15m = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles15m) ?? false;
                         if ($impulseMACD15m && is_array($impulseMACD15m))
                             $res['actualImpulsMacd15m'] = $actualImpulsMacd15m = $impulseMACD15m[array_key_last($impulseMACD15m)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualImpulsMacd 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2434,7 +2798,7 @@ class Exchange
                     try {
                         $macdSimpleData15m = \Maksv\TechnicalAnalysis::analyzeMACD($candles15m) ?? false;
                         $res['actualSimpleMacd15m'] = $actualSimpleMacd15m = $macdSimpleData15m[array_key_last($macdSimpleData15m)] ?? false;
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualSimpleMacd15m 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2458,14 +2822,14 @@ class Exchange
                         }
 
                         //unset( $res['actualMacdDivergence15m']['extremes']);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - checkMultiMACD ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($candles15m, 10, 3) ?? false; // длина 10, фактор 3
                         $res['actualSupertrend15m'] = $actualSupertrend15m = $supertrendData[array_key_last($supertrendData) - 1] ?? false;
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - Supertrend' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2476,7 +2840,7 @@ class Exchange
                             $res['actualMacd15m'] = $actualMacd15m = $macdData15m[array_key_last($macdData15m)];
                             unset($res['actualMacd15m']['extremes']);
                         }
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - macd 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2485,54 +2849,62 @@ class Exchange
                         if ($stochasticOscillatorData15m && is_array($stochasticOscillatorData15m))
                             $res['actualStochastic15m'] = $actualStochastic15m = $stochasticOscillatorData15m[array_key_last($stochasticOscillatorData15m)];
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - stoch 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $adxData15m = \Maksv\TechnicalAnalysis::calculateADX($candles15m);
                         $res['actualAdx15m'] = $actualAdx15m = $adxData15m[array_key_last($adxData15m)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualAdx5m 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $atrData15m = \Maksv\TechnicalAnalysis::calculateATR($candles15m);
                         $res['actualAtr15m'] = $actualAtr15m = $atrData15m[array_key_last($atrData15m)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualAtr15m 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $res['ma100_15m'] = \Maksv\TechnicalAnalysis::checkMACross($candles15m, 9, 100, 20, 2) ?? [];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - ma100 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $res['ma200_15m'] = \Maksv\TechnicalAnalysis::checkMACross($candles15m, 9, 200, 20, 2) ?? [];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - ma200 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $ATRData = \Maksv\TechnicalAnalysis::calculateATR($candles15m);
                         $res['actualATR'] = $ATRData[array_key_last($ATRData)] ?? null;
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - atr ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $mfiData15m = \Maksv\TechnicalAnalysis::calculateMFI($candles15m);
+                        //$res['data'] = $mfiData15m[array_key_last($mfiData15m)] ?? [];
                         $res['mfi15m'] = $mfiData15m[array_key_last($mfiData15m)] ?? [];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - mfi 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
+                    }
+
+                    try {
+                        $linRegChannelData15m = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles15m, 100, 2.0);
+                        $res['linRegChannel15m'] = $linRegChannel15m = end($linRegChannelData15m);
+                    } catch (\Exception $e) {
+                        devlogs('ERR | err - linRegChanne 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $res['fibonacciLevels15m'] = \Maksv\TechnicalAnalysis::buildFibonacciLevels($candles15m, 8);
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - fiba 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2548,8 +2920,13 @@ class Exchange
 
                 if ($klineList1h && is_array($klineList1h) && count($klineList1h) > 80) {
                     $candles1h = array_map(function ($k) {
+                        // создаём объект DateTime из строки
+                        $dt = new \DateTime($k['datetime']);
+                        // получаем секунды с эпохи и умножаем на 1000 — получаем миллисекунды
+                        $ms = $dt->getTimestamp() * 1000;
+
                         return [
-                            't' => floatval($k['datetime']), // timestap
+                            't' => $ms, // timestamp
                             'o' => floatval($k['open']), // Open price
                             'h' => floatval($k['high']), // High price
                             'l' => floatval($k['low']), // Low price
@@ -2587,7 +2964,7 @@ class Exchange
                         }
 
                         //unset( $res['actualMacdDivergence1h']['extremes']);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - checkMultiMACD 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2596,14 +2973,14 @@ class Exchange
                         if ($stochasticOscillatorData1h && is_array($stochasticOscillatorData1h))
                             $res['actualStochastic1h'] = $actualStochastic1h = $stochasticOscillatorData1h[array_key_last($stochasticOscillatorData1h)];
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - stoch 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $adxData1h = \Maksv\TechnicalAnalysis::calculateADX($candles1h);
                         $res['actualAdx1h'] = $actualAdx1h = $adxData1h[array_key_last($adxData1h)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualAdx5m 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2622,7 +2999,7 @@ class Exchange
                                 $res['ma100_1h']['isUptrend'] = true;
                         }
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - ma100 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2630,14 +3007,21 @@ class Exchange
                         $impulseMACD1h = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles1h) ?? false;
                         if ($impulseMACD1h && is_array($impulseMACD1h))
                             $res['actualImpulsMacd1h'] = $actualImpulsMacd1h = $impulseMACD1h[array_key_last($impulseMACD1h)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualImpulsMacd 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
+                    }
+
+                    try {
+                        $linRegChannelData1h = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles1h, 100, 2.0);
+                        $res['linRegChannel1h'] = $linRegChannel1h = end($linRegChannelData1h);
+                    } catch (\Exception $e) {
+                        devlogs('ERR | err - linRegChanne 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         $mfiData1h = \Maksv\TechnicalAnalysis::calculateMFI($candles1h);
                         $res['mfi1h'] = $mfiData1h[array_key_last($mfiData1h)] ?? [];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - mfi 1h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
                 }
@@ -2652,8 +3036,13 @@ class Exchange
 
                 if ($klineList4h && is_array($klineList4h) && count($klineList4h) > 80) {
                     $candles4h = array_map(function ($k) {
+                        // создаём объект DateTime из строки
+                        $dt = new \DateTime($k['datetime']);
+                        // получаем секунды с эпохи и умножаем на 1000 — получаем миллисекунды
+                        $ms = $dt->getTimestamp() * 1000;
+
                         return [
-                            't' => floatval($k['datetime']), // timestap
+                            't' => $ms, // timestamp
                             'o' => floatval($k['open']), // Open price
                             'h' => floatval($k['high']), // High price
                             'l' => floatval($k['low']), // Low price
@@ -2666,7 +3055,7 @@ class Exchange
                         $impulseMACD4h = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles4h) ?? false;
                         if ($impulseMACD4h && is_array($impulseMACD4h))
                             $res['actualImpulsMacd4h'] = $actualImpulsMacd4h = $impulseMACD4h[array_key_last($impulseMACD4h)];
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - actualImpulsMacd  4h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2685,7 +3074,7 @@ class Exchange
                             }
                         }
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - ma100 4h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
@@ -2698,15 +3087,22 @@ class Exchange
                         } else if ($res['ma150_4h']['ema'] > $res['ma150_4h']['sma']) {
                             $res['ma150_4h']['isUptrend'] = true;
                         }
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - ma150 4h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
+                    }
+
+                    try {
+                        $linRegChannelData4h = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles4h, 100, 2.0);
+                        $res['linRegChannel4h'] = $linRegChannel4h = end($linRegChannelData4h);
+                    } catch (\Exception $e) {
+                        devlogs('ERR | err - linRegChanne 4h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
 
                     try {
                         //$firstNCandles =  array_slice($candles4h, 0, 250);
                         $res['fibonacciLevels4h'] = \Maksv\TechnicalAnalysis::buildFibonacciLevels($candles4h, 8);
 
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         devlogs('ERR | err - fiba 4h ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $devlogsCode);
                     }
                 }
@@ -2716,8 +3112,7 @@ class Exchange
             }
 
             return $res;
-        }
-        finally {
+        } finally {
             flock($fp, LOCK_UN);
             fclose($fp);
         }
@@ -2746,8 +3141,7 @@ class Exchange
         $marketTrendBoard = 150000000;
 
         $marketMidImpulsBoard = 2390000000;
-        $marketImpulsBoard =    3000000000;
-        //$marketImpulsBoard = 2900000000;
+        $marketImpulsBoard = 3000000000;
 
         $res['mlBoard'] = $mlBoard = 0.72;
         $res['strongMlBoard'] = $strongMlBoard = 0.74;
@@ -2779,10 +3173,22 @@ class Exchange
         //adx 5m text
         $infoText .= 'adx trend ' . $marketImpulsInfo['actualAdx5m']['trendDirection']['trendDir'] . ', dir ' . $marketImpulsInfo['actualAdx5m']['adxDirection']['adxDir'] . ' (' . round($marketImpulsInfo['actualAdx5m']['adx'], 2) . '), 5m' . "\n\n";
 
-        //stoch 1h text ($marketImpulsInfo['actualStochastic1h']['%K']
-        $infoText .= 'stoch hist ' . round($marketImpulsInfo['actualStochastic1h']['hist'], 2) . ' (' . round($marketImpulsInfo['actualStochastic1h']['%K'], 2) . ', ' . round($marketImpulsInfo['actualStochastic1h']['%D'], 2) . '), 1h' . "\n";
-        //stoch 15m text
-        $infoText .= 'stoch hist ' . round($marketImpulsInfo['actualStochastic15m']['hist'], 2) . ' (' . round($marketImpulsInfo['actualStochastic15m']['%K'], 2) . ', ' . round($marketImpulsInfo['actualStochastic15m']['%D'], 2) . '), 15m' . "\n";
+        /*  //stoch 1h text ($marketImpulsInfo['actualStochastic1h']['%K']
+          $infoText .= 'stoch hist ' . round($marketImpulsInfo['actualStochastic1h']['hist'], 2) . ' (' . round($marketImpulsInfo['actualStochastic1h']['%K'], 2) . ', ' . round($marketImpulsInfo['actualStochastic1h']['%D'], 2) . '), 1h' . "\n";
+          //stoch 15m text
+          $infoText .= 'stoch hist ' . round($marketImpulsInfo['actualStochastic15m']['hist'], 2) . ' (' . round($marketImpulsInfo['actualStochastic15m']['%K'], 2) . ', ' . round($marketImpulsInfo['actualStochastic15m']['%D'], 2) . '), 15m' . "\n";*/
+
+        //mfi 15m text
+        $infoText .= 'mfi ' . $marketImpulsInfo['mfi15m']['mfi'] . ' (' . $marketImpulsInfo['mfi15m']['fast_mfi'] . ', ' . $marketImpulsInfo['mfi15m']['slow_mfi'] . '), 15m' . "\n\n";
+
+        //LinReg 4h text
+        $infoText .= 'LinReg ' . $marketImpulsInfo['linRegChannel4h']['percent'] . '% 4h' . "\n";
+        //LinReg 1h text
+        $infoText .= 'LinReg ' . $marketImpulsInfo['linRegChannel1h']['percent'] . '% 1h' . "\n";
+        //LinReg 15m text
+        $infoText .= 'LinReg ' . $marketImpulsInfo['linRegChannel15m']['percent'] . '% 15m' . "\n";
+        //LinReg 5m text
+        $infoText .= 'LinReg ' . $marketImpulsInfo['linRegChannel5m']['percent'] . '% 5m' . "\n\n";
 
         //market
         if ($marketImpulsInfo['longDivergenceVal1h'] && $marketImpulsInfo['longDivergenceText1h'])
@@ -2792,10 +3198,10 @@ class Exchange
             $infoText .= $marketImpulsInfo['shortDivergenceText1h'] . "\n";
 
         if ($marketImpulsInfo['longDivergenceVal15m'] && $marketImpulsInfo['longDivergenceText15m'])
-                    $infoText .= $marketImpulsInfo['longDivergenceText15m'] . "\n";
+            $infoText .= $marketImpulsInfo['longDivergenceText15m'] . "\n";
 
-       if ($marketImpulsInfo['shortDivergenceVal15m'] && $marketImpulsInfo['shortDivergenceText15m'])
-                $infoText .= $marketImpulsInfo['shortDivergenceText15m'] . "\n";
+        if ($marketImpulsInfo['shortDivergenceVal15m'] && $marketImpulsInfo['shortDivergenceText15m'])
+            $infoText .= $marketImpulsInfo['shortDivergenceText15m'] . "\n";
 
         if ($marketImpulsInfo['longDivergenceVal5m'] && $marketImpulsInfo['longDivergenceText5m'])
             $infoText .= $marketImpulsInfo['longDivergenceText5m'] . "\n";
@@ -2831,7 +3237,7 @@ class Exchange
         ) {
             $res['isLong'] = true;
             $res['atrMultipliers'] = [2.6, 3.0, 3.5];
-            $res['risk'] = 4.5;
+            $res['risk'] = 3.5;
             $res['mlBoard'] = 0.73;
         } else if (
             (
@@ -2847,26 +3253,26 @@ class Exchange
             $res['isShort'] = true;
             $res['mlBoard'] = 0.74;
             $res['atrMultipliers'] = [2.6, 3.0, 3.5];
-            $res['risk'] = 4.5;
+            $res['risk'] = 3.5;
         }
 
         // risk/profit rules long
         if ($res['isLong']) {
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= 0 && $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 400000000) {
-                $res['risk'] = 3.9;
+                $res['risk'] = 3.4;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " low impuls macd line 15m\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
-                $res['risk'] = 3.9;
+                $res['risk'] = 3.4;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= 4000000000) {
-                $res['risk'] = 3.5;
+                $res['risk'] = 3.2;
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 15m\n";
@@ -2876,33 +3282,33 @@ class Exchange
                 $marketImpulsInfo['actualStochastic15m']['%K'] <= 54
                 && !($marketImpulsInfo['actualImpulsMacd5m']['histogram'] > $marketStrongImpulsMacdVal && $marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard)
             ) {
-                $res['risk'] = 3.5;
+                $res['risk'] = 3.2;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " 15m stoch trend\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > 0 && $marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < 400000000) {
-                $res['risk'] = 3.5;
+                $res['risk'] = 3.2;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " low impuls macd line 5m\n";
-            }
-
-            if ($marketImpulsInfo['shortDivergenceVal5m'] || $marketImpulsInfo['shortDivergenceVal15m']
-                || $btcImpulsInfo['shortDivergenceVal5m'] || $btcImpulsInfo['shortDivergenceVal15m']
-                || $marketImpulsInfo['shortDivergenceVal1h']
-            ) {
-                $res['risk'] = 3.5;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " diver\n";
             }
 
             if (
                 ($marketImpulsInfo['actualStochastic1h']['%K'] <= 53 && $marketImpulsInfo['actualStochastic1h']['hist'] < 4)
                 && !($marketImpulsInfo['actualImpulsMacd5m']['histogram'] > $marketStrongImpulsMacdVal && $marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard)
             ) {
-                $res['risk'] = 3.5;
+                $res['risk'] = 3.2;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " 1h stoch trend\n";
+            }
+
+            if ($marketImpulsInfo['shortDivergenceVal5m'] || $marketImpulsInfo['shortDivergenceVal15m']
+                || $btcImpulsInfo['shortDivergenceVal5m'] || $btcImpulsInfo['shortDivergenceVal15m']
+                || $marketImpulsInfo['shortDivergenceVal1h']
+            ) {
+                $res['risk'] = 3;
+                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
+                $infoText .= 'risk ' . $res['risk'] . " diver\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 5000000000) {
@@ -2938,13 +3344,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m ma 200 close\n";
             }
 
-
-            if ($marketImpulsInfo['actualImpulsMacd5m']['histogram'] > 0 && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] <= ($marketImpulsMacdVal / 2)) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " low impuls hist\n";
-            }
-
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 22
                 || ($marketImpulsInfo['actualAdx5m']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx5m']['adx'] < 27)
@@ -2978,37 +3377,55 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 15m\n";
             }
 
+            if ($marketImpulsInfo['linRegChannel15m']['percent'] > 93) {
+                $res['risk'] = 3;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high LinReg 15m\n";
+            }
+
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 19 && $marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2.8;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
-            if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
+            if ($marketImpulsInfo['linRegChannel1h']['percent'] > 93) {
                 $res['risk'] = 2.8;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high LinReg 1h\n";
+            }
+
+            if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
+                $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 6000000000) {
-                $res['risk'] = 2.5;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
-            }
-
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
-                $res['risk'] = 2.5;
+                $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " down trend\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= 4900000000) {
-                $res['risk'] = 2.5;
+                $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 6000000000) {
+                $res['risk'] = 2.4;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
+            }
+
+            if ($marketImpulsInfo['linRegChannel4h']['percent'] > 93) {
+                $res['risk'] = 2.4;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high LinReg 4h\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
@@ -3043,7 +3460,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m\n";
             }
 
-
             if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > -500000000 && $marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < 0) {
                 $res['risk'] = 2.4;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
@@ -3056,11 +3472,17 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m trend close\n";
             }
 
+            if (abs($marketImpulsInfo['actualImpulsMacd15m']['histogram']) < 150000000) {
+                $res['risk'] = 2.2;
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
+                $infoText .= 'risk ' . $res['risk'] . " low impuls hist 15m \n";
+            }
+
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 18
             ) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
             }
 
@@ -3069,48 +3491,47 @@ class Exchange
                 && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
             ) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
             }*/
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance/1.5, 'long')) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
             }
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma150_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
+            if (!self::checkMaCondition($marketImpulsInfo['ma150_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance/1.5, 'long')) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " 4h ma 150 close\n";
-            }
-
-
-            if ($marketImpulsInfo['mfi15m']['isUpDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] <= 50) {
-                $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " down mfi 15m\n";
             }
 
             if (
                 $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] == 0
             ) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " neutral trend 15m\n";
             }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 17 && $marketImpulsInfo['actualAdx15m']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2;
                 $res['mlBoard'] = 0.73;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > $marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < ($marketStrongImpulsMacdVal)) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";
+            }
+
+            if ($marketImpulsInfo['mfi15m']['isUpDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] <= 50) {
+                $res['risk'] = 1.7;
+                $res['atrMultipliers'] = [1.1, 1.9, 2.6];
+                $infoText .= 'risk ' . $res['risk'] . " down mfi 15m\n";
             }
 
         }
@@ -3119,19 +3540,19 @@ class Exchange
         if ($res['isShort']) {
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= 0 && $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > -400000000) {
-                $res['risk'] = 3.9;
+                $res['risk'] = 3.4;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " low impuls macd line 15m\n";
             }
 
             if ($marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
-                $res['risk'] = 3.9;
+                $res['risk'] = 3.4;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " down adx 1h\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= -4000000000) {
-                $res['risk'] = 3.5;
+                $res['risk'] = 3.2;
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls macd line 15m\n";
@@ -3140,31 +3561,31 @@ class Exchange
             if ($marketImpulsInfo['actualStochastic15m']['%K'] >= 47
                 && !($marketImpulsInfo['actualImpulsMacd5m']['histogram'] > $marketStrongImpulsMacdVal && $marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard)
             ) {
-                $res['risk'] = 3.5;
+                $res['risk'] = 3.2;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " 15m stoch trend\n";
             }
 
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < 0 && $marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > -400000000) {
-                $res['risk'] = 3.5;
+                $res['risk'] = 3.2;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
                 $infoText .= 'risk ' . $res['risk'] . " low impuls macd line 5m\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -5000000000) {
+                $res['risk'] = 3.2;
+                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
+                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h\n";
             }
 
             if ($marketImpulsInfo['longDivergenceVal5m'] || $marketImpulsInfo['longDivergenceVal15m']
                 || $btcImpulsInfo['longDivergenceVal5m'] || $btcImpulsInfo['longDivergenceVal15m']
                 || $marketImpulsInfo['longDivergenceVal1h']
             ) {
-                $res['risk'] = 3.5;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " diver\n";
-            }
-
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -5000000000) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h\n";
+                $infoText .= 'risk ' . $res['risk'] . " diver\n";
             }
 
             if (
@@ -3200,7 +3621,7 @@ class Exchange
             if ($marketImpulsInfo['actualImpulsMacd5m']['histogram'] < 0 && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] >= -($marketImpulsMacdVal / 2)) {
                 $res['risk'] = 3;
                 $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " low impuls hist\n";
+                $infoText .= 'risk ' . $res['risk'] . " low impuls hist 5m\n";
             }
 
             if (
@@ -3235,37 +3656,56 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 15m\n";
             }
 
+            if ($marketImpulsInfo['linRegChannel15m']['percent'] < 7) {
+                $res['risk'] = 3;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low LinReg 15m\n";
+            }
+
             if ($marketImpulsInfo['actualAdx1h']['adx'] < 19 && $marketImpulsInfo['actualAdx1h']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2.8;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
-            if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
+            if ($marketImpulsInfo['linRegChannel1h']['percent'] < 7) {
                 $res['risk'] = 2.8;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low LinReg 1h\n";
+            }
+
+            if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
+                $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -6000000000) {
-                $res['risk'] = 2.5;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
-            }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
-                $res['risk'] = 2.5;
+                $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " up trend\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= -4900000000) {
-                $res['risk'] = 2.5;
+                $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -6000000000) {
+                $res['risk'] = 2.4;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
+            }
+
+            if ($marketImpulsInfo['linRegChannel4h']['percent'] < 7) {
+                $res['risk'] = 2.4;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low LinReg 4h\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
@@ -3280,7 +3720,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low impuls hist 1h\n";
             }
 
-
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 22 && $marketImpulsInfo['actualAdx15m']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.74;
@@ -3294,13 +3733,12 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low adx 1h (15)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketMidImpulsBoard*1.05) {
+            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketMidImpulsBoard * 1.05) {
                 $res['risk'] = 2.4;
                 $res['mlBoard'] = 0.74;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m\n";
             }
-
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < 500000000 && $marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > 0) {
                 $res['risk'] = 2.4;
@@ -3314,61 +3752,57 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m trend close\n";
             }
 
-           /* if (
-                $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= -5000000000
-                && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
-            ) {
+            if (abs($marketImpulsInfo['actualImpulsMacd15m']['histogram']) < 150000000) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
-            }*/
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
+                $infoText .= 'risk ' . $res['risk'] . " low impuls hist 15m\n";
+            }
 
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 18
             ) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
             }
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
+            if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance/1.5, 'short')) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
             }
 
-            if (!self::checkMaCondition($marketImpulsInfo['ma150_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
+            if (!self::checkMaCondition($marketImpulsInfo['ma150_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance/1.5, 'short')) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " 4h ma 150 close\n";
-            }
-
-            if ($marketImpulsInfo['mfi15m']['isDownDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] >= 50) {
-                $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " up mfi 15m\n";
             }
 
             if (
                 $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] == 0
             ) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " neutral trend 15m\n";
             }
-
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 17 && $marketImpulsInfo['actualAdx15m']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2;
                 $res['mlBoard'] = 0.74;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < -($marketStrongImpulsMacdVal)) { 
+            if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < -($marketStrongImpulsMacdVal)) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";
+            }
+
+            if ($marketImpulsInfo['mfi15m']['isDownDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] >= 50) {
+                $res['risk'] = 1.7;
+                $res['atrMultipliers'] = [1.1, 1.9, 2.6];
+                $infoText .= 'risk ' . $res['risk'] . " up mfi 15m\n";
             }
         }
 
@@ -3380,19 +3814,19 @@ class Exchange
             ) {
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
             }
-            
+
         }
 
         //tpRules
         if (
             $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0
-            || $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] >= $marketImpulsInfo['actualImpulsMacd15m']['signal_line']
+            || $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= $marketImpulsInfo['actualImpulsMacd1h']['signal_line']
         ) {
             $res['shortTpCount'] = 1;
             $res['longTpCount'] = 2;
         } else if (
             $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0
-            || $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] <= $marketImpulsInfo['actualImpulsMacd15m']['signal_line']
+            || $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] <= $marketImpulsInfo['actualImpulsMacd1h']['signal_line']
         ) {
             $res['shortTpCount'] = 2;
             $res['longTpCount'] = 1;
@@ -3402,15 +3836,15 @@ class Exchange
         $backtraceAr = debug_backtrace();
         foreach ($backtraceAr as $key => $backtrace) {
             if ($backtrace['function'])
-                $backtraceStr .= ($key+1) . '. func ' . $backtrace['function'] . ' (' . $backtrace['line'] .  ')' . "\n";
+                $backtraceStr .= ($key + 1) . '. func ' . $backtrace['function'] . ' (' . $backtrace['line'] . ')' . "\n";
             else
-                $backtraceStr .= ($key+1) . '. file ' . $backtrace['file'] . ' (' . $backtrace['line'] .  ')' . "\n";
+                $backtraceStr .= ($key + 1) . '. file ' . $backtrace['file'] . ' (' . $backtrace['line'] . ')' . "\n";
         }
 
         $directionAr = ['long', 'short'];
         foreach ($directionAr as $directionItem) {
             if (!$res['atrMultipliers']) $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-            $atrMultipliersIncreased = array_map(fn($n) => $n * 1.1, $res['atrMultipliers'] );
+            $atrMultipliersIncreased = array_map(fn($n) => $n * 1.1, $res['atrMultipliers']);
             //$atrMultipliersIncreased =  [1.4, 2.6, 3.4];
 
             try {
@@ -3423,7 +3857,7 @@ class Exchange
                     $marketImpulsInfo['actualSupertrend15m'],
                     $marketImpulsInfo['actualMacdDivergence15m'],
                     1,
-                    $atrMultipliersIncreased ,
+                    $atrMultipliersIncreased,
                     ['risk' => 10],
                     'others',
                     "getMarketInfo",
@@ -3434,19 +3868,19 @@ class Exchange
                 \Maksv\DataOperation::sendErrorInfoMessage('catch processSignal market err - ' . $e->getMessage(), $backtraceStr, 'checkMarketImpulsInfo');
             }
 
-            $res[$directionItem.'Ml'] = $processedMarket['actualMlModel'];
+            $res[$directionItem . 'Ml'] = $processedMarket['actualMlModel'];
         }
 
-        $infoText .= "\nmarket:\n";
-        $infoText .= 'direction ' . ($res['isLong'] ? 'Y' : 'N') . ' | ' . ($res['isShort'] ? 'Y' : 'N') . "\n";
-        $infoText .= 'TP '. $res['longTpCount'].' | '.$res['shortTpCount'] . "\n";
-        if ($res['longMl']['probabilities'][1] && $res['shortMl']['probabilities'][1]) $infoText .= 'ML predict ' . $res['longMl']['probabilities'][1] . '% | ' . $res['shortMl']['probabilities'][1] . "%\n";
+        $mainText = "Market:\n";
+        $mainText .= 'direction ' . ($res['isLong'] ? 'Y' : 'N') . ' | ' . ($res['isShort'] ? 'Y' : 'N') . "\n";
+        $mainText .= 'TP ' . $res['longTpCount'] . ' | ' . $res['shortTpCount'] . "\n";
+        if ($res['longMl']['probabilities'][1] && $res['shortMl']['probabilities'][1]) $mainText .= 'ML predict ' . $res['longMl']['probabilities'][1] . '% | ' . $res['shortMl']['probabilities'][1] . "%\n";
 
-        $infoText .= "\nsignals:\n";
-        $infoText .= 'Risk ' . ($res['risk'] ? $res['risk'] : '-') . "\n";
-        $infoText .= 'ML board ' . ($res['mlBoard'] ? $res['mlBoard'] : '-') . "\n";
-        //$infoText .= 'mML board ' . ($res['mlMarketBoard'] ? $res['mlMarketBoard'] : '-') . "\n";
-        $infoText .= "\n";
+        $mainText .= "\nSignals:\n";
+        $mainText .= 'Risk ' . ($res['risk'] ? $res['risk'] : '-') . "\n";
+        $mainText .= 'ML board ' . ($res['mlBoard'] ? $res['mlBoard'] : '-') . "\n";
+        //$mainText .= 'mML board ' . ($res['mlMarketBoard'] ? $res['mlMarketBoard'] : '-') . "\n";
+        $infoText = $mainText . "\n " . $infoText . "\n";
 
         $res['infoText'] = $infoText;
         return $res;
@@ -3470,7 +3904,7 @@ class Exchange
         $marketStrongImpulsMacdVal = 1500000000;
 
         $marketMidImpulsBoard = 5000000000;
-        $marketImpulsBoard =    9000000000;
+        $marketImpulsBoard = 9000000000;
 
         $res['mlBoard'] = 0.72;
         //$res['mlMarketBoard'] = 0.7;
@@ -3660,12 +4094,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m ma 200 close\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd5m']['histogram'] > 0 && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] <= ($marketImpulsMacdVal / 2)) {
-                $res['risk'] = 3;
-                $res['atrMultipliers'] = [2.3, 2.9, 3.3];
-                $infoText .= 'risk ' . $res['risk'] . " low impuls hist\n";
-            }
-
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 22
                 || ($marketImpulsInfo['actualAdx5m']['adxDirection']['isDownDir'] && $marketImpulsInfo['actualAdx5m']['adx'] < 27)
@@ -3706,10 +4134,12 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 17000000000) {
-                $res['risk'] = 2.5;
+
+            if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
+                $res['risk'] = 2.8;
+                $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
+                $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] < 0) {
@@ -3726,11 +4156,16 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
             }
 
-            if ($marketImpulsInfo['actualAdx15m']['adx'] < 22) {
-                $res['risk'] = 2.8;
-                $res['mlBoard'] = 0.73;
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] > 17000000000) {
+                $res['risk'] = 2.5;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " low adx 15m (22)\n";
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
+            }
+
+            if (abs($marketImpulsInfo['actualImpulsMacd15']['histogram']) < 150000000) {
+                $res['risk'] = 2.5;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low impuls hist 15m\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
@@ -3778,32 +4213,32 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " 15m trend close\n";
             }
 
-           /* if (
-                $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 15000000000
-                && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
-            ) {
-                $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
-            }*/
+            /* if (
+                 $marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] >= 15000000000
+                 && $marketImpulsInfo['actualImpulsMacd4h']['impulse_macd'] == 0
+             ) {
+                 $res['risk'] = 2.2;
+                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd 1h and 0 impuls 4h\n";
+             }*/
 
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 18
             ) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'long')) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
             }
 
             if ($marketImpulsInfo['mfi15m']['isUpDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] <= 50) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " down mfi 15m\n";
             }
 
@@ -3811,20 +4246,20 @@ class Exchange
                 $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] == 0
             ) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " neutral trend 15m\n";
             }
 
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 17 && $marketImpulsInfo['actualAdx15m']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2;
                 $res['mlBoard'] = 0.73;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] > $marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < ($marketStrongImpulsMacdVal)) { //btc. (others board ~ 2 900 000 000)
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";
             }
 
@@ -3957,12 +4392,6 @@ class Exchange
                 $infoText .= 'risk ' . $res['risk'] . " low + down adx 1h (19)\n";
             }
 
-            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -17000000000) {
-                $res['risk'] = 2.5;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
-            }
-
             if ($marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] > 0) {
                 $res['risk'] = 2.5;
                 $res['mlBoard'] = 0.74;
@@ -3975,6 +4404,18 @@ class Exchange
                 $res['mlBoard'] = 0.73;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . "  high impuls macd line 2 15m\n";
+            }
+
+            if (abs($marketImpulsInfo['actualImpulsMacd15']['histogram']) < 150000000) {
+                $res['risk'] = 2.5;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " low impuls hist 15m\n";
+            }
+
+            if ($marketImpulsInfo['actualImpulsMacd1h']['impulse_macd'] < -17000000000) {
+                $res['risk'] = 2.5;
+                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $infoText .= 'risk ' . $res['risk'] . " high impuls macd 2 1h\n";
             }
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_1h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
@@ -4032,7 +4473,7 @@ class Exchange
             if (
                 $marketImpulsInfo['actualAdx5m']['adx'] < 18
             ) {
-                $res['risk'] = 2.5;
+                $res['risk'] = 2.4;
                 $res['atrMultipliers'] = [1.9, 2.6, 3.4];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 5m (18)\n";
             }
@@ -4048,13 +4489,13 @@ class Exchange
 
             if (!self::checkMaCondition($marketImpulsInfo['ma100_4h'], $marketImpulsInfo['actualClosePrice15m'], $maDistance, 'short')) {
                 $res['risk'] = 2.2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " 4h ma 100 close\n";
             }
 
             if ($marketImpulsInfo['mfi15m']['isDownDir'] === false && $marketImpulsInfo['mfi15m']['mfi'] >= 50) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " up mfi 15m\n";
             }
 
@@ -4062,7 +4503,7 @@ class Exchange
                 $marketImpulsInfo['actualImpulsMacd15m']['impulse_macd'] == 0
             ) {
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " neutral trend 15m\n";
             }
 
@@ -4070,13 +4511,13 @@ class Exchange
             if ($marketImpulsInfo['actualAdx15m']['adx'] < 17 && $marketImpulsInfo['actualAdx15m']['adxDirection']['isDownDir']) {
                 $res['risk'] = 2;
                 $res['mlBoard'] = 0.74;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " low adx 15m (17)\n";
             }
 
             if ($marketImpulsInfo['actualImpulsMacd5m']['impulse_macd'] < -$marketImpulsBoard && $marketImpulsInfo['actualImpulsMacd5m']['histogram'] < -($marketStrongImpulsMacdVal)) { //btc. (others board ~ 2 900 000 000)
                 $res['risk'] = 2;
-                $res['atrMultipliers'] = [1.9, 2.6, 3.4];
+                $res['atrMultipliers'] = [1.6, 2.4, 3.2];
                 $infoText .= 'risk ' . $res['risk'] . " high impuls 5m 2\n";
             }
         }
@@ -4111,15 +4552,15 @@ class Exchange
         $backtraceAr = debug_backtrace();
         foreach ($backtraceAr as $key => $backtrace) {
             if ($backtrace['function'])
-                $backtraceStr .= ($key+1) . '. func ' . $backtrace['function'] . ' (' . $backtrace['line'] .  ')' . "\n";
+                $backtraceStr .= ($key + 1) . '. func ' . $backtrace['function'] . ' (' . $backtrace['line'] . ')' . "\n";
             else
-                $backtraceStr .= ($key+1) . '. file ' . $backtrace['file'] . ' (' . $backtrace['line'] .  ')' . "\n";
+                $backtraceStr .= ($key + 1) . '. file ' . $backtrace['file'] . ' (' . $backtrace['line'] . ')' . "\n";
         }
 
         $directionAr = ['long', 'short'];
         foreach ($directionAr as $directionItem) {
             if (!$res['atrMultipliers']) $res['atrMultipliers'] = [1.9, 2.6, 3.4];
-            $atrMultipliersIncreased = array_map(fn($n) => $n * 1.1, $res['atrMultipliers'] );
+            $atrMultipliersIncreased = array_map(fn($n) => $n * 1.1, $res['atrMultipliers']);
             //$atrMultipliersIncreased =  [1.4, 2.6, 3.4];
 
             try {
@@ -4132,7 +4573,7 @@ class Exchange
                     $marketImpulsInfo['actualSupertrend15m'],
                     $marketImpulsInfo['actualMacdDivergence15m'],
                     1,
-                    $atrMultipliersIncreased ,
+                    $atrMultipliersIncreased,
                     ['risk' => 10],
                     'others',
                     "getMarketInfo",
@@ -4143,12 +4584,12 @@ class Exchange
                 \Maksv\DataOperation::sendErrorInfoMessage('catch processSignal market err - ' . $e->getMessage(), $backtraceStr, 'checkMarketImpulsInfo');
             }
 
-            $res[$directionItem.'Ml'] = $processedMarket['actualMlModel'];
+            $res[$directionItem . 'Ml'] = $processedMarket['actualMlModel'];
         }
 
         $infoText .= "\nmarket:\n";
         $infoText .= 'direction ' . ($res['isLong'] ? 'Y' : 'N') . ' | ' . ($res['isShort'] ? 'Y' : 'N') . "\n";
-        $infoText .= 'TP '. $res['longTpCount'].' | '.$res['shortTpCount'] . "\n";
+        $infoText .= 'TP ' . $res['longTpCount'] . ' | ' . $res['shortTpCount'] . "\n";
         if ($res['longMl']['probabilities'][1] && $res['shortMl']['probabilities'][1]) $infoText .= 'ML predict ' . $res['longMl']['probabilities'][1] . '% | ' . $res['shortMl']['probabilities'][1] . "%\n";
 
         $infoText .= "\nsignals:\n";
@@ -4190,7 +4631,7 @@ class Exchange
                 if ($macdData5m && is_array($macdData5m))
                     $actualMacd5m = $macdData5m[array_key_last($macdData5m)];
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - macd 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
@@ -4199,7 +4640,7 @@ class Exchange
                 if ($stochasticOscillatorData5m && is_array($stochasticOscillatorData5m))
                     $actualStochastic5m = $stochasticOscillatorData5m[array_key_last($stochasticOscillatorData5m)];
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - stoch 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
@@ -4220,14 +4661,14 @@ class Exchange
                     $res['shortDivergenceVal5m'] = true;
                     $res['shortDivergenceText5m'] = 'btc bearish dever ' . $actualMacdDivergence5m['inputParams'] . ' (' . $actualMacdDivergence5m['shortDivergenceDistance'] . '), 5m';
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - checkMultiMACD 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
             try {
                 $adxData5m = \Maksv\TechnicalAnalysis::calculateADX($candles5m);
                 $actualAdx5m = $adxData5m[array_key_last($adxData5m)];
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - actualAdx5m 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
@@ -4235,7 +4676,7 @@ class Exchange
                 $impulseMACD5m = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles5m) ?? false;
                 if ($impulseMACD5m && is_array($impulseMACD5m))
                     $res['actualImpulsMacd5m'] = $actualImpulsMacd5m = $impulseMACD5m[array_key_last($impulseMACD5m)];
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - actualImpulsMacd 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
         }
@@ -4258,7 +4699,7 @@ class Exchange
                 $impulseMACD15m = \Maksv\TechnicalAnalysis::analyzeImpulseMACD($candles15m) ?? false;
                 if ($impulseMACD15m && is_array($impulseMACD15m))
                     $res['actualImpulsMacd15m'] = $actualImpulsMacd15m = $impulseMACD15m[array_key_last($impulseMACD15m)];
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - actualImpulsMacd 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
@@ -4280,14 +4721,14 @@ class Exchange
                     $res['shortDivergenceVal15m'] = true;
                     $res['shortDivergenceText15m'] = 'btc bearish dever ' . $actualMacdDivergence15m['inputParams'] . ' (' . $actualMacdDivergence15m['shortDivergenceDistance'] . '), 15m';
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - checkMultiMACD ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
             try {
                 $supertrendData = \Maksv\TechnicalAnalysis::calculateSupertrend($candles15m, 10, 3) ?? false; // длина 10, фактор 3
                 $actualSupertrend15m = $supertrendData[array_key_last($supertrendData) - 1] ?? false;
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - Supertrend' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
@@ -4297,15 +4738,15 @@ class Exchange
                 if ($macdData15m && is_array($macdData15m))
                     $actualMacd15m = $macdData15m[array_key_last($macdData15m)];
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - macd 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
             try {
                 $adxData15m = \Maksv\TechnicalAnalysis::calculateADX($candles15m);
                 $actualAdx15m = $adxData15m[array_key_last($adxData15m)];
-            } catch (Exception $e) {
-                devlogs('ERR | err - actualAdx15m 5m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
+            } catch (\Exception $e) {
+                devlogs('ERR | err - actualAdx 15m' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
 
             try {
@@ -4313,7 +4754,7 @@ class Exchange
                 if ($stochasticOscillatorData15m && is_array($stochasticOscillatorData15m))
                     $actualStochastic15m = $stochasticOscillatorData15m[array_key_last($stochasticOscillatorData15m)];
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR | err - stoch 15m ' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'checkBtcInfo');
             }
         }
@@ -4613,18 +5054,18 @@ class Exchange
         string $direction,
         float  $atr,
         float  $closePrice,
-        $candles15m,
-        $supertrend5m,
-        $supertrend15m,
-        $macdDivergence,
+               $candles15m,
+               $supertrend5m,
+               $supertrend15m,
+               $macdDivergence,
         int    $symbolScale,
         array  $atrMultipliers,
         array  $marketInfo,
         string $symbolName,
         string $logContext,
-        bool $mlFlag = true,
-        bool $mlFilter = true,
-        bool $mlDevMode = false,
+        bool   $mlFlag = true,
+        bool   $mlFilter = true,
+        bool   $mlDevMode = false,
     )
     {
         // Инициализируем “пустой” результат
@@ -4709,14 +5150,7 @@ class Exchange
                 $slParent = floatval($supertrend15m['value']);
             }
         }
-        //count 86 (68\17)
-        //win 79.07%
-        //115.2 $
 
-        //
-        //count 86 (69\15)
-        //win 80.23%
-        //123.1 $
         // 2.1) Если recommendedEntry задана, но slParent “мешает” (закладывается за цену входа), обнуляем recommendedEntry
         if ($result['recommendedEntry'] !== false) {
             if (
@@ -4854,12 +5288,12 @@ class Exchange
     /**
      * Хелпер для проверки условий по скользящим средним (MA) с учётом направления сигнала.
      *
-     * @param array  $ma               Ассоциативный массив MA с ключами:
+     * @param array $ma Ассоциативный массив MA с ключами:
      *                                - 'isUptrend' => bool
      *                                - 'sma'       => float|string
-     * @param float  $actualClosePrice Текущая цена закрытия
-     * @param int    $maDistance       Порог в процентах (например, 3)
-     * @param string $direction        Направление сигнала: 'long' или 'short'
+     * @param float $actualClosePrice Текущая цена закрытия
+     * @param int $maDistance Порог в процентах (например, 3)
+     * @param string $direction Направление сигнала: 'long' или 'short'
      *
      * @return bool
      *   Для 'long':
@@ -5042,7 +5476,7 @@ class Exchange
 
         try {
             \Maksv\DataOperation::sendTrendWarning($res, $btcDVal, $btcVal, '@infoCryptoHelperTrend');
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), 'cpc/btcDOthersExchange');
         }
     }
@@ -5092,7 +5526,7 @@ class Exchange
                 $maHis = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 9, 26, 102) ?? [];
                 $ma100His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 12, 100, 102) ?? [];
                 $ma200His = \Maksv\TechnicalAnalysis::getMACrossHistory($candles, 12, 200, 202) ?? [];
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 devlogs('ERR ' . $symbolName . ' | err - cross' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'sendMarketCharts');
             }
 
@@ -5145,7 +5579,7 @@ class Exchange
                     $maHis = \Maksv\TechnicalAnalysis::getMACrossHistory($candlesOth, 9, 26, 102) ?? [];
                     $ma100His = \Maksv\TechnicalAnalysis::getMACrossHistory($candlesOth, 12, 100, 102) ?? [];
                     $ma200His = \Maksv\TechnicalAnalysis::getMACrossHistory($candlesOth, 12, 200, 202) ?? [];
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     devlogs('ERR ' . $symbolName . ' | err - cross oth' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), 'sendMarketCharts');
                 }
 
@@ -5242,7 +5676,7 @@ class Exchange
             }
         }
 
-        if (in_array($tf , ['15m', '1h'])) {
+        if (in_array($tf, ['15m', '1h'])) {
             $path = $_SERVER['DOCUMENT_ROOT'] . '/upload/traydingviewExchange/total_ex_top10.json';
             $marketData = json_decode(file_get_contents($path), true) ?? [];
             $timestamp = $marketData['timestamp'] ?? 0;
@@ -5502,30 +5936,86 @@ class Exchange
 
         // --- Получение OI с Binance --- (сначала проверяем есть ли такой у бинанса)
         $resBinance['resp'] = $resBinance['res'] = [];
+        $binanceSkippedFlag = false;
         if (in_array($symbolName, $binanceSymbolsList)) {
             $getOpenInterestHist = $binanceApiOb->getOpenInterestHist($symbolName, $startTime, $endTime, '5m', 120, $useCache, $cacheTime) ?? [];
             $resBinance['resp'] = $getOpenInterestHist;
             if (!empty($getOpenInterestHist)) {
-                foreach ($getOpenInterestHist as $oiItem) {
-                    $timestamp = (double)$oiItem['timestamp'];
+                /*foreach ($getOpenInterestHist as $oiItem) {
+                    try {
+                        $timestamp = doubleval($oiItem['timestamp']);
+                        if (floatval($oiItem['sumOpenInterest']) == 0) {
+                            devlogs("Err binance oi process = 0  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+                            devlogs($oiItem, 'getSummaryOpenInterestDev');
+                        } else {
+                            $resBinance['res'][$timestamp] = [
+                                'datetime' => date("Y-m-d H:i:s", floor($timestamp / 1000)),
+                                'timestamp' => $timestamp,
+                                'openInterest' => floatval($oiItem['sumOpenInterest']),
+                            ];
+                        }
+                    } catch (\Throwable $e) {
+                        $errText = sprintf(
+                            "ERR  | File: %s | Line: %d | Error: %s | Time: %s",
+                            $e->getFile(),
+                            $e->getLine(),
+                            $e->getMessage(),
+                            date("d.m.y H:i:s")
+                        );
+                        \Maksv\DataOperation::sendErrorInfoMessage($errText, 'getSummaryOpenInterest()', 'binance OI');
+                        devlogs("ERR binance oi ts  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+                        devlogs($oiItem['timestamp'], 'getSummaryOpenInterestDev');
+                    }
 
-                    if ((float)$oiItem['sumOpenInterest'] == 0) {
-                        devlogs("Err binance oi process = 0  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
-                        devlogs($oiItem, 'getSummaryOpenInterestDev');
-                    } else {
+                }*/
+                foreach ($getOpenInterestHist as $oiItem) {
+                    try {
+                        // сначала проверяем что элемент — массив и имеет числовой timestamp
+                        if (!is_array($oiItem) || !isset($oiItem['timestamp'])) {
+                            devlogs("Bad Binance OI item (not array / no numeric timestamp) for {$symbolName}", 'getSummaryOpenInterestDev');
+                            devlogs($oiItem, 'getSummaryOpenInterestDev');
+                            $binanceSkippedFlag = true; // помечаем как failed при первой плохой записи
+                            continue;
+                        }
+
+                        // Безопасное приведение к числу
+                        $timestamp = (double) $oiItem['timestamp'];
+
+                        // Проверка open interest (как у тебя было)
+                        if (empty($oiItem['sumOpenInterest']) || floatval($oiItem['sumOpenInterest']) == 0) {
+                            devlogs("Err binance oi process = 0  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+                            devlogs($oiItem, 'getSummaryOpenInterestDev');
+                            $binanceSkippedFlag = true;
+                            continue;
+                        }
+
                         $resBinance['res'][$timestamp] = [
                             'datetime' => date("Y-m-d H:i:s", floor($timestamp / 1000)),
                             'timestamp' => $timestamp,
-                            'openInterest' => (float)$oiItem['sumOpenInterest'],
+                            'openInterest' => floatval($oiItem['sumOpenInterest']),
                         ];
+                    } catch (\Throwable $e) {
+                        $errText = sprintf(
+                            "ERR  | File: %s | Line: %d | Error: %s | Time: %s",
+                            $e->getFile(),
+                            $e->getLine(),
+                            $e->getMessage(),
+                            date("d.m.y H:i:s")
+                        );
+                        \Maksv\DataOperation::sendErrorInfoMessage($errText, 'getSummaryOpenInterest()', 'binance OI');
+                        devlogs("ERR binance oi ts  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+                        devlogs($oiItem, 'getSummaryOpenInterestDev');
+                        $binanceSkippedFlag = true;
+                        continue;
                     }
-
                 }
+
             }
         }
-        
+
         // --- Получение OI с Okx --- (сначала проверяем есть ли такой у okx)
         $resOkx['resp'] = $resOkx['res'] = [];
+        $okxSkippedFlag = false;
         if (in_array($symbolName, $okxSymbolsList)) {
             $okxSymbolName = array_search($symbolName, $okxSymbolsList);
             if ($okxSymbolName !== false) {
@@ -5535,6 +6025,7 @@ class Exchange
                     foreach ($oiHistRespOkx as $oiItem) {
                         $timestamp = (double)$oiItem[0];
                         if ((float)$oiItem[1] == 0) {
+                            $okxSkippedFlag = true;
                             devlogs("Err okx oi process = 0  " . $okxSymbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
                             devlogs($oiItem, 'getSummaryOpenInterestDev');
                         } else {
@@ -5575,20 +6066,20 @@ class Exchange
 
         // Если изменение по бирже ровно ±100%, считаем данные «грязными» и их не учитываем:
         if (abs($summaryOIBybit) === 100) {
-            $resBybit['res']   = [];
-            $summaryOIBybit    = 0;
+            $resBybit['res'] = [];
+            $summaryOIBybit = 0;
             devlogs("Err bybit 100  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
         }
 
-        if (abs($summaryOIBinance) === 100) {
+        if (abs($summaryOIBinance) === 100 || $binanceSkippedFlag === true) {
             $resBinance['res'] = [];
-            $summaryOIBinance  = 0;
-            devlogs("Err binance 100  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+            $summaryOIBinance = 0;
+            devlogs("Err binance 100 or flag  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
         }
-        if (abs($summaryOIOkx) === 100) {
-            $resOkx['res']     = [];
-            $summaryOIOkx      = 0;
-            devlogs("Err okx 100  " . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
+        if (abs($summaryOIOkx) === 100 || $okxSkippedFlag === true) {
+            $resOkx['res'] = [];
+            $summaryOIOkx = 0;
+            devlogs("Err okx 100 or flag" . $symbolName . " - " . date("d.m.y H:i:s"), 'getSummaryOpenInterestDev');
         }
 
         $resSummary = [];

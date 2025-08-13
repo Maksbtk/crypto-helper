@@ -39,13 +39,21 @@ class Bybit
 
     public function httpReq($endpoint, $method, $params, $info, $useCache = false, $cacheTime = 60)
     {
-        $res = [];
+        $res = '';
 
         $cacheID = md5('httpReq|' . $endpoint . $method . $params . $info);
         $cache = \Bitrix\Main\Data\Cache::createInstance();
 
         if ($useCache && $cache->initCache($cacheTime, $cacheID)){
+
             $res = $cache->getVars();
+            // Если из кэша пришёл массив/объект — вернём его как JSON-строку,
+            // чтобы вызовы json_decode($this->httpReq(...), true) работали корректно.
+            if (is_array($res) || is_object($res)) {
+                return json_encode($res);
+            }
+            return (string)$res;
+
         } elseif ($cache->startDataCache()) {
 
             $timestamp = time() * 1000;
@@ -81,11 +89,17 @@ class Bybit
 
             $response = curl_exec($this->curl);
 
-            /*$res = [
-                'info' => $info,
-                'response' => $response,
-                'lastHttpCode' => curl_getinfo($this->curl)['http_code'],
-            ];*/
+            $httpCode = curl_getinfo($this->curl, CURLINFO_HTTP_CODE) ?? 0;
+            // Если запрос вернул ошибку — не сохраняем в кэш и возвращаем
+            if ($response === false || $httpCode >= 400) {
+                $cache->abortDataCache();
+                $errText = "HTTP error for {$endpoint} ({$info}): httpCode={$httpCode}, curl_err=" . curl_error($this->curl);
+                //devlogs($errText, 'BybitHttpReq');
+                \Maksv\DataOperation::sendErrorInfoMessage($errText, 'httpReq()', 'Bybit\Bybit.php');
+
+                // вернуть пустую строку или сам ответ — в зависимости от того, чего ждёте
+                return $response === false ? '' : (string)$response;
+            }
 
             $res = $response;
             $cache->endDataCache($res);

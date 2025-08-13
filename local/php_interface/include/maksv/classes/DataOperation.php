@@ -232,9 +232,9 @@ class DataOperation
         ];
 
         if ($res['leverage'])
-            $message .= '💰 Leverage: Сross (' . $res['leverage'] . ")\n\n";
+            $message .= '💰 Leverage: Cross (' . $res['leverage'] . ")\n\n";
         else
-            $message .= '💰 Leverage: Сross (5X)'. "\n\n";
+            $message .= '💰 Leverage: Cross (5X)'. "\n\n";
 
         $message .= '✅ Entry Target: ' . $res['actualClosePrice'] . ' (Entry as market)' . "\n\n";
 
@@ -355,6 +355,7 @@ class DataOperation
             'alerts' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
             'master' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/'.$timeframe.'/actualMarketVolumes.json',
             'screener' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategy.json',
+            'screenerMFI' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screenerMFI/'.$timeframe.'/actualStrategy.json',
             'normal_ml' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategyBeta.json',
             'high_ml' => $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $iblockCode . 'Exchange/screener/'.$timeframe.'/actualStrategyBetaHigh.json',
         ];
@@ -374,6 +375,7 @@ class DataOperation
                 'master' => 5,
                 'alerts' => 6,
                 'screener' => 7,
+                'screenerMFI' => 12,
             ];
 
             $iblockSectionsMap['binance'] = [
@@ -458,11 +460,11 @@ class DataOperation
         return $formattedTime;
     }
 
-    public static function getLatestScreener($iblockId = 3, $sectionCode = 'screener')
+    public static function getLatestScreener($iblockId = 3, $sectionCode = 'screener', $intervalInHours = 8)
     {
         $res = [];
         // Рассчитываем время начала интервала
-        $intervalInHours = 8;
+
         $dateIntervalStart = (new \Bitrix\Main\Type\DateTime())->add("-{$intervalInHours} hours");
 
         $propertyStrategiesFileId = self::getPropertyIdByCode($iblockId, 'STRATEGIES_FILE');

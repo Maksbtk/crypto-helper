@@ -3509,7 +3509,7 @@ class TechnicalAnalysis
 
     /**
      * Рассчитывает MFI и его скользящие средние (fast и slow),
-     * а также направление тренда MFI: вверх или вниз.
+     * а также направление тренда MFI и сигналы на торговлю.
      *
      * @param array $candles   Массив свечей в хронологическом порядке (от старых к новым),
      *                         каждая свеча — ассоциативный массив с ключами:
@@ -3518,25 +3518,32 @@ class TechnicalAnalysis
      *                           'l' => Low,
      *                           'c' => Close,
      *                           'v' => Volume.
-     * @return array           Массив тех же размеров, что и входной, где каждый элемент —
-     *                         [
-     *                           'timestamp' => 'YYYY-MM-DD HH:MM:SS',
-     *                           'mfi'       => float|null,
-     *                           'fast_mfi'  => float|null,
-     *                           'slow_mfi'  => float|null,
-     *                           'isUpDir'   => bool,  // fast_mfi > slow_mfi
-     *                           'isDownDir' => bool,  // fast_mfi < slow_mfi
-     *                         ]
+     * @param int   $mfiPeriod   Период для расчёта MFI (по умолчанию 14).
+     * @param int   $fastPeriod  Период быстрой SMA по MFI (по умолчанию 7).
+     * @param int   $slowPeriod  Период медленной SMA по MFI (по умолчанию 49).
+     * @return array             Массив тех же размеров, что и входной, где каждый элемент —
+     *                           [
+     *                             'timestamp' => 'YYYY-MM-DD HH:MM:SS',
+     *                             'mfi'       => float|null,
+     *                             'fast_mfi'  => float|null,
+     *                             'slow_mfi'  => float|null,
+     *                             'hist'      => float|null,  // slow_mfi - fast_mfi
+     *                             'isUpDir'   => bool,         // fast_mfi > slow_mfi
+     *                             'isDownDir' => bool,         // fast_mfi < slow_mfi
+     *                             'isLong'    => bool,         // fast пересек slow снизу вверх
+     *                             'isShort'   => bool,         // fast пересек slow сверху вниз
+     *                           ]
      */
-    public static function calculateMFI($candles): array
-    {
-        if (!$candles)
-            return [];
+    public static function calculateMFI(
+        array $candles,
+        int $fastPeriod = 2,
+        int $slowPeriod = 5,
+        int $mfiPeriod  = 14,
+    ): array {
 
-        // Жестко задаём периоды
-        $mfiPeriod  = 14;
-        $fastPeriod = 2;
-        $slowPeriod = 5;
+        if (empty($candles)) {
+            return [];
+        }
 
         $count     = count($candles);
         $typPrice  = array_fill(0, $count, 0.0);
@@ -3573,7 +3580,7 @@ class TechnicalAnalysis
             }
         }
 
-        // 4) Вспомогательная SMA-функция
+        // 4) SMA-функция
         $calcSMA = function(array $arr, int $period): array {
             $n   = count($arr);
             $out = array_fill(0, $n, null);
@@ -3591,27 +3598,140 @@ class TechnicalAnalysis
         $fastArr = $calcSMA($mfiArr, $fastPeriod);
         $slowArr = $calcSMA($mfiArr, $slowPeriod);
 
-        // 6) Формируем результат
+        // 6) Формируем результат с учётом пересечений
         $result = [];
-        foreach ($candles as $i => $c) {
-            $tsSec = (int) floor($c['t'] / 1000);
+        for ($i = 0; $i < $count; $i++) {
+            $tsSec = (int) floor($candles[$i]['t'] / 1000);
             $dt    = (new \DateTime())->setTimestamp($tsSec);
             $tsStr = $dt->format('Y-m-d H:i:s');
 
-            $fast = $fastArr[$i];
-            $slow = $slowArr[$i];
+            $mfi   = $mfiArr[$i] !== null   ? round($mfiArr[$i], 1) : null;
+            $fast  = $fastArr[$i] !== null  ? round($fastArr[$i], 2) : null;
+            $slow  = $slowArr[$i] !== null  ? round($slowArr[$i], 2) : null;
+            $hist  = ($slow !== null && $fast !== null) ? round($slow - $fast, 2) : null;
+            $up    = $fast !== null && $slow !== null && $fast > $slow;
+            $down  = $fast !== null && $slow !== null && $fast < $slow;
+
+            // пересечения: для i>0 сравниваем с предыдущим
+            $isLong  = false;
+            $isShort = false;
+            if ($i > 0 && $fastArr[$i - 1] !== null && $slowArr[$i - 1] !== null) {
+                if ($fastArr[$i - 1] <= $slowArr[$i - 1] && $fastArr[$i] > $slowArr[$i]) {
+                    $isLong = true;
+                }
+                if ($fastArr[$i - 1] >= $slowArr[$i - 1] && $fastArr[$i] < $slowArr[$i]) {
+                    $isShort = true;
+                }
+            }
 
             $result[] = [
                 'timestamp' => $tsStr,
-                'mfi'       => $mfiArr[$i],
+                'mfi'       => $mfi,
                 'fast_mfi'  => $fast,
                 'slow_mfi'  => $slow,
-                'isUpDir'   => $fast !== null && $slow !== null && $fast > $slow,
-                'isDownDir' => $fast !== null && $slow !== null && $fast < $slow,
+                'hist'      => $hist,
+                'isUpDir'   => $up,
+                'isDownDir' => $down,
+                'isLong'    => $isLong,
+                'isShort'   => $isShort,
             ];
         }
 
         return $result;
+    }
+
+    /**
+     * Линейная регрессия + канал + процентное положение текущей цены
+     *
+     * @param array $candles Массив баров, каждый элемент — ['c' => close_price].
+     * @param int   $period  Период (например, 100).
+     * @param float $deviation Множитель σ (обычно 2).
+     * @return array Массив тех же индексов, что и $candles, где каждый элемент:
+     *   [
+     *     'linreg'   => float,  // значение регрессии в точке i
+     *     'upper'    => float,  // linreg + deviation * σ
+     *     'lower'    => float,  // linreg – deviation * σ
+     *     'percent'  => float,  // (close – lower)/(upper–lower)*100
+     *   ]
+     */
+    public static function calculateLinRegChannel(array $candles, int $period = 100, float $deviation = 2.0): array
+    {
+        $n = $period;
+        $count = count($candles);
+        $out = array_fill(0, $count, [
+            'linreg'  => null,
+            'upper'   => null,
+            'lower'   => null,
+            'percent' => null,
+        ]);
+
+        if ($count < $n) {
+            return $out;
+        }
+
+        // предвычислим constants для X
+        $meanX = ($n - 1) / 2.0;
+        // var_x = sum_{j=0..n-1} (j - meanX)^2 = n*(n^2-1)/12
+        $varX = $n * ($n * $n - 1) / 12.0;
+
+        // для каждого окна длиной n
+        for ($i = $n - 1; $i < $count; $i++) {
+            // собираем y_j
+            $sumY = 0.0;
+            $sumCov = 0.0;
+            for ($j = 0; $j < $n; $j++) {
+                $y = $candles[$i - $n + 1 + $j]['c'];
+                $sumY += $y;
+            }
+            $meanY = $sumY / $n;
+
+            // covariance
+            for ($j = 0; $j < $n; $j++) {
+                $y = $candles[$i - $n + 1 + $j]['c'];
+                $sumCov += ($j - $meanX) * ($y - $meanY);
+            }
+
+            // slope b и intercept a
+            $b = $sumCov / $varX;
+            $a = $meanY - $b * $meanX;
+
+            // предсказываем в точке j = n-1
+            $linreg = $a + $b * ($n - 1);
+
+            // считаем σ остатков
+            $sumErr2 = 0.0;
+            for ($j = 0; $j < $n; $j++) {
+                $y = $candles[$i - $n + 1 + $j]['c'];
+                $pred = $a + $b * $j;
+                $err = $y - $pred;
+                $sumErr2 += $err * $err;
+            }
+            $sigma = sqrt($sumErr2 / $n);
+
+            $upper = $linreg + $deviation * $sigma;
+            $lower = $linreg - $deviation * $sigma;
+
+            // процент положения последней close
+            $close = $candles[$i]['c'];
+            $pct = null;
+            if (($upper - $lower) > 1e-9) {
+                $pct = ($close - $lower) / ($upper - $lower) * 100;
+            }
+
+            $tsSec = (int) floor($candles[$i]['t'] / 1000);
+            $dt    = (new \DateTime())->setTimestamp($tsSec);
+            $tsStr = $dt->format('Y-m-d H:i:s');
+
+            $out[$i] = [
+                'timestamp'  => $tsStr,
+                'linreg'  => $linreg,
+                'upper'   => $upper,
+                'lower'   => $lower,
+                'percent' => round($pct, 2),
+            ];
+        }
+
+        return $out;
     }
 
 }
