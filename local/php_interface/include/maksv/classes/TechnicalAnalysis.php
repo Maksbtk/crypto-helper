@@ -9,6 +9,20 @@ class TechnicalAnalysis
 {
     public function __construct(){}
 
+    /**
+     * Проверяет наличие недавнего разворота тренда в переданных данных.
+     *
+     * Анализирует последние N элементов массива данных тренда на наличие признаков разворота.
+     * Используется для определения потенциальных точек изменения тренда на коротком промежутке.
+     *
+     * @param array $trendData Массив данных тренда, где каждый элемент содержит:
+     *                        - 'is_reversal' (bool) Флаг наличия разворота
+     * @param int $trendReversalRange Количество последних свечей для анализа (по умолчанию 3)
+     *
+     * @return bool
+     *   true - если в анализируемом диапазоне найден хотя бы один разворот
+     *   false - если развороты не обнаружены
+     */
     public static function checkRecentTrendReversal($trendData, $trendReversalRange = 3) {
         // Получаем последние $trendReversalRange элементов массива
         $recentData = array_slice($trendData, -$trendReversalRange);
@@ -24,6 +38,21 @@ class TechnicalAnalysis
         return false;
     }
 
+    /**
+     * Рассчитывает индекс относительной силы (RSI) для переданного массива цен.
+     *
+     * RSI - это осциллятор, измеряющий скорость и изменение ценовых движений,
+     * который помогает идентифицировать условия перекупленности и перепроданности.
+     *
+     * @param array $prices Массив числовых значений цен (обычно цены закрытия)
+     * @param int $period Период для расчета RSI (по умолчанию 14)
+     *
+     * @return float
+     *   Значение RSI, округленное до двух десятичных знаков
+     *   Диапазон значений: от 0 до 100
+     *
+     * @throws \Exception Если переданный массив недостаточной длины для расчета
+     */
     public static function calculateRSI(array $prices, int $period = 14) {
         // Проверяем, что массив достаточно длинный для расчета RSI
         if (count($prices) < $period + 1) {
@@ -58,7 +87,22 @@ class TechnicalAnalysis
 
         return round($rsi, 2);
     }
-    
+
+    /**
+     * Обнаруживает дивергенцию между ценой и индикатором RSI.
+     *
+     * Анализирует локальные экстремумы цен и RSI для выявления расхождений (дивергенций),
+     * которые могут сигнализировать о потенциальных разворотах тренда.
+     *
+     * @param array $prices Массив ценовых значений
+     * @param array $rsiValues Массив значений RSI соответствующей длины
+     *
+     * @return string
+     *   Результат анализа дивергенции:
+     *   - 'bear divergence' - медвежья дивергенция (цена растет, RSI падает)
+     *   - 'bull divergence' - бычья дивергенция (цена падает, RSI растет)
+     *   - 'no divergence' - дивергенция не обнаружена
+     */
     public static function detectDivergence(array $prices, array $rsiValues) {
         $divergence = 'no divergence';
 
@@ -88,6 +132,19 @@ class TechnicalAnalysis
         return $divergence;
     }
 
+    /**
+     * Находит локальные экстремумы (максимумы и минимумы) в переданном массиве значений.
+     *
+     * Локальный максимум - значение, которое больше своих соседей.
+     * Локальный минимум - значение, которое меньше своих соседей.
+     *
+     * @param array $values Массив числовых значений для анализа
+     *
+     * @return array
+     *   Массив найденных экстремумов, где каждый элемент содержит:
+     *   - 'index' (int) Индекс элемента в исходном массиве
+     *   - 'value' (float) Значение экстремума
+     */
     public static function findPeaks(array $values) {
         $peaks = [];
 
@@ -105,6 +162,22 @@ class TechnicalAnalysis
         return $peaks;
     }
 
+    /**
+     * Формирует историю пересечений скользящих средних за последние N свечей.
+     *
+     * Рассчитывает состояние пересечения короткой и длинной скользящих средних
+     * для каждой из последних N свечей, предоставляя историю изменений сигналов.
+     *
+     * @param array $prices Массив ценовых значений
+     * @param int $shortPeriod Период короткой скользящей средней (по умолчанию 9)
+     * @param int $longPeriod Период длинной скользящей средней (по умолчанию 26)
+     * @param int $n Количество последних свечей для анализа (по умолчанию 10)
+     *
+     * @return array
+     *   Массив с историей пересечений за последние N свечей, где каждый элемент
+     *   содержит результат работы метода checkMACross для соответствующего среза данных
+     *   Пустой массив возвращается при недостаточном количестве данных
+     */
     public static function getMACrossHistory(array $prices, int $shortPeriod = 9, int $longPeriod = 26, int $n = 10) {
         // Проверяем, что передано достаточно данных для расчета и для формирования истории на n свечей
         if (count($prices) < $longPeriod + $n - 1) {
@@ -129,10 +202,40 @@ class TechnicalAnalysis
         return $crossHistory;
     }
 
+    /**
+     * Проверяет пересечение скользящих средних (Moving Average Crossover) и определяет торговые сигналы.
+     *
+     * Анализирует взаимное положение EMA (экспоненциальная скользящая средняя) и SMA (простая скользящая средняя)
+     * для выявления моментов пересечения, которые могут сигнализировать о смене тренда.
+     * Формирует детальную информацию о текущем состоянии и сигналах пересечения.
+     *
+     * @param array $prices Массив свечных данных с ключами:
+     *                     - 't' (int) Временная метка в миллисекундах
+     *                     - 'c' (float) Цена закрытия
+     * @param int $shortPeriod Период для короткой EMA (по умолчанию 9)
+     * @param int $longPeriod Период для длинной SMA (по умолчанию 26)
+     * @param int $bollingerLength Длина для полос Боллинджера (не используется в текущей реализации)
+     * @param float $bollingerFactor Множитель для полос Боллинджера (не используется в текущей реализации)
+     *
+     * @return array
+     *   Ассоциативный массив с результатами анализа:
+     *   - 'cross' (string) Тип пересечения: 'bull cross', 'bear cross', 'no cross'
+     *   - 'sma' (float) Значение SMA
+     *   - 'ema' (float) Значение EMA
+     *   - 'isUptrend' (bool) Направление тренда
+     *   - 'is_reversal' (bool) Флаг разворота тренда
+     *   - 'isLong' (bool) Сигнал на покупку
+     *   - 'isShort' (bool) Сигнал на продажу
+     *   - 'timestamp_gmt' (string) Время в формате "H:i m.d"
+     *   - 'timestamp' (int) Временная метка в миллисекундах
+     *   - 'inputParams' (array) Параметры расчета
+     *
+     *   Пустой массив возвращается при недостаточном количестве данных
+     */
     public static function checkMACross(array $prices, int $shortPeriod = 9, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
     {
         if (count($prices) < max($longPeriod, $bollingerLength)) {
-            return false;
+            return [];
         }
 
         $milliseconds = $prices[array_key_last($prices)]['t'];
@@ -142,7 +245,7 @@ class TechnicalAnalysis
         $closePrices = array_slice($closePrices, -max($longPeriod, $bollingerLength));
 
         if (empty($closePrices) || count($closePrices) < $shortPeriod) {
-            return false;
+            return [];
         }
 
         // SMA для последних longPeriod значений
@@ -306,112 +409,21 @@ class TechnicalAnalysis
         return $results;
     }
 
-
-    public static function checkMACrossDev(array $prices, int $shortPeriod = 9, int $longPeriod = 26, int $bollingerLength = 20, float $bollingerFactor = 2)
-    {
-        if (count($prices) < max($longPeriod, $bollingerLength)) {
-            return false;
-        }
-
-        $milliseconds = $prices[array_key_last($prices)]['t'];
-
-        $prices = array_column($prices, 'c');
-        $prices = array_slice($prices, -max($longPeriod, $bollingerLength));
-
-        if (empty($prices) || !is_array($prices) || count($prices) < $shortPeriod) {
-            return false;
-        }
-
-        $sma = array_sum(array_slice($prices, -$longPeriod)) / $longPeriod;
-        $ema = self::calculateEMA($prices, $shortPeriod);
-        $previousSMA = array_sum(array_slice($prices, -(($longPeriod + 1)), $longPeriod)) / $longPeriod;
-        $previousEMA = self::calculateEMA(array_slice($prices, 0, -1), $shortPeriod);
-        $currentPrice = end($prices);
-        $prevPrice = $prices[array_key_last($prices) - 1];
-        $isUptrend = $prevPrice > $sma;
-
-        $isShort = ($previousEMA >= $previousSMA && $ema < $sma) /*|| ($sma >= $prevPrice && $sma < $ema)*/;
-        $isLong = ($previousEMA <= $previousSMA && $ema > $sma) /*|| ($sma <= $prevPrice && $sma > $ema)*/;
-        //$isUptrend = $ema >= $sma;
-
-        // Расчет полос Боллинджера
-        $bollingerPrices = array_slice($prices, -$bollingerLength);
-        $bollingerSMA = array_sum($bollingerPrices) / $bollingerLength;
-        $variance = array_sum(array_map(function ($price) use ($bollingerSMA) {
-                return pow($price - $bollingerSMA, 2);
-            }, $bollingerPrices)) / $bollingerLength;
-        $stdDev = sqrt($variance);
-        $upperBand = $bollingerSMA + ($bollingerFactor * $stdDev);
-        $lowerBand = $bollingerSMA - ($bollingerFactor * $stdDev);
-
-        // Расчет %B
-        $bollingerPercentB = ($currentPrice - $lowerBand) / ($upperBand - $lowerBand);
-
-        //timestamp
-        $seconds = $milliseconds / 1000;
-        $microseconds = ($milliseconds % 1000) * 1000;
-
-        $date = \DateTime::createFromFormat('U.u', sprintf('%.6F', $seconds));
-        $date->modify("+$microseconds microseconds");
-        $timestamp =  $date->format("H:i m.d");
-
-        if ($previousEMA <= $previousSMA && $ema > $sma) {
-            return [
-                'cross' => 'bull cross',
-                'sma' => $sma,
-                'ema' => $ema,
-                'isUptrend' => $isUptrend,
-                'is_reversal' => true,
-                'isLong' => true,
-                'isShort' => false,
-                'timestamp_gmt' => $timestamp,
-                'timestamp' => $milliseconds,
-                'bollinger' => [
-                    'middle_band' => $bollingerSMA,
-                    'upper_band' => $upperBand,
-                    'lower_band' => $lowerBand,
-                    '%B' => $bollingerPercentB,
-                ],
-            ];
-        } elseif ($previousEMA >= $previousSMA && $ema < $sma) {
-            return [
-                'cross' => 'bear cross',
-                'sma' => $sma,
-                'ema' => $ema,
-                'isUptrend' => $isUptrend,
-                'is_reversal' => true,
-                'isLong' => false,
-                'isShort' => true,
-                'timestamp_gmt' => $timestamp,
-                'timestamp' => $milliseconds,
-                'bollinger' => [
-                    'middle_band' => $bollingerSMA,
-                    'upper_band' => $upperBand,
-                    'lower_band' => $lowerBand,
-                    '%B' => $bollingerPercentB,
-                ],
-            ];
-        } else {
-            return [
-                'cross' => 'no cross',
-                'sma' => $sma,
-                'ema' => $ema,
-                'isUptrend' => $isUptrend,
-                'is_reversal' => false,
-                'isLong' => $isLong,
-                'isShort' => $isShort,
-                'timestamp_gmt' => $timestamp,
-                'timestamp' => $milliseconds,
-                'bollinger' => [
-                    'middle_band' => $bollingerSMA,
-                    'upper_band' => $upperBand,
-                    'lower_band' => $lowerBand,
-                    '%B' => $bollingerPercentB,
-                ],
-            ];
-        }
-    }
-
+    /**
+     * Вычисляет экспоненциальную скользящую среднюю (EMA) для переданного массива цен.
+     *
+     * EMA придает больший вес последним данным, что делает ее более чувствительной
+     * к недавним изменениям цены по сравнению с простой скользящей средней (SMA).
+     *
+     * @param array $prices Массив числовых значений цен
+     * @param int $period Период для расчета EMA
+     *
+     * @return float
+     *   Значение экспоненциальной скользящей средней
+     *
+     * @throws \InvalidArgumentException Если передан пустой массив цен
+     * @throws \UnexpectedValueException Если массив содержит нечисловые значения
+     */
     protected static function calculateEMA(array $prices, int $period) {
         if (empty($prices)) {
             throw new \InvalidArgumentException("calculateEMA: prices array is empty");
@@ -427,6 +439,28 @@ class TechnicalAnalysis
         return $ema;
     }
 
+    /**
+     * Вычисляет параболический SAR (Stop and Reverse) с определением тренда и точек разворота.
+     *
+     * Parabolic SAR - индикатор, который определяет точки возможного разворота тренда.
+     * Алгоритм следует за ценой, останавливаясь и разворачиваясь при изменении тенденции.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'h' (float) Highest price (максимальная цена)
+     *                      - 'l' (float) Lowest price (минимальная цена)
+     * @param float $initialSAR Начальное значение коэффициента ускорения (по умолчанию 0.02)
+     * @param float $step Шаг увеличения коэффициента ускорения (по умолчанию 0.02)
+     * @param float $maxAF Максимальное значение коэффициента ускорения (по умолчанию 0.2)
+     *
+     * @return array
+     *   Массив объектов SAR для каждой свечи, содержащий:
+     *   - 'sar_value' (float) Значение параболического SAR
+     *   - 'trend' (string) Направление тренда: 'up' или 'down'
+     *   - 'isUptrend' (bool) Флаг восходящего тренда
+     *   - 'is_reversal' (bool) Флаг разворота тренда на данной свече
+     *
+     *   Возвращает массив с нулевым значением SAR в случае ошибки
+     */
     public static function calculateSARWithTrend($candles, $initialSAR = 0.02, $step = 0.02, $maxAF = 0.2)
     {
         $sar = [];
@@ -499,6 +533,30 @@ class TechnicalAnalysis
         return $sar;
     }
 
+    /**
+     * Вычисляет индикатор Supertrend на основе массива свечных данных.
+     *
+     * Supertrend - индикатор следования за трендом, который определяет направление тренда
+     * и предоставляет динамические уровни поддержки/сопротивления. Основан на комбинации
+     * среднего истинного диапазона (ATR) и медианной цены.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'h' (float) Highest price (максимальная цена)
+     *                      - 'l' (float) Lowest price (минимальная цена)
+     *                      - 'c' (float) Close price (цена закрытия)
+     * @param int $length Период для расчета ATR (по умолчанию 10)
+     * @param float $factor Множитель для ATR (по умолчанию 3)
+     * @param bool $useEMA Флаг использования EMA вместо SMA для расчета ATR (по умолчанию false)
+     *
+     * @return array
+     *   Массив объектов Supertrend для каждой свечи, содержащий:
+     *   - 'value' (float) Значение индикатора Supertrend
+     *   - 'trend' (string) Направление тренда: 'up' или 'down'
+     *   - 'isUptrend' (bool) Флаг восходящего тренда
+     *   - 'is_reversal' (bool) Флаг разворота тренда
+     *
+     *   Возвращает массив с нулевым значением в случае ошибки или недостатка данных
+     */
     public static function calculateSupertrend($candles, $length = 10, $factor = 3, $useEMA = false)
     {
         // Проверка на пустой массив свечей
@@ -616,6 +674,29 @@ class TechnicalAnalysis
         return $supertrend;
     }
 
+    /**
+     * Анализирует стакан ордеров и находит значимые уровни поддержки и сопротивления.
+     *
+     * Фильтрует ордера по заданному процентному отклонению от лучших цен,
+     * агрегирует объемы и определяет наиболее значимые уровни для покупок и продаж.
+     *
+     * @param array $orderBook Стакан ордеров с ключами:
+     *                        - 'b' (array) Массив покупок [цена, объем]
+     *                        - 'a' (array) Массив продаж [цена, объем]
+     * @param int $topN Количество возвращаемых топ-уровней для покупок и продаж (по умолчанию 3)
+     * @param float $deviationPercent Процент отклонения для фильтрации ордеров (по умолчанию 0.3%)
+     *
+     * @return array
+     *   Ассоциативный массив с топ-уровнями:
+     *   - 'upper' (array) Топ-N уровней сопротивления (asks)
+     *   - 'lower' (array) Топ-N уровней поддержки (bids)
+     *
+     *   Каждый уровень содержит:
+     *   - 'price' (float) Цена уровня
+     *   - 'volume' (float) Объем на уровне
+     *   - 'distance' (float) Отклонение от лучшей цены в процентах
+     *   - 'volume_percent' (float) Доля объема от общего объема в %
+     */
     public static function findLevels($orderBook, $topN = 3, $deviationPercent = 0.3)
     {
         $bids = [];
@@ -733,6 +814,35 @@ class TechnicalAnalysis
          }
      }
 
+    /**
+     * Рассчитывает стохастический осциллятор с сигналами перекупленности/перепроданности и торговыми сигналами.
+     *
+     * Стохастик измеряет положение цены закрытия относительно диапазона цен за определенный период.
+     * Формирует сигналы на основе пересечения линий %K и %D в зонах перекупленности/перепроданности
+     * с дополнительной проверкой импульса движения цены.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'h' (float) Highest price (максимальная цена)
+     *                      - 'l' (float) Lowest price (минимальная цена)
+     *                      - 'c' (float) Close price (цена закрытия)
+     * @param int $k Период для %K линии (по умолчанию 14)
+     * @param int $d Период для %D линии (по умолчанию 1)
+     * @param int $smooth Период сглаживания для %K (по умолчанию 3)
+     * @param float $impulsePercent Пороговое процентное изменение цены для подтверждения импульса (по умолчанию 0.5%)
+     *
+     * @return array
+     *   Массив результатов для каждой свечи, содержащий:
+     *   - 'close' (float) Цена закрытия
+     *   - '%K' (float) Значение основной линии %K
+     *   - '%D' (float) Значение сигнальной линии %D
+     *   - 'isOverbought' (bool) Флаг перекупленности (значение выше 80)
+     *   - 'isOversold' (bool) Флаг перепроданности (значение ниже 20)
+     *   - 'isLong' (bool) Сигнал на покупку (пересечение снизу вверх в зоне перепроданности)
+     *   - 'isShort' (bool) Сигнал на продажу (пересечение сверху вниз в зоне перекупленности)
+     *   - 'impulseConfirmed' (bool) Подтверждение сигнала значительным движением цены
+     *
+     * @throws \Exception Если недостаточно данных для расчета
+     */
     public static function calculateStochasticOscillator(array $candles, int $k = 14, int $d = 1, int $smooth = 3, $impulsePercent = 0.5): array
     {
         // Проверяем, что данных достаточно для расчета
@@ -970,20 +1080,40 @@ class TechnicalAnalysis
     }
 
     /**
-    30m: 200-300 свечей (примерно 2-3 недели данных).
-    1h: 200 свечей (около 2 недель).
-    4h: 150 свечей (порядка 3 недель).
-    1d: 100 свечей (3-4 месяца).
-
-    $zoneWidthPercentage
-    1m	0.05% – 0.1%
-    5m	0.1% – 0.3%
-    15m	0.3% – 0.5%
-    1h	0.5% – 1.0%
-    4h	1.0% – 2.0%
-    1d	2.0% – 5.0%
-    1w	5.0% – 10.0%
-    */
+     * Находит зоны поддержки и сопротивления на основе ценовых экстремумов и данных стакана ордеров.
+     *
+     * Анализирует локальные максимумы и минимумы цен, группирует их в зоны с учетом заданной ширины,
+     * и классифицирует на поддержку/сопротивление относительно текущих лучших цен в стакане.
+     * Рекомендуемые параметры для различных таймфреймов:
+     * - 30m: 200-300 свечей (2-3 недели), ширина зоны 0.3-0.5%
+     * - 1h: 200 свечей (2 недели), ширина зоны 0.5-1.0%
+     * - 4h: 150 свечей (3 недели), ширина зоны 1.0-2.0%
+     * - 1d: 100 свечей (3-4 месяца), ширина зоны 2.0-5.0%
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'h' (float) Highest price (максимальная цена)
+     *                      - 'l' (float) Lowest price (минимальная цена)
+     *                      - 'v' (float) Volume (объем)
+     *                      - 'c' (float) Close price (цена закрытия)
+     * @param float $zoneWidthPercentage Ширина зоны в процентах от цены (рекомендуемые значения зависят от таймфрейма)
+     * @param array $orderBook Стакан ордеров с ключами:
+     *                        - 'b' (array) Массив покупок [цена, объем]
+     *                        - 'a' (array) Массив продаж [цена, объем]
+     *
+     * @return array
+     *   Ассоциативный массив с зонами поддержки и сопротивления:
+     *   - 'support' (array) Массив зон поддержки
+     *   - 'resistance' (array) Массив зон сопротивления
+     *
+     *   Каждая зона содержит:
+     *   - 'lower' (float) Нижняя граница зоны
+     *   - 'upper' (float) Верхняя граница зоны
+     *   - 'volume' (float) Суммарный объем в зоне
+     *   - 'hits' (int) Количество попаданий ценовых экстремумов в зону
+     *   - 'distance' (float) Расстояние до текущей цены в процентах
+     *
+     * @throws \Exception Если передано недостаточное количество свечей для анализа
+     */
     public static function findSupportResistanceZones(array $candles, float $zoneWidthPercentage, array $orderBook = []): array
     {
         // Проверяем входные данные
@@ -1092,6 +1222,41 @@ class TechnicalAnalysis
         ];
     }
 
+    /**
+     * Обнаруживает ордерные блоки (Order Blocks) на основе свечных моделей и данных стакана ордеров.
+     *
+     * Ордерные блоки - это ценовые области, где происходила значительная активность крупных участников рынка,
+     * что может указывать на потенциальные уровни поддержки/сопротивления. Анализирует свечные формации
+     * и определяет бычьи/медвежьи блоки на основе последующего ценового движения.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'o' (float) Open price (цена открытия)
+     *                      - 'h' (float) Highest price (максимальная цена)
+     *                      - 'l' (float) Lowest price (минимальная цена)
+     *                      - 'c' (float) Close price (цена закрытия)
+     * @param array $orderBook Стакан ордеров для определения текущих лучших цен (опционально)
+     * @param float $distanceTolerance Минимальное расстояние до текущей цены в % (по умолчанию -0.5%)
+     * @param int $periods Количество периодов для подтверждения блока (по умолчанию 5)
+     * @param float $threshold Минимальное процентное движение для подтверждения блока (по умолчанию 0.0%)
+     * @param bool $useWicks Использовать экстремумы (тени свечей) вместо тел свечей для границ блоков
+     * @param int $bullishExtension Количество возвращаемых бычьих блоков (по умолчанию 6)
+     * @param int $bearishExtension Количество возвращаемых медвежьих блоков (по умолчанию 6)
+     *
+     * @return array
+     *   Ассоциативный массив с обнаруженными ордерными блоками:
+     *   - 'bullish' (array) Массив бычьих ордерных блоков
+     *   - 'bearish' (array) Массив медвежьих ордерных блоков
+     *
+     *   Каждый блок содержит:
+     *   - 'type' (string) Тип блока: 'bullish' или 'bearish'
+     *   - 'upper' (float) Верхняя граница блока
+     *   - 'lower' (float) Нижняя граница блока
+     *   - 'average' (float) Средняя цена блока
+     *   - 'distance' (float) Расстояние до текущей цены в процентах
+     *   - 'strength' (float) Сила движения после блока в процентах
+     *
+     * @throws \Exception Если передано недостаточное количество свечей для анализа
+     */
     public static function detectOrderBlocks(
         array $candles,
         array $orderBook = [],
@@ -1191,7 +1356,44 @@ class TechnicalAnalysis
             'bearish' => array_slice($bearishBlocks, 0, $bearishExtension),
         ];
     }
-    
+
+    /**
+     * Анализирует индикатор MACD (Moving Average Convergence Divergence) и генерирует торговые сигналы.
+     *
+     * MACD - трендовый индикатор, показывающий взаимосвязь между двумя скользящими средними цены.
+     * Вычисляет MACD Line, Signal Line и гистограмму, а также определяет различные типы сигналов
+     * на основе пересечений линий и нулевого уровня.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'c' (float) Close price (цена закрытия)
+     * @param int $fastLength Период быстрой EMA (по умолчанию 12)
+     * @param int $slowLength Период медленной EMA (по умолчанию 26)
+     * @param int $signalLength Период сигнальной линии (по умолчанию 9)
+     *
+     * @return array
+     *   Массив результатов анализа для каждой свечи, содержащий:
+     *   - 'close' (float) Цена закрытия
+     *   - 'macd_line' (float|null) Значение линии MACD
+     *   - 'signal_line' (float|null) Значение сигнальной линии
+     *   - 'histogram_value' (float|null) Значение гистограммы MACD
+     *   - 'isLongDirection' (bool) Флаг восходящего направления MACD
+     *   - 'isShortDirection' (bool) Флаг нисходящего направления MACD
+     *   - 'isLong' (bool) Комплексный сигнал на покупку
+     *   - 'isShort' (bool) Комплексный сигнал на продажу
+     *   - 'shortTypeAr' (array) Детализация медвежьих сигналов:
+     *        - 'cross' (bool) Пересечение сигнальной линии сверху вниз
+     *        - 'cross0' (bool) Пересечение нулевого уровня сверху вниз
+     *        - 'crossB0' (bool) Пересечение сигнальной линии и нулевого уровня
+     *        - 'noCross' (bool) Приближение к сигнальной линии без пересечения
+     *   - 'longTypeAr' (array) Детализация бычьих сигналов:
+     *        - 'cross' (bool) Пересечение сигнальной линии снизу вверх
+     *        - 'cross0' (bool) Пересечение нулевого уровня снизу вверх
+     *        - 'crossA0' (bool) Пересечение сигнальной линии и нулевого уровня
+     *        - 'noCross' (bool) Приближение к сигнальной линии без пересечения
+     *   - 'params' (array) Параметры расчета MACD
+     *
+     *   Возвращает пустой массив при недостаточном количестве данных
+     */
     public static function analyzeMACD(array $candles, int $fastLength = 12, int $slowLength = 26, int $signalLength = 9): array
     {
         // Проверяем, что данных достаточно для расчета
@@ -1307,7 +1509,49 @@ class TechnicalAnalysis
         return $result;
     }
 
-    //https://www.tradingview.com/script/soSwR4mX-MACD-Divergences-by-DaviddTech/
+    /**
+     * https://www.tradingview.com/script/soSwR4mX-MACD-Divergences-by-DaviddTech/
+     * Вычисляет дивергенции MACD на основе алгоритма TradingView (автор DaviddTech).
+     *
+     * Анализирует расхождения между ценовыми экстремумами и экстремумами индикатора MACD
+     * для выявления регулярных и скрытых бычьих/медвежьих дивергенций. Включает дополнительный
+     * анализ пересечений линий MACD и сигнальной линии.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'c' (float) Close price (цена закрытия)
+     *                      - 'h' (float) High price (максимальная цена)
+     *                      - 'l' (float) Low price (минимальная цена)
+     * @param int $fastLength Период быстрой скользящей средней (по умолчанию 5)
+     * @param int $slowLength Период медленной скользящей средней (по умолчанию 35)
+     * @param int $signalLength Период сигнальной линии (по умолчанию 5)
+     * @param string $oscillatorType Тип скользящей средней для MACD (по умолчанию 'SMA')
+     * @param string $signalLineType Тип скользящей средней для сигнальной линии (по умолчанию 'SMA')
+     *
+     * @return array
+     *   Массив результатов анализа для каждой свечи, содержащий:
+     *   - 'close' (float) Цена закрытия
+     *   - 'macd_line' (float) Значение линии MACD
+     *   - 'signal_line' (float) Значение сигнальной линии
+     *   - 'histogram_value' (float) Значение гистограммы MACD
+     *   - 'longDivergenceTypeAr' (array) Бычьи дивергенции:
+     *        - 'regular' (bool) Регулярная бычья дивергенция
+     *        - 'hidden' (bool) Скрытая бычья дивергенция
+     *   - 'shortDivergenceTypeAr' (array) Медвежьи дивергенции:
+     *        - 'regular' (bool) Регулярная медвежья дивергенция
+     *        - 'hidden' (bool) Скрытая медвежья дивергенция
+     *   - 'shortCrossTypeAr' (array) Медвежьи пересечения:
+     *        - 'cross' (bool) Пересечение сигнальной линии
+     *        - 'cross0' (bool) Пересечение нулевого уровня
+     *        - 'crossB0' (bool) Комбинированное пересечение
+     *   - 'longCrossTypeAr' (array) Бычьи пересечения:
+     *        - 'cross' (bool) Пересечение сигнальной линии
+     *        - 'cross0' (bool) Пересечение нулевого уровня
+     *        - 'crossA0' (bool) Комбинированное пересечение
+     *   - 'isShort' (bool) Комплексный медвежий сигнал (дивергенция + пересечение)
+     *   - 'isLong' (bool) Комплексный бычий сигнал (дивергенция + пересечение)
+     *   - 'params' (array) Параметры расчета
+     *   - 'extremes' (array) Данные экстремумов цен и MACD
+     */
     public static function calculateMACDDivergences(
         array $candles,
         int $fastLength = 5,
@@ -1496,6 +1740,21 @@ class TechnicalAnalysis
         return $result;
     }
 
+    /**
+     * Вычисляет скользящую среднюю (Moving Average) указанного типа.
+     *
+     * Поддерживает два типа скользящих средних: простую (SMA) и экспоненциальную (EMA).
+     * Для EMA используется стандартная формула расчета с начальной инициализацией через SMA.
+     *
+     * @param array $values Массив числовых значений для расчета
+     * @param int $length Период скользящей средней
+     * @param string $type Тип скользящей средней: 'SMA' или 'EMA'
+     *
+     * @return float
+     *   Значение скользящей средней
+     *
+     * @throws InvalidArgumentException Если указан неизвестный тип скользящей средней
+     */
     private static function calculateMa(array $values, int $length, string $type): float
     {
         if (empty($values)) {
@@ -1528,7 +1787,58 @@ class TechnicalAnalysis
         throw new InvalidArgumentException('Unknown MA type');
     }
 
-    // аналог метода из внутренней библиотеки php
+    /**
+     * аналог метода из внутренней библиотеки php
+     * Расширенный расчет MACD с анализом дивергенций и сигналов пересечения.
+     *
+     * Вычисляет индикатор MACD с пользовательскими параметрами и проводит комплексный анализ
+     * дивергенций (регулярных и скрытых) между ценовыми экстремумами и экстремумами индикатора.
+     * Включает поиск локальных экстремумов и анализ пересечений линий MACD.
+     *
+     * @param array $prices Массив свечных данных с ключами:
+     *                     - 'c' (float) Close price (цена закрытия)
+     *                     - 'h' (float) High price (максимальная цена)
+     *                     - 'l' (float) Low price (минимальная цена)
+     * @param int $fastPeriod Период быстрой скользящей средней (по умолчанию 5)
+     * @param string $fastMAType Тип быстрой MA: 'SMA' или 'EMA' (по умолчанию 'SMA')
+     * @param int $slowPeriod Период медленной скользящей средней (по умолчанию 35)
+     * @param string $slowMAType Тип медленной MA: 'SMA' или 'EMA' (по умолчанию 'SMA')
+     * @param int $signalPeriod Период сигнальной линии (по умолчанию 5)
+     * @param string $signalMAType Тип сигнальной MA: 'SMA' или 'EMA' (по умолчанию 'SMA')
+     * @param int $priceIndexTolerance Допуск по индексу для сопоставления ценовых экстремумов (по умолчанию 10)
+     * @param string $divergenceType Тип экстремумов для анализа дивергенций: 'macdLine' или 'histogram' (по умолчанию 'macdLine')
+     * @param int $indexTolerance Допуск по индексу для сопоставления экстремумов индикатора (по умолчанию 5)
+     * @param int $widthTolerance Минимальная ширина дивергенции в свечах (по умолчанию 6)
+     * @param int $extremesRange Диапазон для поиска локальных экстремумов (по умолчанию 4)
+     *
+     * @return array
+     *   Массив результатов анализа для каждой свечи, содержащий:
+     *   - 'main_values' (array) Основные значения индикатора:
+     *        - 'macd_line' (float) Линия MACD
+     *        - 'signal_line' (float) Сигнальная линия
+     *        - 'histogram_value' (float) Значение гистограммы
+     *   - 'longDivergenceTypeAr' (array) Бычьи дивергенции:
+     *        - 'regular' (bool) Регулярная бычья дивергенция
+     *        - 'hidden' (bool) Скрытая бычья дивергенция
+     *   - 'shortDivergenceTypeAr' (array) Медвежьи дивергенции:
+     *        - 'regular' (bool) Регулярная медвежья дивергенция
+     *        - 'hidden' (bool) Скрытая медвежья дивергенция
+     *   - 'longDivergenceDistance' (int|false) Расстояние до бычьей дивергенции в свечах
+     *   - 'shortDivergenceDistance' (int|false) Расстояние до медвежьей дивергенции в свечах
+     *   - 'shortCrossTypeAr' (array) Медвежьи пересечения:
+     *        - 'cross' (bool) Пересечение сигнальной линии сверху вниз
+     *        - 'cross0' (bool) Пересечение нулевого уровня сверху вниз
+     *        - 'crossB0' (bool) Комбинированное пересечение
+     *   - 'longCrossTypeAr' (array) Бычьи пересечения:
+     *        - 'cross' (bool) Пересечение сигнальной линии снизу вверх
+     *        - 'cross0' (bool) Пересечение нулевого уровня снизу вверх
+     *        - 'crossA0' (bool) Комбинированное пересечение
+     *   - 'isShort' (bool) Комплексный медвежий сигнал
+     *   - 'isLong' (bool) Комплексный бычий сигнал
+     *   - 'extremes' (array) Данные экстремумов и выбранные точки для анализа
+     *
+     *   Возвращает пустой массив при недостаточном количестве данных
+     */
     public static function calculateMacdExt(
         array $prices,
         int $fastPeriod = 5,
@@ -1749,6 +2059,26 @@ class TechnicalAnalysis
         return $res ?? [];
     }
 
+    /**
+     * Вспомогательный метод для поиска пар экстремумов при анализе дивергенций MACD.
+     *
+     * Сопоставляет ценовые экстремумы с экстремумами индикатора MACD в пределах заданных допусков.
+     * Используется для выявления потенциальных дивергенций между ценой и индикатором.
+     *
+     * @param array $priceExtremes Массив ценовых экстремумов
+     * @param array $macdExtremes Массив экстремумов индикатора MACD
+     * @param int $indexTolerance Допуск по индексу для сопоставления экстремумов индикатора
+     * @param int $priceIndexTolerance Допуск по индексу для сопоставления ценовых экстремумов
+     * @param int $currentIndex Текущий индекс анализа
+     * @param int $priceStep Шаг для выбора предыдущего экстремума (по умолчанию 1)
+     *
+     * @return array
+     *   Массив из четырех элементов:
+     *   - price1 (array|null) Первый ценовой экстремум
+     *   - price2 (array|null) Второй ценовой экстремум
+     *   - macd1 (array|null) Экстремум MACD, соответствующий price1
+     *   - macd2 (array|null) Экстремум MACD, соответствующий price2
+     */
     private static function findMACDDivergence($priceExtremes, $macdExtremes, $indexTolerance, $priceIndexTolerance, $currentIndex, $priceStep = 1) {
         $price1 = $price2 = $macd1 = $macd2 = null;
         $reversedPriceExtremes = array_reverse($priceExtremes);
@@ -1774,6 +2104,22 @@ class TechnicalAnalysis
         return [$price1, $price2, $macd1, $macd2];
     }
 
+    /**
+     * Находит локальные экстремумы (максимумы и минимумы) в массиве значений.
+     *
+     * Анализирует значения в заданном диапазоне для определения локальных пиков и впадин.
+     * Локальный экстремум - значение, которое является максимальным/минимальным в пределах
+     * указанного диапазона (range) в обе стороны.
+     *
+     * @param array $values Массив числовых значений для анализа
+     * @param string $type Тип экстремума: 'low' для минимумов, 'high' для максимумов
+     * @param int $range Диапазон анализа в обе стороны от текущей точки
+     *
+     * @return array
+     *   Массив найденных экстремумов, где каждый элемент содержит:
+     *   - 'index' (int) Индекс элемента в исходном массиве
+     *   - 'value' (float) Значение экстремума
+     */
     public static function findLocalExtremes(array $values, string $type, int $range): array
     {
         $extremes = [];
@@ -1805,8 +2151,8 @@ class TechnicalAnalysis
         return $extremes;
     }
 
-    //https://www.tradingview.com/script/qt6xLfLi-Impulse-MACD-LazyBear/
     /**
+     * https://www.tradingview.com/script/qt6xLfLi-Impulse-MACD-LazyBear/
      * Анализ Impulse MACD с определением тренда (strong/weak up/down).
      *
      * @param array $candles    Массив свечей с ключами 'h', 'l', 'c', 't'
@@ -1974,9 +2320,10 @@ class TechnicalAnalysis
             $isLong = false;
             $isShort = false;
 
-            // текущая и предыдущая гистограммы
+            // текущая и предыдущие гистограммы
             $h0 = $histogram[$i]   ?? null;
             $h1 = $histogram[$i-1] ?? null;
+            $h2 = $histogram[$i-2] ?? null;
 
             // Получаем текущие длины серий
             $currentLongStreak = $longStreaks[$i] ?? 0;
@@ -2007,7 +2354,7 @@ class TechnicalAnalysis
                 'impulse_macd' => $md[$i]        ?? null,
                 'signal_line'  => $signal[$i]    ?? null,
                 'histogram'    => $histogram[$i] ?? null,
-                'histogram_ar_3'    => [$h0, $h1],
+                'histogram_ar_3'    => [$h0, $h1, $h2],
                 'trend'        => [
                     'longDirection' => $longDirection,
                     'shortDirection' => $shortDirection,
@@ -2019,73 +2366,34 @@ class TechnicalAnalysis
 
         return $result;
     }
-    
-    public static function simpleTrendLine(array $candles, int $shortPeriod = 30, int $longPeriod = 100): array
-    {
-        // Шаг 1: Поиск экстремумов
-        $priceLows = self::findLocalExtremes(array_column($candles, 'l'), 'low', 3);
-        $priceHighs = self::findLocalExtremes(array_column($candles, 'h'), 'high', 3);
 
-        $results = [];
-
-        // Шаг 2: Обработка свечей
-        for ($i = count($candles) - $longPeriod; $i < count($candles); $i++) {
-            // Находим экстремумы для короткого и длинного периодов
-            $shortLows = array_filter($priceLows, fn($low) => $low['index'] >= $i - $shortPeriod && $low['index'] <= $i);
-            $shortHighs = array_filter($priceHighs, fn($high) => $high['index'] >= $i - $shortPeriod && $high['index'] <= $i);
-            $longLows = array_filter($priceLows, fn($low) => $low['index'] >= $i - $longPeriod && $low['index'] <= $i);
-            $longHighs = array_filter($priceHighs, fn($high) => $high['index'] >= $i - $longPeriod && $high['index'] <= $i);
-
-            if (empty($shortLows) || empty($shortHighs) || empty($longLows) || empty($longHighs)) {
-                continue; // Пропускаем итерацию, если данных недостаточно
-            }
-
-            // Находим экстремумы
-            $lowestShort = min(array_column($shortLows, 'value'));
-            $highestShort = max(array_column($shortHighs, 'value'));
-            $lowestLong = min(array_column($longLows, 'value'));
-            $highestLong = max(array_column($longHighs, 'value'));
-
-            // Шаг 3: Определение тренда
-            $trend = '';
-            $trendPrice = 0;
-            $currentCandle = $candles[$i];
-
-            if ($lowestShort > $lowestLong && $highestShort > $highestLong) {
-                // Восходящий тренд
-                $trend = 'uptrend';
-                // Линейная интерполяция на основе разницы между текущим минимумом и максимумом
-                $trendPrice = $lowestShort + ($currentCandle['c'] - $lowestShort) * (($highestShort - $lowestShort) / ($highestShort - $lowestShort));
-            } elseif ($lowestShort < $lowestLong && $highestShort < $highestLong) {
-                // Нисходящий тренд
-                $trend = 'downtrend';
-                // Линейная интерполяция на основе разницы между текущим максимумом и минимумом
-                $trendPrice = $highestShort - ($highestShort - $currentCandle['c']) * (($highestShort - $lowestShort) / ($highestShort - $lowestShort));
-            } else {
-                // Боковой тренд
-                $trend = 'sideways';
-                // Средняя цена между минимумом и максимумом
-                $trendPrice = ($lowestShort + $highestShort) / 2;
-            }
-
-            // Шаг 4: Сохранение результата
-            $results[] = [
-                'index' => $i,
-                'trend' => $trend,
-                'price' => $trendPrice,
-                'extremes' => [
-                    'lowestShort' => $lowestShort,
-                    'highestShort' => $highestShort,
-                    'lowestLong' => $lowestLong,
-                    'highestLong' => $highestLong,
-                ],
-            ];
-        }
-
-        return $results;
-    }
-
-    //переписанный с C++ метод из библиоеки https://www.php.net/manual/en/function.trader-atr.php
+    /**
+     * переписанный с C++ метод из библиоеки https://www.php.net/manual/en/function.trader-atr.php
+     * Вычисляет средний истинный диапазон (ATR) по методу Вайлдера с дополнительным анализом флэта.
+     *
+     * ATR измеряет волатильность рынка на основе диапазона цен. Метод включает адаптивное определение
+     * флэтовых условий рынка через анализ относительного стандартного отклонения объемов.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'h' (float) High price (максимальная цена)
+     *                      - 'l' (float) Low price (минимальная цена)
+     *                      - 'c' (float) Close price (цена закрытия)
+     *                      - 'v' (float) Volume (объем)
+     *                      - 't' (int) Timestamp (временная метка в миллисекундах)
+     * @param int $period Период для расчета ATR (по умолчанию 14)
+     * @param float $multiplier Множитель для расчета уровней тейк-профита (по умолчанию 1.5)
+     * @param float $defaultFlatThreshold Пороговое значение для определения флэта по умолчанию (0.02 = 2%)
+     *
+     * @return array
+     *   Массив результатов анализа для каждой свечи, содержащий:
+     *   - 'atr' (float|null) Значение ATR
+     *   - 'longTP' (float|null) Уровень тейк-профита для лонга (цена + ATR * multiplier)
+     *   - 'shortTP' (float|null) Уровень тейк-профита для шорта (цена - ATR * multiplier)
+     *   - 'isFlat' (bool) Флаг флэтового состояния рынка
+     *   - 'adaptiveFlatThreshold' (float) Адаптивный порог флэта
+     *
+     *   Возвращает пустой массив при недостаточном количестве данных
+     */
     public static function calculateATR(array $candles, int $period = 14, float $multiplier = 1.5, float $defaultFlatThreshold = 0.02): array {
         $atr = $res = [];
         $trueRanges = [];
@@ -2189,7 +2497,32 @@ class TechnicalAnalysis
         return $res;
     }
 
-    // $flatThreshold :
+    /**
+     * Анализирует скользящие средние объемов торгов с определением тренда и флэтовых условий.
+     *
+     * Вычисляет MA объема, сглаженную MA и определяет тренд на основе изменения объемов.
+     * Дополнительно анализирует флэтовые условия через стандартное отклонение объемов.
+     *
+     * @param array $candles Массив свечных данных
+     * @param int $maLength Период для MA объема (по умолчанию 10)
+     * @param int $smaLength Период для сглаживания MA (по умолчанию 3)
+     * @param int $flatLength Окно для анализа флэта (по умолчанию 85)
+     * @param float $flatThreshold Порог стандартного отклонения для флэта (по умолчанию 55%)
+     * @param int $lookback Глубина поиска предыдущих флэтовых свечей (по умолчанию 6)
+     *
+     * @return array
+     *   Массив результатов анализа для каждой свечи, содержащий:
+     *   - 'candle' (array) Исходные данные свечи
+     *   - 'timestamp' (string) Временная метка в формате "H:i m.d"
+     *   - 'volume_ma' (float|null) MA объема
+     *   - 'smoothed_ma' (float|null) Сглаженная MA объема
+     *   - 'trend' (string|null) Направление тренда: 'up', 'down', 'sideways'
+     *   - 'isUptrend' (bool) Флаг восходящего тренда
+     *   - 'isFlat' (bool) Флаг флэтового состояния
+     *   - 'flatDistance' (int|false) Расстояние до ближайшей флэтовой свечи
+     *   - 'relativeStdDev' (float) Относительное стандартное отклонение
+     *   - 'changePercent' (float) Максимальное процентное изменение в окне
+     */
     public static function calculateVolumeMA(
         $candles,
         $maLength = 10,
@@ -2341,6 +2674,29 @@ class TechnicalAnalysis
         return $result;
     }
 
+    /**
+     * Определяет флэтовые состояния рынка на основе анализа стандартного отклонения цен закрытия.
+     *
+     * Анализирует волатильность рынка через вычисление относительного стандартного отклонения
+     * цен закрытия в заданном окне. Определяет периоды низкой волатильности (флэт) и рассчитывает
+     * расстояние до ближайшего флэтового периода.
+     *
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'c' (float) Close price (цена закрытия)
+     *                      - 't' (int) Timestamp (временная метка в миллисекундах)
+     * @param int $flatLength Размер окна анализа в свечах (по умолчанию 100)
+     * @param float $flatThreshold Пороговое значение относительного стандартного отклонения для определения флэта в % (по умолчанию 2.1%)
+     * @param int $lookback Глубина поиска предыдущих флэтовых периодов в свечах (по умолчанию 6)
+     *
+     * @return array
+     *   Массив результатов анализа для каждой свечи, содержащий:
+     *   - 'candle' (array) Исходные данные свечи
+     *   - 'timestamp' (string) Временная метка в формате "H:i m.d"
+     *   - 'stdDev' (float|null) Абсолютное стандартное отклонение
+     *   - 'relativeStdDev' (float|null) Относительное стандартное отклонение в процентах
+     *   - 'isFlat' (bool) Флаг флэтового состояния
+     *   - 'flatDistance' (int|false) Расстояние в свечах до ближайшего флэтового периода
+     */
     public static function detectFlat(
         array $candles,
         int   $flatLength = 100,
@@ -2432,7 +2788,22 @@ class TechnicalAnalysis
         return $results;
     }
 
-    //volume delta (cvd)
+    /**
+     * Вычисляет дельту объема (Volume Delta) и кумулятивную дельту объема (CVD).
+     *
+     * Дельта объема показывает разницу между объемом покупок и продаж за интервал.
+     * Кумулятивная дельта (CVD) представляет собой накопленную сумму дельт объема
+     * и является индикатором дисбаланса спроса и предложения.
+     *
+     * @param array $intervals Массив интервалов с данными об объемах торгов:
+     *                        - 'buyVolume' (float) Объем покупок
+     *                        - 'sellVolume' (float) Объем продаж
+     *
+     * @return array
+     *   Массив интервалов с добавленными полями:
+     *   - 'delta' (float) Дельта объема (buyVolume - sellVolume)
+     *   - 'cvd' (float) Кумулятивная дельта объема (накопленная сумма дельт)
+     */
     public static function calculateDelta(array $intervals): array {
         $result = [];
         $cumulative = 0;
@@ -2452,6 +2823,36 @@ class TechnicalAnalysis
         return $result;
     }
 
+    /**
+     * Анализирует объемы торгов для выявления сигналов на основе всплесков объема и доминирования покупок/продаж.
+     *
+     * Сравнивает средние объемы за последние N интервалов с предыдущими N интервалами,
+     * определяет наличие значительного роста объема и доминирование покупателей или продавцов.
+     *
+     * @param array $volumes Массив интервалов с данными об объемах торгов:
+     *                      - 'sumVolume' (float) Суммарный объем
+     *                      - 'buyVolume' (float) Объем покупок
+     *                      - 'sellVolume' (float) Объем продаж
+     * @param int $n Количество интервалов для анализа (по умолчанию 3)
+     * @param float $volumeGrowthThreshold Порог роста объема (по умолчанию 1.5)
+     * @param float $dominanceThreshold Порог доминирования объема (по умолчанию 0.7 = 70%)
+     *
+     * @return array
+     *   Ассоциативный массив с результатами анализа:
+     *   - 'isLong' (bool) Сигнал на покупку
+     *   - 'isShort' (bool) Сигнал на продажу
+     *   - 'signal' (string) Текстовое описание сигнала: 'long', 'short', 'neutral'
+     *   - 'reason' (string) Причина результата
+     *   - 'avgRecent' (float) Средний объем за последние N интервалов
+     *   - 'avgPast' (float) Средний объем за предыдущие N интервалов
+     *   - 'growth' (float) Коэффициент роста объема
+     *   - 'totalBuy' (float) Суммарный объем покупок
+     *   - 'totalSell' (float) Суммарный объем продаж
+     *   - 'buyRatio' (float) Доля покупок в общем объеме
+     *   - 'sellRatio' (float) Доля продаж в общем объеме
+     *   - 'volumeGrowthThreshold' (float) Использованный порог роста объема
+     *   - 'dominanceThreshold' (float) Использованный порог доминирования
+     */
     public static function analyzeVolumeSignal(array $volumes, int $n = 3, float $volumeGrowthThreshold = 1.5, float $dominanceThreshold = 0.7): array {
         $totalIntervals = count($volumes);
 
@@ -2745,14 +3146,16 @@ class TechnicalAnalysis
             //throw new \InvalidArgumentException("Direction must be either 'long' or 'short'");
         }
 
+        $riskAtrMtplrBoard = 2.3; //2.3
         if ($direction === "long") {
             // Расчет базового стоп-лосса по экстремуму с отступом для long
             $baseStopLoss = $lastExtreme * (1 - $offsetPercent / 100);
+            //$baseStopLoss = $lastExtreme - ($offsetPercent * $atr);
             $risk = $entryPrice - $baseStopLoss;
             // Если риск меньше ATR, используем ATR
-            if ($risk < $atr * 2) {
-                $risk = $atr * 2;
-                $stopLoss = $entryPrice - $atr * 2;
+            if ($risk < $atr * $riskAtrMtplrBoard) {
+                $risk = $atr * $riskAtrMtplrBoard;
+                $stopLoss = $entryPrice - $atr * $riskAtrMtplrBoard;
             } else {
                 $stopLoss = $baseStopLoss;
             }
@@ -2764,10 +3167,11 @@ class TechnicalAnalysis
         } else { // short
             // Расчет базового стоп-лосса для short: lastExtreme с отступом вверх
             $baseStopLoss = $lastExtreme * (1 + $offsetPercent / 100);
+            //$baseStopLoss = $lastExtreme + ($offsetPercent * $atr);
             $risk = $baseStopLoss - $entryPrice;
-            if ($risk < $atr * 2) {
-                $risk = $atr * 2;
-                $stopLoss = $entryPrice + $atr * 2;
+            if ($risk < $atr * $riskAtrMtplrBoard) {
+                $risk = $atr * $riskAtrMtplrBoard;
+                $stopLoss = $entryPrice + $atr * $riskAtrMtplrBoard;
             } else {
                 $stopLoss = $baseStopLoss;
             }
@@ -3177,39 +3581,28 @@ class TechnicalAnalysis
 
     /**
      * https://www.tradingview.com/script/OxJJqZiN-Pivot-Points-High-Low-Missed-Reversal-Levels-LuxAlgo/
-     * Анализ пивотов и “пропущенных” разворотов по массиву свечей.
+     * Анализирует ценовые пивоты (pivot points) и определяет трендовую структуру рынка.
      *
-     * @param array $candles Массив свечей с полями ['t','o','h','l','c','v'].
-     * @param int   $len     «Pivot Length» (количество баров слева и справа для пивота).
-     * @return array Массив того же размера, где для каждой свечи индекс i есть:
-     *   - 'time'             => исходный миллисекундный timestamp,
-     *   - 'time_str'         => "YYYY-MM-DD HH:MM:SS",
-     *   - 'formatted_time'   => "HH:MM",
-     *   - 'is_pivot'         => bool, является ли эта свеча пивотом,
-     *   - 'pivot_type'       => 'high'|'low'|null,
-     *   - 'distance'         => кол-во баров от последнего пивота до i,
-     *   - 'trend_dir'        => 'up'|'down'|null  (после пивота),
-     *   - 'is_missed'        => bool, признак пропущенного разворота,
-     *   - 'last_pivot_price' => цена последнего пивота (high или low),
-     *   - 'last_pivot_idx'   => индекс последнего пивота
-     */
-    /**
-     * Анализ пивотов и «пропущенных» разворотов (упрощённая, но надёжная версия).
+     * Выявляет локальные максимумы (pivot high) и минимумы (pivot low) в заданном окне,
+     * определяет пропущенные пивоты (missed pivots) и строит трендовые уровни с расчетом
+     * расстояния до последнего значимого уровня.
      *
-     * @param array $candles Массив свечей с полями ['t','o','h','l','c','v'].
-     * @param int   $len     Pivot Length (кол‑во баров слева и справа для определения пивота).
-     * @return array Массив того же размера, где для каждой свечи i:
-     *   - time              : исходный миллисекундный timestamp
-     *   - time_str          : «YYYY-MM-DD HH:MM:SS»
-     *   - formatted_time    : «HH:MM»
-     *   - is_pivot          : bool, является ли текущая свеча пивотом
-     *   - pivot_type        : 'high'|'low'|null
-     *   - is_missed         : bool, признак «пропущенного» разворота (повторная смена того же типа)
-     *   - missed_price      : float|null, цена предыдущего пивота (уровень поддержки/сопротивления)
-     *   - last_pivot_idx    : int|null, индекс последней свечи‑пивота
-     *   - last_pivot_price  : float|null, цена последнего пивота
-     *   - trend_dir         : 'up'|'down'|null, направление текущего тренда после пивота
-     *   - distance          : int|null, бары с момента последнего пивота (0 на самом пивоте)
+     * @param array $candles Массив свечных данных с ключами:
+     *                      - 'h' (float) High price (максимальная цена)
+     *                      - 'l' (float) Low price (минимальная цена)
+     *                      - 't' (int) Timestamp (временная метка)
+     * @param int $length Размер окна для поиска пивотов в свечах (по умолчанию 50)
+     *
+     * @return array
+     *   Массив результатов анализа для каждой свечи, содержащий:
+     *   - 'time' (string) Время в формате HH:MM
+     *   - 'pivotHigh' (bool) Флаг пикового максимума
+     *   - 'pivotLow' (bool) Флаг пикового минимума
+     *   - 'missedHigh' (bool) Флаг пропущенного максимума
+     *   - 'missedLow' (bool) Флаг пропущенного минимума
+     *   - 'trend' (string|null) Направление тренда: 'up' или 'down'
+     *   - 'distance' (int|null) Расстояние в свечах до последнего пивота
+     *   - 'levelPrice' (float|null) Цена последнего значимого уровня
      */
     public static function analyzePivotsSimple(array $candles, int $length = 50): array {
         $n = count($candles);
@@ -3616,10 +4009,16 @@ class TechnicalAnalysis
             $isLong  = false;
             $isShort = false;
             if ($i > 0 && $fastArr[$i - 1] !== null && $slowArr[$i - 1] !== null) {
-                if ($fastArr[$i - 1] <= $slowArr[$i - 1] && $fastArr[$i] > $slowArr[$i]) {
+                if (
+                    ($fastArr[$i - 1] <= $slowArr[$i - 1] && $fastArr[$i] > $slowArr[$i])
+                    || ($fastArr[$i - 2] <= $slowArr[$i - 2] && $fastArr[$i - 1] > $slowArr[$i - 1])
+                ) {
                     $isLong = true;
                 }
-                if ($fastArr[$i - 1] >= $slowArr[$i - 1] && $fastArr[$i] < $slowArr[$i]) {
+                if (
+                    ($fastArr[$i - 1] >= $slowArr[$i - 1] && $fastArr[$i] < $slowArr[$i])
+                    ||  ($fastArr[$i - 2] >= $slowArr[$i - 2] && $fastArr[$i - 1] < $slowArr[$i - 1])
+                ) {
                     $isShort = true;
                 }
             }
@@ -3723,6 +4122,7 @@ class TechnicalAnalysis
             $tsStr = $dt->format('Y-m-d H:i:s');
 
             $out[$i] = [
+                'timestampMs'  => $candles[$i]['c'],
                 'timestamp'  => $tsStr,
                 'linreg'  => $linreg,
                 'upper'   => $upper,
@@ -3733,5 +4133,4 @@ class TechnicalAnalysis
 
         return $out;
     }
-
 }

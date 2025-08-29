@@ -74,7 +74,7 @@ def featurize(sig, include_future: bool):
     return np.array(feats), label
 
 def do_train(data):
-    """Тренируем модель и сохраняем её на диск."""
+    """Тренируем модель на списке сигналов data и сохраняем на диск."""
     Xs, ys = [], []
     for sig in data:
         dir_str = sig.get('direction')
@@ -104,6 +104,7 @@ def do_train(data):
 
 @app.route("/mlDev/train", methods=["POST"])
 def train():
+    """Тренируем модель на переданных в теле запроса данных."""
     try:
         data = request.get_json()
         if not isinstance(data, list) or not data:
@@ -119,8 +120,8 @@ def train():
 @app.route("/mlDev/train-file", methods=["POST"])
 def train_file():
     """
-    Тренируем модель данными из файла JSON:
-    { "trainFilePath": "/путь/к/файлу" }
+    Тренируем модель на данных из файла.
+    JSON: { "trainFilePath": "/путь/к/файлу" }
     """
     try:
         body = request.get_json(silent=True) or {}
@@ -133,7 +134,7 @@ def train_file():
         with open(path, 'r') as f:
             raw = json.load(f)
 
-        # Приводим dict.values() к списку, если нужно
+        # ← здесь привели dict.values() к list
         if isinstance(raw, dict):
             data = list(raw.values())
         else:
@@ -152,13 +153,15 @@ def train_file():
 
 @app.route("/mlDev/predict", methods=["POST"])
 def predict():
-    """Всегда загружаем модели с диска и делаем предсказание."""
+    """Загружаем модель со скейлером с диска и делаем предсказание."""
     try:
+        # подгружаем всегда свежие модели
         if not os.path.exists(SCALER_PATH) or not os.path.exists(CLF_PATH):
             return jsonify(error="Model not trained"), 400
 
         scaler = load(SCALER_PATH)
         clf    = load(CLF_PATH)
+        app.logger.info("ML models loaded for predict.")
 
         sig = request.get_json()
         dir_str = sig.get('direction')
@@ -167,12 +170,14 @@ def predict():
 
         x     = featurize(sig, include_future=False).reshape(1, -1)
         probs = clf.predict_proba(scaler.transform(x))[0].tolist()
-        return jsonify(status="ok", probabilities=probs)
+        classes = clf.classes_.tolist()
+        return jsonify(status="ok", probabilities=probs, classes=classes)
+
     except Exception as e:
         app.logger.error(f"Predict error: {e}\n{traceback.format_exc()}")
         return jsonify(error="Predict failed"), 500
 
-@app.route("/ml/predict-batch", methods=["POST"])
+@app.route("/mlDev/predict-batch", methods=["POST"])
 def predict_batch():
     import os, traceback
     from flask import request, jsonify
@@ -261,6 +266,6 @@ def predict_batch():
 
     # 4) Возвращаем ровно массив ответов
     return jsonify(resp)
-        
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8001, threaded=False)

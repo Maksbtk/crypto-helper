@@ -17,18 +17,18 @@ os.environ['OMP_NUM_THREADS']      = '1'
 # === Параметры ===
 SYMBOL      = 'OTHERS'  # Total Market Cap Excluding Top 10 на TradingView
 EXCHANGE    = 'CRYPTOCAP'
-NUM_BARS    = 402
+NUM_BARS    =  402
 INTERVALS   = {
-    '4h':  Interval.in_4_hour,
-    '15m': Interval.in_15_minute,
     '5m':  Interval.in_5_minute,
+    '15m': Interval.in_15_minute,
     '1h':  Interval.in_1_hour,
+    '4h':  Interval.in_4_hour,
 }
 
 # Ретрай-конфиг
-MAX_RETRIES   = 6       # макс. число попыток в fetch_data
-BASE_DELAY    = 1.5     # базовая пауза (сек) в экспоненциальном бэкоффе
-JITTER_FACTOR = 0.7     # флуктуация паузы ±30%
+MAX_RETRIES   = 15       # макс. число попыток в fetch_data
+BASE_DELAY    = 1.6     # базовая пауза (сек) в экспоненциальном бэкоффе
+JITTER_FACTOR = 0.8     # флуктуация паузы ±30%
 
 # Пути
 OUTPUT_JSON = '/home/c/cz06737izol/crypto/public_html/upload/traydingviewExchange/total_ex_top10.json'

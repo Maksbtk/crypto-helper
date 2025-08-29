@@ -526,7 +526,7 @@ class SignalStrategyBuilderComponent extends CBitrixComponent implements Control
                 $oneDayMs = 24 * $oneHourMs;
 
                 if (!$signal['SL'] || !$signal['TP']) {
-                    $processed = \Maksv\Bybit\Exchange::processSignal(
+                    $processed = \Maksv\Helpers\Trading::processSignal(
                         $direct,
                         floatval($signal['actualATR']['atr']),
                         floatval($signal['actualClosePrice']),

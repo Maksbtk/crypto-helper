@@ -258,6 +258,9 @@ class DataOperation
              if ($res['recommendedEntry'])
                  $message .= 'Recommended entry: ' . $res['recommendedEntry'] .  "\n";
 
+            if ($res['calculateRiskTargetsWithATR']['riskPercent'])
+                $message .= 'Risk: ' . $res['calculateRiskTargetsWithATR']['riskPercent'] .  "\n";
+
             if ($res['resML'])
                 $message .= 'ML ' . $res['resML']['totalMl'] . ' (' . $res['resML']['signalMl'] . '/' . $res['resML']['marketMl'] . ')' . "\n";
 

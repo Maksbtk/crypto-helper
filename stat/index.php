@@ -109,7 +109,7 @@ if ($tpCountGeneral > 0) {
     }
 }
 
-$riskFilter = isset($_GET['riskFilter']) ? round(floatval($_GET['riskFilter']), 1) : 7;
+$riskFilter = isset($_GET['riskFilter']) ? round(floatval($_GET['riskFilter']), 1) : 4;
 $leverege = isset($_GET['leverege']) ? intval($_GET['leverege']) : 1;  // плечо котое используется вв сделке  ()
 
 $defaultTpSrearAr = [1.9, 2.6, 3.4, 5.6, 6.9];
@@ -375,7 +375,7 @@ if (!empty($_GET)) {
                             else
                                 $thisAtrMultipliers = $processedFilters['tpFilterAr']['SELECTED_TP_STRATEGY']['VALUE'];
 
-                            $processed = \Maksv\Bybit\Exchange::processSignal(
+                            $processed = \Maksv\Helpers\Trading::processSignal(
                                 $direction,
                                 floatval($strategy['actualATR']['atr']),
                                 floatval($strategy['actualClosePrice']),
@@ -385,7 +385,7 @@ if (!empty($_GET)) {
                                 $strategy['actualMacdDivergence'],
                                 $strategy['symbolScale'] ?? 6,
                                 $thisAtrMultipliers,
-                                ['risk' => $marketImpulsInfo['risk']],//['risk' => 10],
+                                ['risk' => 5.5/*$marketImpulsInfo['risk']*/],
                                 $symbolName,
                                 "stat",
                                 false
@@ -512,7 +512,7 @@ if (!empty($_GET)) {
                         if ($processedFilters['tpCountGeneral'] == 1) {
                             $portionWeight = [1];
                         } else if ($processedFilters['tpCountGeneral'] == 2) {
-                            $portionWeight = [0.6, 0.4];
+                            $portionWeight = [0.75, 0.25];
                         } else if ($processedFilters['tpCountGeneral'] == 3) {
                             $portionWeight = [0.34, 0.33, 0.33];
                         } else if ($processedFilters['tpCountGeneral'] == 4) {
@@ -522,9 +522,6 @@ if (!empty($_GET)) {
                         }
 
                         // potential Profit
-                        //$profit_percent_potential = 0;
-                        //$reachedTPPotential = $processedFilters['tpCountGeneral'];
-                        //$portionWeightPotential = 1 / $processedFilters['tpCountGeneral'];
                         $profit_percent_potential = 0;
                         // Берем первые $processedFilters['tpCountGeneral'] тейков
                         $tpHitAr = array_slice($tp, 0, $processedFilters['tpCountGeneral']);
@@ -580,10 +577,6 @@ if (!empty($_GET)) {
                                 }
 
                                 // —————— Накладываем убыток по недостигнутой части только если стоп‑лосс был пробит:
-                                /* $unreached = $processedFilters['tpCountGeneral'] - $reachedTP;
-                                 if ($priceAnalysis['sl_hit']) {
-                                     $profit_percent += $unreached * (-$riskPercent * $portionWeight);
-                                 }*/
                                 // Накладываем убыток по недостигнутым тейкам, если сработал SL
                                 if ($priceAnalysis['sl_hit']) {
                                     // индекс первого «недостигнутого» тейка
@@ -693,18 +686,24 @@ if (!empty($_GET)) {
                         $isExhaustion = \Maksv\TechnicalAnalysis::isExhaustion($strategy['candles15m'], $direction);
                         $isVolumeSpike = \Maksv\TechnicalAnalysis::isVolumeSpike($strategy['candles15m']);*/
                         //!squiz
-                        //mfi//
-                        $mfiRes = \Maksv\TechnicalAnalysis::calculateMFI($strategy['candles15m']);
-                        $mfi =   $mfiRes[array_key_last($mfiRes)] ?? null;
 
-                        $mfiResOthers =\Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
-                        $mfiOthers = $mfiResOthers[array_key_last($mfiResOthers)] ?? null;
+
+                        //mfi others//
+                        if (!$marketImpulsInfo['mfi15m'] && $marketImpulsInfo['last30Candles15m']) {
+                            $mfiOthers15mData = [];
+                            $mfiOthers15mData = \Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
+                            $marketImpulsInfo['mfi15m'] = $mfiOthers15mData[array_key_last($mfiOthers15mData)] ?? null;
+                        }
+
+                        if (!$strategy['actualMfi'] && $strategy['candles15m']) {
+                            $mfiData = [];
+                            $mfiData = \Maksv\TechnicalAnalysis::calculateMFI($strategy['candles15m']);
+                            $strategy['actualMfi'] = $mfiData[array_key_last($mfiData)] ?? null;
+                        }
                         //!mfi//
 
                         // Формируем результирующий элемент массива
                         $finalResults[] = [
-                            "mfi" => $mfi,
-                            "mfiOthers" => $mfiOthers,
                             "date" => $arItem["DATE_CREATE"],
                             "marketMl" => $arItem["marketMl"],
                             //"reverseMarketMl" => $arItem["reverseMarketMl"],
@@ -846,7 +845,7 @@ if (!empty($_GET)) {
         <div class="filter-footer">
             <div class="form-group">
                 <label for="riskFilter">Фильтр по риску, %:</label>
-                <? $riskFilterAr = range(1.8, 7, 0.1); ?>
+                <? $riskFilterAr = range(1.5, 4, 0.1); ?>
                 <select name="riskFilter" id="riskFilter">
                     <? foreach ($riskFilterAr as $riskFilterVal): ?>
                         <?$riskFilterVal = round($riskFilterVal, 1) ;?>
@@ -894,24 +893,35 @@ if (!empty($_GET)) {
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="perWindowLimit">Сделок в окне (лимит):</label>
-                <select name="perWindowLimit" id="perWindowLimit">
-                    <option value="0" <?= (isset($_GET['perWindowLimit']) && intval($_GET['perWindowLimit']) === 0 ? 'selected' : (!isset($_GET['perWindowLimit']) ? 'selected' : '')) ?>>Без ограничений</option>
-                    <? for ($i = 1; $i <= 20; $i++): ?>
-                        <option value="<?= $i ?>" <?= (isset($_GET['perWindowLimit']) && intval($_GET['perWindowLimit']) === $i ? 'selected' : '') ?>><?= $i ?></option>
-                    <? endfor; ?>
-                </select>
-            </div>
+            <? if ($USER->IsAdmin()): ?>
+                <div class="form-group">
+                    <label for="perWindowLimit">Сделок в окне (лимит):</label>
+                    <select name="perWindowLimit" id="perWindowLimit">
+                        <option value="0" <?= (isset($_GET['perWindowLimit']) && intval($_GET['perWindowLimit']) === 0 ? 'selected' : (!isset($_GET['perWindowLimit']) ? 'selected' : '')) ?>>Без ограничений</option>
+                        <? for ($i = 1; $i <= 20; $i++): ?>
+                            <option value="<?= $i ?>" <?= (isset($_GET['perWindowLimit']) && intval($_GET['perWindowLimit']) === $i ? 'selected' : '') ?>><?= $i ?></option>
+                        <? endfor; ?>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label for="windowHours">Интервал окна (часы):</label>
-                <select name="windowHours" id="windowHours">
-                    <? for ($h = 1; $h <= 24; $h++): ?>
-                        <option value="<?= $h ?>" <?= ($windowHours == $h ? "selected" : "") ?>><?= $h ?></option>
-                    <? endfor; ?>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="windowHours">Интервал окна (часы):</label>
+                    <select name="windowHours" id="windowHours">
+                        <? for ($h = 1; $h <= 24; $h++): ?>
+                            <option value="<?= $h ?>" <?= ($windowHours == $h ? "selected" : "") ?>><?= $h ?></option>
+                        <? endfor; ?>
+                    </select>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="updateTargetsFilter">Перерасчет TP, SL:</label>
+                    <select name="updateTargetsFilter" id="updateTargetsFilter">
+                        <option value="n" <?= ($updateTargetsFilter == 'n' ? "selected" : "") ?>>Нет</option>
+                        <option value="y" <?= ($updateTargetsFilter == 'y' ? "selected" : "") ?>>Да</option>
+                    </select>
+                </div>
+            <? endif; ?>
         </div>
 
         <input type="hidden" id="chartIntervalFilter" name="chartIntervalFilter" value="<?= $chartIntervalFilter ?>">
@@ -1020,6 +1030,56 @@ if (!empty($_GET)) {
                 // Счётчик по окнам (ключ — unix timestamp начала окна в UTC, представленного локальным выравниванием)
                 $windowCountMap = []; // ['windowStartTs' => count]
                 ?>
+
+                <?
+                $path = $_SERVER['DOCUMENT_ROOT'] . '/upload/traydingviewExchange/total_ex_top10Dev.json';
+                $marketData = json_decode(file_get_contents($path), true) ?? [];
+                $marketKlines = $marketData['data'];
+                $klineList = $marketKlines['1h'] ?? [];
+
+                $othersLinRegChannelData = [];
+                if ($klineList && is_array($klineList) && count($klineList) > 80) {
+                    $actualKline = $klineList[array_key_last($klineList)] ?? false;
+                    $candles = array_map(function ($k) {
+                        // создаём объект DateTime из строки
+                        $dt = new \DateTime($k['datetime']);
+                        // получаем секунды с эпохи и умножаем на 1000 — получаем миллисекунды
+                        $ms = $dt->getTimestamp() * 1000;
+
+                        return [
+                            't' => $ms, // timestamp
+                            'o' => floatval($k['open']), // Open price
+                            'h' => floatval($k['high']), // High price
+                            'l' => floatval($k['low']), // Low price
+                            'c' => floatval($k['close']), // Close price
+                            'v' => floatval($k['volume'])  // Volume
+                        ];
+                    }, $klineList);
+
+                    $othersLinRegChannelData = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles, 100, 2.0);
+                }
+
+                //echo '<pre>'; var_dump(count($othersLinRegChannelData) . '<br><br>'); echo '</pre>';
+                ?>
+
+                <?
+                // желательно — один раз перед циклом построить индекс для быстрого поиска
+                $othersIndexByTimestamp = [];
+                $othersIndexByMs = [];
+
+                foreach ($othersLinRegChannelData as $el) {
+                    if (!empty($el['timestamp'])) {
+                        // ожидаем формат "YYYY-MM-DD HH:MM:SS"
+                        $othersIndexByTimestamp[$el['timestamp']] = $el;
+                    }
+                    if (isset($el['timestampMs'])) {
+                        // нормализуем в int (иногда приходит строкой)
+                        $othersIndexByMs[(int)$el['timestampMs']] = $el;
+                    }
+                }
+
+                ?>
+
                 <? foreach ($finalResults as $result): ?>
 
                     <? if ($result["startRisk"] >= $riskFilter) continue; ?>
@@ -1117,22 +1177,28 @@ if (!empty($_GET)) {
                     ) continue;
                     ?>
 
-                    <?
-                    // Рассчитываем коэффициент для прибыли относительно риска 1
-                    $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
-                    $normalizedRrProfitSum += $normalizedRrProfit;
-                    $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
-
-                    //if ($normalizedRrProfit <= 0.1) continue
-                    ?>
-
                     <?//mfi mfiOthers?>
-                    <?//if ($result["direction"] == 'long' && ($result['mfiOthers']['isUpDir'] === false && $result['mfiOthers']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
-                    <?//if ($result["direction"] == 'short' && ($result['mfiOthers']['isDownDir'] === false && $result['mfiOthers']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
+                    <?if ($result["direction"] == 'long' && ($result['marketImpulsInfo']['mfi15m']['isUpDir'] === false && $result['marketImpulsInfo']['mfi15m']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
+                    <?if ($result["direction"] == 'short' && ($result['marketImpulsInfo']['mfi15m']['isDownDir'] === false && $result['marketImpulsInfo']['mfi15m']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
 
-                    <?//mfi?>
-                    <?//if ($result["direction"] == 'long' && (/*$result['mfi']['isUpDir'] === false &&*/ $result['mfi']['mfi'] <= 50)) continue;?>
-                    <?//if ($result["direction"] == 'short' && (/*$result['mfi']['isDownDir'] === false &&*/ $result['mfi']['mfi'] >= 50)) continue;?>
+                    <?// actualLinReg1h?>
+                    <? // предполагается, что $result['date'] существует и в формате "d.m.Y H:i:s"
+                    $linRegItem = \Maksv\Helpers\Statistics::findLinRegForResultDate($result['date'], $othersIndexByTimestamp, $othersIndexByMs, '1h');
+
+                    if ($linRegItem === false) {
+                        // не найдено — можно поставить флаг или обработать иначе
+                        $foundLinReg = false;
+                    } else {
+                        // найден элемент канала линрегрессии для этой свечки
+                        $foundLinReg = $linRegItem;
+                        //echo '<pre>'; var_dump($foundLinReg); echo '</pre>';
+                        //echo '<pre>'; var_dump($foundLinReg['timestamp']); echo '</pre>';
+                        //echo '<pre>'; var_dump($result['date']); echo '</pre>';
+                        //echo '<pre>'; var_dump('<br>'); echo '</pre>';
+                    }?>
+
+                    <?if ($result["direction"] == 'long' && $foundLinReg && $foundLinReg['percent'] > 93.5 && $result['risk'] > 2.1) continue;?>
+                    <?if ($result["direction"] == 'short' && $foundLinReg && $foundLinReg['percent'] < 6.5 && $result['risk'] > 2.1) continue;?>
 
                     <?
                     // --- ограничение по часовым (windowHours) окнам ---
@@ -1175,7 +1241,16 @@ if (!empty($_GET)) {
                         // учитываем эту сделку в счётчике окна
                         $windowCountMap[$windowKey]++;
                     }
-// --- конец ограничения по окну ---
+                    // --- конец ограничения по окну ---
+                    ?>
+
+
+                    <?
+                    // Рассчитываем коэффициент для прибыли относительно риска 1
+                    $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
+                    $normalizedRrProfitSum += $normalizedRrProfit;
+                    $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
+                    //if ($normalizedRrProfit <= 0.1) continue
                     ?>
 
                     <? $cntSignals += 1; ?>
