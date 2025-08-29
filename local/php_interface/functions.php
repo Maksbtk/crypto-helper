@@ -24,7 +24,11 @@ function devlogs($data, $type)
 
 function agentBybitRespDev()
 {
-    \Maksv\Bybit\Exchange::screener('30m', 0.99, -0.99, true);
+    //\Maksv\Bybit\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5, 2.5, true);
+    \Maksv\Binance\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5, 2.5);
+    \Maksv\Okx\Exchange::oiBorderExchange('15m', 500, 1, 16, 2.5, 2.5);
+
+    //\Maksv\Bybit\Exchange::screener('30m', 0.99, -0.99, true);
     //\Maksv\Bybit\Exchange::sendMarketCharts();
     //\Maksv\Bybit\Exchange::screenerMFI( true);
     return "agentBybitRespDev();";
@@ -78,8 +82,8 @@ function bybitExch5m()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-        \Maksv\Bybit\Exchange::bybitExchange('5m',0.99, -0.99);
+   /* if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+        \Maksv\Bybit\Exchange::bybitExchange('5m',0.99, -0.99);*/
 
     return "bybitExch5m();";
 }
@@ -89,8 +93,8 @@ function bybitExch30m()
     $hour = (int)date('H');
     $minute = (int)date('i');
 
-    if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
-        \Maksv\Bybit\Exchange::bybitExchange('30m', 0.99, -0.99);
+    /*if (in_array($minute,  [0, 1, 5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 30, 31, 35, 36, 40, 41, 45, 46, 50, 51, 55, 56]))
+        \Maksv\Bybit\Exchange::bybitExchange('30m', 0.99, -0.99);*/
 
     return "bybitExch30m();";
 }

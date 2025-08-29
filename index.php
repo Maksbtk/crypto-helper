@@ -305,11 +305,11 @@ foreach ($days as $day) {
 <?global $USER;?>
 <?if ($USER->IsAdmin()):?>
     <div style="display: flex;justify-content: center;">
-        <?=nl2br(\Maksv\Bybit\Exchange::checkBtcImpulsInfo()['infoText'])?>
+        <?=nl2br(\Maksv\Helpers\Trading::checkBtcImpulsInfo()['infoText'])?>
     </div>
     <br><br>
     <div style="display: flex;justify-content: center;">
-        <?=nl2br(\Maksv\Bybit\Exchange::checkMarketImpulsInfo()['infoText'])?>
+        <?=nl2br(\Maksv\Helpers\Trading::checkMarketImpulsInfo()['infoText'])?>
     </div>
 
 <?php

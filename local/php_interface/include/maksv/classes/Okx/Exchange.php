@@ -1,4 +1,5 @@
 <?php
+
 namespace Maksv\Okx;
 
 use Bitrix\Main\Loader,
@@ -10,7 +11,9 @@ class Exchange
     const SYMBOLS_STOP_LIST_MAIN = ['SOL-USDT-SWAP', 'BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     const SYMBOLS_STOP_LIST1 = ['USDC-USDT-SWAP', 'USDE-USDT-SWAP', 'USTC-USDT-SWAP'];
 
-    public function __construct() {}
+    public function __construct()
+    {
+    }
 
     //обмен по основной стратегии
     public static function screener($interval = '15m', $longOiLimit = 0.99, $shortOiLimit = -0.99, $devMode = false)
@@ -21,12 +24,12 @@ class Exchange
         $marketMode = 'okx';
         // проверяем не запускался ли только что обмен
         if (!$devMode) {
-            $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/timestap.json'), true);
+            $lastTimestapJson = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screener/' . $interval . '/timestap.json'), true);
             if ($lastTimestapJson['TIMESTAP'] && ((time() - $lastTimestapJson['TIMESTAP']) < 120)) {
                 devlogs("end, timestap dif -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                 return;
             } else {
-                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/timestap.json', json_encode(['TIMESTAP' => time(), "TIMEMARK" => date("d.m.y H:i:s")]));
+                file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screener/' . $interval . '/timestap.json', json_encode(['TIMESTAP' => time(), "TIMEMARK" => date("d.m.y H:i:s")]));
             }
         }
         devlogs("start -" . ' - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -45,7 +48,7 @@ class Exchange
         $exchangeBinanceSymbolsList = json_decode(file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/binanceExchange/derivativeBaseCoin.json'), true)['RESPONSE_EXCHENGE'] ?? [];
 
         $okxSymbolsList = array_column(
-            array_map(function($item) {
+            array_map(function ($item) {
                 $cleanId = str_replace('-' . $item['instType'], '', $item['instId']);
                 return [
                     $item['instId'],
@@ -83,16 +86,20 @@ class Exchange
         $betaForeverSectionCode = 'normal_ml';
         $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverIblockId, $betaForeverSectionCode);
 
+        $betaForeverHighIblockId = 9;
+        $betaForeverHighSectionCode = 'high_ml';
+        $latestScreenerBetaForeverHigh = \Maksv\DataOperation::getLatestScreener($betaForeverHighIblockId, $betaForeverHighSectionCode);
+
         $analyzeCnt = $cnt = $cntSuccess = 0;
 
-        $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/summaryVolumeExchange.json'; // '/upload/okxExchange/summaryVolumeExchange.json';
+        $dataFileSeparateVolume = $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/summaryVolumeExchange.json'; // '/upload/okxExchange/summaryVolumeExchange.json';
         $existingDataSeparateVolume = file_exists($dataFileSeparateVolume) ? json_decode(file_get_contents($dataFileSeparateVolume), true)['RESPONSE_EXCHENGE'] ?? [] : [];
         $separateVolumes = $analyzeVolumeSignalRes ?? [];
 
-        $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
+        $marketInfo = \Maksv\Helpers\Trading::checkMarketImpulsInfo();
         $analyzeSymbols = $repeatSymbols = '';
 
-        $oiBorderExchangeFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/15m/oiBorderExchange.json'; // '/upload/okxExchange/15m/oiBorderExchange.json';
+        $oiBorderExchangeFile = $_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/15m/oiBorderExchange.json'; // '/upload/okxExchange/15m/oiBorderExchange.json';
         $oiBorderExchangeFileData = file_exists($oiBorderExchangeFile) ? json_decode(file_get_contents($oiBorderExchangeFile), true) ?? [] : [];
         $oiBorderExchangeList = $oiBorderExchangeFileData['RESPONSE'];
         $oiBorderExchangeInfo = $oiBorderExchangeFileData['INFO'];
@@ -140,13 +147,17 @@ class Exchange
                 if ($cnt % 12 === 0)
                     $latestScreenerBetaForever = \Maksv\DataOperation::getLatestScreener($betaForeverIblockId, $betaForeverSectionCode);
 
+                if ($cnt % 12 === 0)
+                    $latestScreenerBetaForeverHigh = \Maksv\DataOperation::getLatestScreener($betaForeverHighIblockId, $betaForeverHighSectionCode);
+
                 if ($cnt % 40 === 0)
-                    $marketInfo = \Maksv\Bybit\Exchange::checkMarketImpulsInfo();
+                    $marketInfo = \Maksv\Helpers\Trading::checkMarketImpulsInfo();
 
                 //dev $marketInfo['isLong'] = true; $marketInfo['risk'] = 5;
 
                 $screenerData['latestScreener'] = $latestScreener;
                 $screenerData['latestScreenerBetaForever'] = $latestScreenerBetaForever;
+                $screenerData['latestScreenerBetaForeverHigh'] = $latestScreenerBetaForeverHigh;
 
                 /*if ($latestScreener[$symbolNameFormatted]) {
                     $repeatSymbols .= $symbolName . ',';
@@ -172,9 +183,9 @@ class Exchange
                     '1d' => '30m',
                 ];
 
-                $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterestDev($symbolNameFormatted, $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, $intervalsOImap[$interval]);
+                $summaryOpenInterestOb = \Maksv\Bybit\Exchange::getSummaryOpenInterest($symbolNameFormatted, $binanceApiOb, $bybitApiOb, $okxApiOb, $binanceSymbolsList, $bybitSymbolsList, $okxSymbolsList, $intervalsOImap[$interval]);
                 if ($summaryOpenInterestOb['summaryOIOkx'] == 0 && $screenerData['summaryOI'] == 0) {
-                    devlogs('ERR  ' . $symbolName . ' | err - oi 1 ('.$summaryOpenInterestOb['summaryOI'].') ('.$summaryOpenInterestOb['summaryOIBybit'].') ('.$summaryOpenInterestOb['summaryOIOkx'].')' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener'.$interval);
+                    devlogs('ERR  ' . $symbolName . ' | err - oi 1 (' . $summaryOpenInterestOb['summaryOI'] . ') (' . $summaryOpenInterestOb['summaryOIBybit'] . ') (' . $summaryOpenInterestOb['summaryOIOkx'] . ')' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     //devlogs($summaryOpenInterestOb, $marketMode . '/screener'.$interval);
                     continue;
                 }
@@ -227,7 +238,7 @@ class Exchange
 
                 //$priceChangeRange = false;
                 $barsCount = 802;
-                $kline = $okxApiOb->getCandles($symbolName, $interval, $barsCount,true, 120);
+                $kline = $okxApiOb->getCandles($symbolName, $interval, $barsCount, true, 120);
                 if (empty($kline) || !is_array($kline)) {
                     devlogs('ERR ' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     continue;
@@ -333,7 +344,7 @@ class Exchange
 
                 $candles15m = $candles;
                 if ($interval != '15m') {
-                    $kline15m = $okxApiOb->getCandles($symbolName, '15m', $barsCount,true, 120);
+                    $kline15m = $okxApiOb->getCandles($symbolName, '15m', $barsCount, true, 120);
                     if (empty($kline15m) || !is_array($kline15m)) {
                         devlogs('ERR 3' . $symbolName . ' | err - kline' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         //continue;
@@ -357,7 +368,7 @@ class Exchange
 
                 $screenerData['actualMacdDivergence'] = $actualMacdDivergence = [];
                 try {
-                    $screenerData['actualMacdDivergence'] = $actualMacdDivergence = \Maksv\Bybit\Exchange::checkMultiMACD(
+                    $screenerData['actualMacdDivergence'] = $actualMacdDivergence = \Maksv\Helpers\Trading::checkMultiMACD(
                         $candles15m,
                         '15m',
                         ['5m' => 14, '15m' => 14, '30m' => 14, '1h' => 14, '4h' => 8, '1d' => 6]
@@ -404,9 +415,10 @@ class Exchange
                         devlogs('ERR ' . $symbolName . ' | err - ma26' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     }
                 }
-                if (!$ma26)
-                    devlogs('ERR ' . $symbolName . ' | err - ma26' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
-
+                if (!$ma26) {
+                    devlogs('ERR continue ' . $symbolName . ' | err - ma26' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    continue;
+                }
 
                 if (is_array($candles) && count($candles) >= 102) {
                     try {
@@ -426,7 +438,7 @@ class Exchange
                     }
                 }
                 if (!$ma100)
-                    devlogs('ERR ' . $symbolName . ' | err - ma100' . $e . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
+                    devlogs('ERR ' . $symbolName . ' | err - ma100' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
 
 
                 if (is_array($candles15m) && count($candles15m) >= 402) {
@@ -493,7 +505,7 @@ class Exchange
                 $actualAdx1h = false;
                 $screenerData['ma400_1h'] = $ma400_1h = $screenerData['ma100_1h'] = $ma100_1h = [];
 
-                $kline1h = $okxApiOb->getCandles($symbolName, '1H', $barsCount,true, 120);
+                $kline1h = $okxApiOb->getCandles($symbolName, '1H', $barsCount, true, 120);
                 if (empty($kline1h) || !is_array($kline1h)) {
                     devlogs('ERR 4' . $symbolName . ' | err - klinen 1h' . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                     //continue;
@@ -571,8 +583,8 @@ class Exchange
                 ];
 
                 $screenerData['atrMultipliers'] = $atrMultipliers;
+                $maDistance = \Maksv\Helpers\Trading::getMaDistance($actualClosePrice) ?? 2.5;
 
-                $maDistance = 2.5;
                 if (
                     (($summaryOIOkx >= $longOiLimit) && ($summaryOI >= 0.01))
                     && $marketInfo['isLong']
@@ -584,12 +596,12 @@ class Exchange
                         || ($ma200['isLong'] && $interval == '15m')
                         || ($ma400['isLong'] && $interval == '15m')
                     )
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma26,  $actualClosePrice, $maDistance, 'long')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'long')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'long')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'long')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'long')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma26, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'long')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'long')
                     && (!$actualMacdDivergence['shortDivergenceTypeAr']['regular'] && !$actualMacdDivergence['shortDivergenceTypeAr']['hidden'])
                 ) {
                     $screenerData['isLong'] = true;
@@ -614,7 +626,7 @@ class Exchange
                     $screenerData['SL'] = $screenerData['TP'] = $screenerData['recommendedEntry'] = false;
 
                     // вызываем общую функцию вместо дублирования логики
-                    $processed = \Maksv\Bybit\Exchange::processSignal(
+                    $processed = \Maksv\Helpers\Trading::processSignal(
                         'long',
                         floatval($actualATR['atr']),
                         floatval($actualClosePrice),
@@ -647,12 +659,12 @@ class Exchange
                         || ($ma200['isShort'] && $interval == '15m')
                         || ($ma400['isShort'] && $interval == '15m')
                     )
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma26,  $actualClosePrice, $maDistance, 'short')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'short')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'short')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'short')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'short')
-                    && \Maksv\Bybit\Exchange::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma26, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma100, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma200, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma400, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma100_1h, $actualClosePrice, $maDistance, 'short')
+                    && \Maksv\Helpers\Trading::checkMaCondition($ma400_1h, $actualClosePrice, $maDistance, 'short')
                     && (!$actualMacdDivergence['longDivergenceTypeAr']['regular'] && !$actualMacdDivergence['longDivergenceTypeAr']['hidden'])
                 ) {
                     $screenerData['isLong'] = false;
@@ -676,7 +688,7 @@ class Exchange
                     $screenerData['SL'] = $screenerData['TP'] = $screenerData['recommendedEntry'] = false;
 
                     // вызываем общую функцию с direction = 'short'
-                    $processed = \Maksv\Bybit\Exchange::processSignal(
+                    $processed = \Maksv\Helpers\Trading::processSignal(
                         'short',
                         floatval($actualATR['atr']),
                         floatval($actualClosePrice),
@@ -722,7 +734,7 @@ class Exchange
                         $volumeChartGen->generateChart($candles, $volumeMA, $symbolName, $interval, $tempVolumeChartPath);
 
                         //график cvd
-                        $separateVolumes = array_reverse(\Maksv\Bybit\Exchange::aggregateSumVolume5mTo15m($separateVolumes)) ?? [];
+                        $separateVolumes = array_reverse(\Maksv\Helpers\Trading::aggregateSumVolume5mTo15m($separateVolumes)) ?? [];
                         $cvdChartGen = new \Maksv\Charts\CvdChartGenerator();
                         $screenerData['tempChartPath'][] = $tempCVDChartPath = $chartsDir . time() . '_' . $interval . '_cvd' . '.png';
                         $cvdChartGen->generateChart($separateVolumes, $symbolName, '15m', $tempCVDChartPath);
@@ -731,12 +743,12 @@ class Exchange
                     }
 
                     $screenerData['mlBoard'] = $mlBoard = 0.71;
-                    if ($screenerData['isLong']){
-                        $screenerData['mlBoard'] = $mlBoard = 0.73; //0.73
+                    if ($screenerData['isLong']) {
+                        $screenerData['mlBoard'] = $mlBoard = 0.74; //0.73
                         $screenerData['marketMLName'] = 'longMl';
                         $actualStrategyName = 'screenerPump';
                     } else {
-                        $screenerData['mlBoard'] = $mlBoard = 0.76; //0.72
+                        $screenerData['mlBoard'] = $mlBoard = 0.74; //0.72
                         $screenerData['marketMLName'] = 'shortMl';
                         $actualStrategyName = 'screenerDump';
                     }
@@ -767,7 +779,7 @@ class Exchange
                             ],
                             "EXCHANGE_CODE" => 'screener'
                         ];
-                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategy.json', json_encode($actualStrategy));
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screener/' . $interval . '/actualStrategy.json', json_encode($actualStrategy));
                         try {
                             $writeRes = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'screener');
                             devlogs('screener write' . $writeRes['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -775,7 +787,7 @@ class Exchange
                             devlogs('ERR - ' . $e->getMessage() . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
                         }
 
-                    }  else  {
+                    } else {
                         devlogs(
                             ' main skip latestScreener  | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
@@ -799,7 +811,6 @@ class Exchange
                         && $marketMl > 0.65
                         && $signalMl > 0.65
                         && $totalMl >= $mlBoard
-                        //&& !$latestScreener[$symbolNameFormatted]
                         && !$latestScreenerBetaForever[$symbolNameFormatted]
                     ) {
                         devlogs(
@@ -819,7 +830,7 @@ class Exchange
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $shortTpCount);
 
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
-                            $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
+                            $screenerData['TP'] = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperBetaForever');
 
@@ -833,7 +844,7 @@ class Exchange
                             "EXCHANGE_CODE" => 'normal_ml'
                         ];
 
-                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategyBeta.json', json_encode($actualStrategyBeta));
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screener/' . $interval . '/actualStrategyBeta.json', json_encode($actualStrategyBeta));
                         try {
                             $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'normal_ml', $marketMode);
                             devlogs('screener beta forever write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -843,7 +854,7 @@ class Exchange
                             devlogs($errText, $marketMode . '/screener' . $interval);
                         }
 
-                    } else  {
+                    } else {
                         devlogs(
                             'ML skip | total ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
@@ -861,8 +872,7 @@ class Exchange
                         && $marketMl > 0.65
                         && $signalMl > 0.65
                         && $totalMl >= 0.80
-                        //&& !$latestScreener[$symbolNameFormatted]
-                        && !$latestScreenerBetaForever[$symbolNameFormatted]
+                        && !$latestScreenerBetaForeverHigh[$symbolNameFormatted]
                     ) {
                         devlogs(
                             'high ml approve | ' . $totalMl . ' > ' . $mlBoard . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
@@ -877,7 +887,7 @@ class Exchange
                             $screenerData['TP'] = array_slice($screenerData['calculateRiskTargetsWithATR']['takeProfits'], 0, $shortTpCount);
 
                         if (!is_array($screenerData['TP']) || count($screenerData['TP']) == 0)
-                            $screenerData['TP']  = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
+                            $screenerData['TP'] = $screenerData['calculateRiskTargetsWithATR']['takeProfits'];
 
                         \Maksv\DataOperation::sendScreener($screenerData, false, '@cryptoHelperBetaForeverHigh');
 
@@ -891,7 +901,7 @@ class Exchange
                             "EXCHANGE_CODE" => 'high_ml'
                         ];
 
-                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/screener/' . $interval . '/actualStrategyBetaHigh.json', json_encode($actualStrategyBetaHigh));
+                        file_put_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/screener/' . $interval . '/actualStrategyBetaHigh.json', json_encode($actualStrategyBetaHigh));
                         try {
                             $writeResBeta = \Maksv\DataOperation::saveSignalToIblock($interval, $marketMode, 'high_ml', $marketMode);
                             devlogs('screener beta forever high write' . $writeResBeta['data'] . ' | timeMark - ' . date("d.m.y H:i:s"), $marketMode . '/screener' . $interval);
@@ -901,7 +911,7 @@ class Exchange
                             devlogs($errText, $marketMode . '/screener' . $interval);
                         }
 
-                    } else  {
+                    } else {
                         devlogs(
                             'high ml skip | total ' . $totalMl . ' | ' . $symbolName . ' | timeMark - ' . date("d.m.y H:i:s"),
                             $marketMode . '/screener' . $interval
@@ -950,7 +960,8 @@ class Exchange
         float  $dumpThreshold = -2.5, // % падения цены
         bool   $devMode = false,
 
-    ) {
+    )
+    {
         if ($barsCount > 100) {
             $barsCount = 100;
         }
@@ -986,7 +997,7 @@ class Exchange
 
         // 2) Список символов
         $symbolsList = json_decode(
-            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketCode.'Exchange/derivativeBaseCoin.json'),
+            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketCode . 'Exchange/derivativeBaseCoin.json'),
             true
         )['RESPONSE_EXCHENGE'] ?? [];
 
@@ -1020,6 +1031,17 @@ class Exchange
 
             usort($kline, fn($a, $b) => $a[0] <=> $b[0]);
             $priceData = array_column(($kline), 4, 0);
+            $actualClosePrice = $priceData[array_key_last($priceData)] ?? false;
+
+            // вычисляем локальные пороги для текущего символа (если есть актуальная цена),
+            // иначе оставляем пороги из аргументов метода
+            $pumpThresholdLocal = $pumpThreshold;
+            $dumpThresholdLocal = $dumpThreshold;
+            if ($actualClosePrice !== false && is_numeric($actualClosePrice)) {
+                $thr = \Maksv\Helpers\Trading::getPumpDumpThresholds((float)$actualClosePrice);
+                $pumpThresholdLocal = $thr['pumpThreshold'];
+                $dumpThresholdLocal = $thr['dumpThreshold'];
+            }
 
             $oiData = [];
             $batch = $okxApiOb->getOpenInterestHist($symbol, false, false, $timeFrame, $barsCount, true, 300)['data'] ?? [];
@@ -1066,7 +1088,7 @@ class Exchange
                 $pctFut = ($priceData[$tFut] - $priceData[$tCurr]) / max($priceData[$tCurr], 1) * 100;
 
                 // pump
-                if ($pctOi > 0 && $pctFut >= $pumpThreshold) {
+                if ($pctOi > 0 && $pctFut >= $pumpThresholdLocal) {
                     $newUpOi[] = $pctOi;
                     $startKey = $startTimestamp = strval($tPrev);
                     if (!isset($pumpMap[$startKey])) {
@@ -1080,7 +1102,7 @@ class Exchange
                     }
                 }
                 // dump
-                if ($pctOi < 0 && $pctFut <= $dumpThreshold) {
+                if ($pctOi < 0 && $pctFut <= $dumpThresholdLocal) {
                     $newDownOi[] = $pctOi;
                     $startKey = $startTimestamp = strval($tPrev);
                     if (!isset($dumpMap[$startKey])) {
@@ -1158,7 +1180,8 @@ class Exchange
         $devMode = false,
         $cacheTime = 240,
         $useCache = false
-    ) {
+    )
+    {
         $marketMode = 'okx';
         $timeMark = date("d.m.y H:i:s");
         devlogs("start -" . ' - ' . $timeMark, $marketMode . '/summaryVolumeExchange');
@@ -1188,7 +1211,7 @@ class Exchange
 
         // Получение списка символов
         $exchangeSymbolsList = json_decode(
-            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/'.$marketMode.'Exchange/derivativeBaseCoin.json'),
+            file_get_contents($_SERVER['DOCUMENT_ROOT'] . '/upload/' . $marketMode . 'Exchange/derivativeBaseCoin.json'),
             true
         )['RESPONSE_EXCHENGE'] ?? [];
 
@@ -1221,30 +1244,46 @@ class Exchange
             $tradesHistoryList = $tradesHistoryResp['data'] ?? [];
 
             $intervalData = [];
-            foreach ($tradesHistoryList as $tradeItem) {
-                $tradeTimestamp = (int)($tradeItem['ts'] / 1000);
+            foreach ($tradesHistoryList as $idx => $tradeItem) {
+                try {
+                    // Валидация: элемент должен быть массивом
+                    if (!is_array($tradeItem)) {
+                        devlogs("skip: tradeItem not array (type: " . gettype($tradeItem) . ") idx:$idx symbol:$symbolName", $marketMode . '/summaryVolumeExchange');
+                        devlogs($tradeItem, $marketMode . '/summaryVolumeExchange');
+                        continue;
+                    }
 
-                // Расчет 5-минутного интервала:
-                $minutes = (int)date('i', $tradeTimestamp);
-                $roundedMinutes = floor($minutes / 5) * 5;
-                $intervalStart = strtotime(date(sprintf('Y-m-d H:%02d:00', $roundedMinutes), $tradeTimestamp));
-                $intervalDuration = 300; // 5 минут = 300 секунд
+                    $tradeTimestamp = (int)($tradeItem['ts'] / 1000);
 
-                if (!isset($intervalData[$intervalStart])) {
-                    $intervalData[$intervalStart] = [
-                        'buyVolume' => 0,
-                        'sellVolume' => 0,
-                        'sumVolume' => 0,
-                        'startTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp($intervalStart * 1000),
-                        'startTime' => $intervalStart,
-                        'endTime' => $intervalStart + $intervalDuration,
-                        'endTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp(($intervalStart + $intervalDuration) * 1000)
-                    ];
+                    // Расчет 5-минутного интервала:
+                    $minutes = (int)date('i', $tradeTimestamp);
+                    $roundedMinutes = floor($minutes / 5) * 5;
+                    $intervalStart = strtotime(date(sprintf('Y-m-d H:%02d:00', $roundedMinutes), $tradeTimestamp));
+                    $intervalDuration = 300; // 5 минут = 300 секунд
+
+                    if (!isset($intervalData[$intervalStart])) {
+                        $intervalData[$intervalStart] = [
+                            'buyVolume' => 0,
+                            'sellVolume' => 0,
+                            'sumVolume' => 0,
+                            'startTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp($intervalStart * 1000),
+                            'startTime' => $intervalStart,
+                            'endTime' => $intervalStart + $intervalDuration,
+                            'endTime_gmt' => \Maksv\Bybit\Bybit::gmtTimeByTimestamp(($intervalStart + $intervalDuration) * 1000)
+                        ];
+                    }
+
+                    $size = (float)$tradeItem['sz'];
+                    $intervalData[$intervalStart][$tradeItem['side'] == 'sell' ? 'sellVolume' : 'buyVolume'] += $size;
+                    $intervalData[$intervalStart]['sumVolume'] += $size;
+
+                } catch (\Throwable $e) {
+                    $errText = "Exception processing trade idx:$idx symbol:$symbolName message: " . $e->getMessage();
+                    devlogs($errText, $marketMode . '/summaryVolumeExchange');
+                    devlogs($tradeItem, $marketMode . '/summaryVolumeExchange');
+                    \Maksv\DataOperation::sendErrorInfoMessage($errText, 'summaryVolumeExchange()', 'okx volume item');
+                    continue;
                 }
-
-                $size = (float)$tradeItem['sz'];
-                $intervalData[$intervalStart][$tradeItem['side'] == 'sell' ? 'sellVolume' : 'buyVolume'] += $size;
-                $intervalData[$intervalStart]['sumVolume'] += $size;
             }
 
             // Слияние с существующими данными

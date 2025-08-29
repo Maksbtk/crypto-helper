@@ -6,6 +6,12 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_befo
 try {
     bybitExch15m();
 } catch (\Throwable $e) {
-    $errText = "ERR  | err - : {$e->getMessage()} | timeMark - " . date("d.m.y H:i:s");
+    $errText = sprintf(
+        "ERR  | File: %s | Line: %d | Error: %s | Time: %s",
+        $e->getFile(),
+        $e->getLine(),
+        $e->getMessage(),
+        date("d.m.y H:i:s")
+    );
     \Maksv\DataOperation::sendErrorInfoMessage($errText, 'bybitExch15m.php', '/crone/bybit/');
 }

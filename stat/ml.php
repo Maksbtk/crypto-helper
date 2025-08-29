@@ -78,7 +78,7 @@ if ($tpCountGeneral > 0) {
     }
 }
 
-$riskFilter = isset($_GET['riskFilter']) ? round(floatval($_GET['riskFilter']), 1) : 7;
+$riskFilter = isset($_GET['riskFilter']) ? round(floatval($_GET['riskFilter']), 1) : 5.5;
 $leverege = isset($_GET['leverege']) ? intval($_GET['leverege']) : 1;  // плечо котое используется вв сделке  ()
 
 $defaultTpSrearAr = [1.9, 2.6, 3.4, 5.6, 6.9];
@@ -296,7 +296,7 @@ if (!empty($_GET)) {
                         if (!$decoded['INFO']["BTC_INFO"]) $decoded['INFO']["BTC_INFO"] = [1.9, 2.6, 3.4];
                         $atrMultipliersIncreased = array_map(fn($n) => $n * 1.1, $decoded['INFO']["BTC_INFO"]['atrMultipliers'] );
 
-                        $processedMarket = \Maksv\Bybit\Exchange::processSignal(
+                        $processedMarket = \Maksv\Helpers\Trading::processSignal(
                             $direction,
                             floatval($marketImpulsInfo['actualATR']['atr']),
                             floatval($marketImpulsInfo['actualClosePrice15m']),
@@ -311,7 +311,7 @@ if (!empty($_GET)) {
                             "statMLgetMarketInfo",
                             true,
                             false,
-                            false 
+                            false
                         );
 
                         $arItem['marketMl'] = $processedMarket['actualMlModel'];
@@ -353,7 +353,7 @@ if (!empty($_GET)) {
                             else
                                 $thisAtrMultipliers = $processedFilters['tpFilterAr']['SELECTED_TP_STRATEGY']['VALUE'];
 
-                            $processed = \Maksv\Bybit\Exchange::processSignal(
+                            $processed = \Maksv\Helpers\Trading::processSignal(
                                 $direction,
                                 floatval($strategy['actualATR']['atr']),
                                 floatval($strategy['actualClosePrice']),
@@ -363,7 +363,7 @@ if (!empty($_GET)) {
                                 $strategy['actualMacdDivergence'],
                                 $strategy['symbolScale'] ?? 6,
                                 $thisAtrMultipliers,
-                                ['risk' => $marketImpulsInfo['risk']],//['risk' => 10],
+                                ['risk' => 5.5/*$marketInfo['risk']*/],
                                 $symbolName,
                                 "stat",
                                 false
@@ -518,7 +518,7 @@ if (!empty($_GET)) {
                         if ($processedFilters['tpCountGeneral'] == 1) {
                             $portionWeight = [1];
                         } else if ($processedFilters['tpCountGeneral'] == 2) {
-                            $portionWeight = [0.6, 0.4];
+                            $portionWeight = [0.75, 0.25];
                         } else if ($processedFilters['tpCountGeneral'] == 3) {
                             $portionWeight = [0.34, 0.33, 0.33];
                         } else if ($processedFilters['tpCountGeneral'] == 4) {
@@ -626,8 +626,66 @@ if (!empty($_GET)) {
                         unset($strategy['actualMacdDivergence']['extremes']);
 
 
-                        //dev actual adx 1h
-                        if (!$strategy['actualAdx1h']) {
+                        //dev actual indicators 15m
+/*                        if (!$strategy['actualLinReg']) {
+                            // 1) Парсим строку в DateTime с указанием вашего часового пояса (Europe/Amsterdam)
+                            $dateSignal = \DateTime::createFromFormat(
+                                'd.m.Y H:i:s',
+                                $arItem['DATE_CREATE'],
+                                new DateTimeZone('Europe/Amsterdam')
+                            );
+
+                            // 2) Получаем UNIX‑время в секундах и сразу переводим в миллисекунды
+                            $endTime = $dateSignal->getTimestamp() * 1000;
+
+                            $hoursBack = 102;
+                            $startTime = ($dateSignal->getTimestamp() - $hoursBack * 3600) * 1000;
+
+                            $klineList = [];
+                            if ($processedFilters['market'] == 'bybit') {
+                                $kline = $bybitApiOb->klineTimeV5(
+                                    "linear", $symbolName, $startTime, $endTime, '15m', 1000, true, 36000
+                                );
+
+                                if (empty($kline['result']['list'])) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API bybit'
+                                    ];
+                                }
+                                usort($kline['result']['list'], fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline['result']['list'];
+                                // 5) Реверсим и готовим данные для расчёта ADX
+                            } else if ($processedFilters['market'] == 'binance') {
+                                $kline = $binanceApiOb->kline($symbolName, '15m', 1000, $startTime, $endTime, true, 36000);
+                                if (empty($kline) || !is_array($kline)) {
+                                    return [
+                                        'status' => false,
+                                        'message' => 'No data from API binance'
+                                    ];
+                                }
+                                usort($kline, fn($a, $b) => $a[0] <=> $b[0]);
+                                $klineList = $kline;
+                            }
+
+                            $candles15m = array_map(function ($k) {
+                                return [
+                                    't' => floatval($k[0]),
+                                    'o' => floatval($k[1]),
+                                    'h' => floatval($k[2]),
+                                    'l' => floatval($k[3]),
+                                    'c' => floatval($k[4]),
+                                    'v' => floatval($k[5]),
+                                ];
+                            }, $klineList);
+
+                            $linRegChannelData15m = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles15m, 100, 2.0);
+                            $strategy['actualLinReg'] = end($linRegChannelData15m);
+
+                        }*/
+
+                        //dev actual indicators 1h
+                        if (!$strategy['actualAdx1h']  || !$strategy['actualMfi1h'] /*|| !$strategy['actualLinReg1h']*/) {
                             // 1) Парсим строку в DateTime с указанием вашего часового пояса (Europe/Amsterdam)
                             $dateSignal = \DateTime::createFromFormat(
                                 'd.m.Y H:i:s',
@@ -639,7 +697,7 @@ if (!empty($_GET)) {
                             $endTime = $dateSignal->getTimestamp() * 1000;
 
                             // 3) Вычисляем начало (ровно 14 часов назад)
-                            $hoursBack = 200;
+                            $hoursBack = 402;
                             $startTime = ($dateSignal->getTimestamp() - $hoursBack * 3600) * 1000;
 
                             $klineList = [];
@@ -691,10 +749,16 @@ if (!empty($_GET)) {
                             // 6) Расчитываем ADX и берём последнее значение
                             $adxData1h = \Maksv\TechnicalAnalysis::calculateADX($candles1h) ?? [];
                             $strategy['actualAdx1h'] = $adxData1h[array_key_last($adxData1h)] ?? null;
+
+                            $mfiData1h = \Maksv\TechnicalAnalysis::calculateMFI($candles1h);
+                            $strategy['actualMfi1h'] = $mfiData1h[array_key_last($mfiData1h)] ?? null;
+
+                            $linRegChannelData1h = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles1h, 100, 2.0);
+                            $strategy['actualLinReg1h'] = end($linRegChannelData1h);
                         }
                         //!-dev actual adx 1h
-                        
-                        //actual adx 5m
+
+                        //actual indicators 5m
                         if (!$strategy['actualAdx5m']) {
                             // 1) Парсим строку в DateTime с указанием вашего часового пояса (Europe/Amsterdam)
                             $dateSignal = \DateTime::createFromFormat(
@@ -762,25 +826,22 @@ if (!empty($_GET)) {
                         }
                         //!-actual adx 5m
 
-                        //mfi//
-                        $mfiResOthers = [];
-                        if ($marketImpulsInfo['last30Candles15m']) {
-                            $mfiResOthers = \Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
+                        //mfi others//
+                        if (!$marketImpulsInfo['mfi15m'] && $marketImpulsInfo['last30Candles15m']) {
+                            $mfiOthers15mData = [];
+                            $mfiOthers15mData = \Maksv\TechnicalAnalysis::calculateMFI($marketImpulsInfo['last30Candles15m']);
+                            $marketImpulsInfo['mfi15m'] = $mfiOthers15mData[array_key_last($mfiOthers15mData)] ?? null;
                         }
-                        $mfiOthers = $mfiResOthers[array_key_last($mfiResOthers)] ?? null;
 
-                        $mfiRes = [];
-                        if ($strategy['candles15m']) {
-                            $mfiRes = \Maksv\TechnicalAnalysis::calculateMFI($strategy['candles15m']);
+                        if (!$strategy['actualMfi'] && $strategy['candles15m']) {
+                            $mfiData = [];
+                            $mfiData = \Maksv\TechnicalAnalysis::calculateMFI($strategy['candles15m']);
+                            $strategy['actualMfi'] = $mfiData[array_key_last($mfiData)] ?? null;
                         }
-                        $mfi = $mfiRes[array_key_last($mfiRes)] ?? null;
                         //!mfi//
 
                         // Формируем результирующий элемент массива
                         $finalResults[] = [
-                            "mfiOthers" => $mfiOthers,
-                            "mfi" => $mfi,
-
                             "date" => $arItem["DATE_CREATE"],
                             "marketMl" => $arItem["marketMl"],
                             //"reverseMarketMl" => $arItem["reverseMarketMl"],
@@ -844,8 +905,12 @@ if (!empty($_GET)) {
     //$predictRes = \Maksv\MachineLearning\Assistant::predictRes($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
 
 
-    //$predictRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
-    //$predictMarketRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb, true) ?? [];
+    if ($updateMlFilter == 'y') {
+        $predictRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb) ?? [];
+    }
+    if ($updateMarketMlFilter == 'y') {
+        $predictMarketRes = \Maksv\MachineLearning\Assistant::predictResBatch($finalResults, $marketMap[$exchangeIblockID], $bybitApiOb, $binanceApiOb, $okxApiOb, true) ?? [];
+    }
 
     //1
     //65 65 count 125 (95\28) win 76% 129.1 $  15
@@ -949,7 +1014,7 @@ if (!empty($_GET)) {
         <div class="filter-footer">
             <div class="form-group">
                 <label for="riskFilter">Фильтр по риску, %:</label>
-                <? $riskFilterAr = range(1.8, 7, 0.1); ?>
+                <? $riskFilterAr = range(1.8, 5.5, 0.1); ?>
                 <select name="riskFilter" id="riskFilter">
                     <? foreach ($riskFilterAr as $riskFilterVal): ?>
                         <?$riskFilterVal = round($riskFilterVal, 1) ;?>
@@ -1109,7 +1174,7 @@ if (!empty($_GET)) {
             <? endforeach; ?>
         </select>
     </div>
-    
+
     <div class="chart-wrapper">
         <div class="chart-container">
             <h4>Кривая баланса ($)</h4>
@@ -1166,9 +1231,60 @@ if (!empty($_GET)) {
                     foreach ($exchangeBybitSymbolsList as $item) {
                         $symbList[$item['symbol']] = $item;
                     }
-                    */ ?>
+                */ ?>
+
+                <?
+                $path = $_SERVER['DOCUMENT_ROOT'] . '/upload/traydingviewExchange/total_ex_top10Dev.json';
+                $marketData = json_decode(file_get_contents($path), true) ?? [];
+                $marketKlines = $marketData['data'];
+                $klineList = $marketKlines['1h'] ?? [];
+
+                $othersLinRegChannelData = [];
+                if ($klineList && is_array($klineList) && count($klineList) > 80) {
+                    $actualKline = $klineList[array_key_last($klineList)] ?? false;
+                    $candles = array_map(function ($k) {
+                        // создаём объект DateTime из строки
+                        $dt = new \DateTime($k['datetime']);
+                        // получаем секунды с эпохи и умножаем на 1000 — получаем миллисекунды
+                        $ms = $dt->getTimestamp() * 1000;
+
+                        return [
+                            't' => $ms, // timestamp
+                            'o' => floatval($k['open']), // Open price
+                            'h' => floatval($k['high']), // High price
+                            'l' => floatval($k['low']), // Low price
+                            'c' => floatval($k['close']), // Close price
+                            'v' => floatval($k['volume'])  // Volume
+                        ];
+                    }, $klineList);
+
+                    $othersLinRegChannelData = \Maksv\TechnicalAnalysis::calculateLinRegChannel($candles, 100, 2.0);
+                }
+
+                //echo '<pre>'; var_dump(count($klineList) . '<br><br>'); echo '</pre>';
+                ?>
+
+                <?
+                // желательно — один раз перед циклом построить индекс для быстрого поиска
+                $othersIndexByTimestamp = [];
+                $othersIndexByMs = [];
+
+                foreach ($othersLinRegChannelData as $el) {
+                    if (!empty($el['timestamp'])) {
+                        // ожидаем формат "YYYY-MM-DD HH:MM:SS"
+                        $othersIndexByTimestamp[$el['timestamp']] = $el;
+                    }
+                    if (isset($el['timestampMs'])) {
+                        // нормализуем в int (иногда приходит строкой)
+                        $othersIndexByMs[(int)$el['timestampMs']] = $el;
+                    }
+                }
+
+                ?>
+
                 <? $finalElIds = []; ?>
                 <? foreach ($finalResults as $result): ?>
+
                     <? // if ($symbList[$result["symbolName"]]["filterVal"]['turnover24h'] < 9000000) continue; ?>
                     <? // if ($symbList[$result["symbolName"]]["filterVal"]['openInterestValue'] < 5000000) continue; ?>
                     <? // if ($symbList[$result["symbolName"]]["filterVal"]['marketCap'] < 5000000) continue; ?>
@@ -1179,6 +1295,30 @@ if (!empty($_GET)) {
                     <? if ($strategyFilter && $result["strategy"] != $strategyFilter) continue; ?>
                     <? if ($entryFilter == 'n' && !$result["entry_touched"]) continue; ?>
 
+                    <?// if ($result["strategy"] == 'ETHUSDT/mfi/ma/adx') continue; ?>
+                    <?// if ($result["strategy"] == 'AVAXUSDT/mfi/ma/adx') continue; ?>
+
+                    <?//mfi mfiOthers?>
+                    <?if ($result["direction"] == 'long' && ($result['marketImpulsInfo']['mfi15m']['isUpDir'] === false && $result['marketImpulsInfo']['mfi15m']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
+                    <?if ($result["direction"] == 'short' && ($result['marketImpulsInfo']['mfi15m']['isDownDir'] === false && $result['marketImpulsInfo']['mfi15m']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
+
+                    <?// actualLinReg1h?>
+                    <? // предполагается, что $result['date'] существует и в формате "d.m.Y H:i:s"
+                    $linRegItem = \Maksv\Helpers\Statistics::findLinRegForResultDate($result['date'], $othersIndexByTimestamp, $othersIndexByMs, '1h');
+
+                    if ($linRegItem === false) {
+                        // не найдено — можно поставить флаг или обработать иначе
+                        $foundLinReg = false;
+                    } else {
+                        // найден элемент канала линрегрессии для этой свечки
+                        $foundLinReg = $linRegItem;
+                        echo '<pre>'; var_dump($foundLinReg['timestamp']); echo '</pre>';
+
+                    }?>
+
+                    <?if ($result["direction"] == 'long' && $foundLinReg && $foundLinReg['percent'] > 93 && $result['risk'] > 2.1) continue;?>
+                    <?if ($result["direction"] == 'short' && $foundLinReg && $foundLinReg['percent'] < 7 && $result['risk'] > 2.1) continue;?>
+                
                     <? if (
                         $result['allInfo']['actualAdx1h']
                         &&
@@ -1191,7 +1331,7 @@ if (!empty($_GET)) {
                         )
                     ) continue; ?>
 
-                    <? if (
+                    <?if (
                         $result['allInfo']['actualAdx']
                         && ($result['allInfo']['actualAdx']['adx'] < 20)
                         || (
@@ -1208,8 +1348,6 @@ if (!empty($_GET)) {
 
                     <?
                     //ml signal
-                    //if (!$predict && $result['allInfo']['actualMlModel'])
-
                     $predict['prediction'] = $result['allInfo']['actualMlModel'];
                     if ($updateMlFilter == 'y') {
                         $dt = \DateTime::createFromFormat(
@@ -1220,15 +1358,11 @@ if (!empty($_GET)) {
                         $signalTimestamp = $dt->getTimestamp();
                         $predict = $predictRes[$result["symbolName"] . '_' . $signalTimestamp] ?? false;
 
-                        /* if (!$predict && $result['allInfo']['actualMlModel'])
-                             $predict['prediction'] = $result['allInfo']['actualMlModel'];*/
                     }
 
                     //ml signal filter
                     if ($predict['prediction']['probabilities'][1] && $predict['prediction']['probabilities'][0]) {
                         $mlRelative = $predict['prediction']['probabilities'][1] / $predict['prediction']['probabilities'][0];
-
-                        //if ($predict['prediction']['probabilities'][1] < floatval($mlFilter)) continue;
                     }
                     ?>
 
@@ -1250,8 +1384,6 @@ if (!empty($_GET)) {
 
                     if ($predictMarket['prediction']['probabilities'][0] && $predictMarket['prediction']['probabilities'][1]) {
                         $mlMarketRelative = $predictMarket['prediction']['probabilities'][1] / $predictMarket['prediction']['probabilities'][0];
-
-                        //if ($predictMarket['prediction']['probabilities'][1] < floatval($mlMarketFilter)) continue;
                     }
                     ?>
 
@@ -1265,27 +1397,17 @@ if (!empty($_GET)) {
                             $marketMl < 0.65
                             || $signalMl < 0.65
                             || ($totalMl < floatval($mlFilter))
+                            //($signalMl < floatval($mlFilter))
                         )
                     ) continue;?>
 
-                    <?/*
-                    if (
-                        $mlFilter != 'n'
-                        && (
-                            !($marketMl > floatval($mlFilter))
-                            || !($signalMl > floatval($mlFilter))
-                        )
-                    ) continue;*/
-                    ?>
-                    <?//if ($result['tpCountGeneral'] > 1) continue;?>
-                    <?//mfi mfiOthers?>
-                    <?if ($result["direction"] == 'long' && ($result['mfiOthers']['isUpDir'] === false && $result['mfiOthers']['mfi'] <= 50) && $result['risk'] > 2) continue;?>
-                    <?if ($result["direction"] == 'short' && ($result['mfiOthers']['isDownDir'] === false && $result['mfiOthers']['mfi'] >= 50) && $result['risk'] > 2) continue;?>
-                
-                    <?//mfi ?>
-                    <?//if ($result["direction"] == 'long' && ($result['mfi']['mfi'] < 50)) continue;?>
-                    <?//if ($result["direction"] == 'short' && ($result['mfi']['mfi'] > 50)) continue;?>
 
+                    <?
+                    // Рассчитываем коэффициент для прибыли относительно риска 1
+                    $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
+                    $normalizedRrProfitSum += $normalizedRrProfit;
+                    $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
+                    ?>
 
                     <? $cntSignals += 1; ?>
                     <? if ($result["profit"] > 0) {
@@ -1332,12 +1454,6 @@ if (!empty($_GET)) {
                         <td><?= ($result["tpCount"]) ?></td>
                         <td <? if ($result["startRisk"] >= 3): ?>class="solid-border-red-td"<? endif ?>><?= ($result["startRisk"] * $leverege) ?></td>
                         <td>
-                            <?
-                            // Рассчитываем коэффициент для прибыли относительно риска 1
-                            $normalizedRrProfit = round($result['profit_percent_potential'] / $result['startRisk'], 2);
-                            $normalizedRrProfitSum += $normalizedRrProfit;
-                            $rrRatioString = "1 / " . $normalizedRrProfit; // Результат: "1 / 2.14"
-                            ?>
                             <?= ($rrRatioString) ?>
                         </td>
                         <td><?= ($result["profit_percent"] * $leverege) ?></td>
